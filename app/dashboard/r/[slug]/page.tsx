@@ -26,15 +26,25 @@ export default async function RestaurantPage({
   const t = await getTranslations('Restaurant')
   const tDash = await getTranslations('Dashboard')
 
+  // LEFT JOIN + GROUP BY rather than a correlated subquery: drizzle's `sql`
+  // template does NOT qualify column references inside a subquery, so
+  // `where ${category.menuId} = ${menu.id}` was rendering as
+  // `where "menu_id" = "id"` — both resolved against the inner `category`
+  // row, comparing `category.menu_id = category.id`, which never matches
+  // and silently returned 0 for every menu.
+  // The `::int` cast turns Postgres's bigint count into a JS number; without
+  // it postgres-js returns a string and ICU plural's `#` substitution misbehaves.
   const menus = await db
     .select({
       id: menu.id,
       name: menu.name,
       active: menu.active,
-      categoryCount: sql<number>`(select count(*) from ${category} where ${category.menuId} = ${menu.id})`,
+      categoryCount: sql<number>`count(${category.id})::int`,
     })
     .from(menu)
+    .leftJoin(category, eq(category.menuId, menu.id))
     .where(eq(menu.restaurantId, r.id))
+    .groupBy(menu.id, menu.position)
     .orderBy(menu.position)
 
   return (
