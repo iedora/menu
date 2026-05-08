@@ -20,19 +20,16 @@ test.describe('Dashboard UI locale (next-intl)', () => {
 
     await page.goto('/dashboard')
 
-    // Default locale is English — the dashboard heading uses next-intl `t`.
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Restaurants' }),
-    ).toBeVisible()
+    // The h1 ("A carta da casa.") is a brand phrase shared across locales.
+    // Use the eyebrow + subtitle to assert the catalog actually swapped, since
+    // those *are* localized.
+    await expect(page.getByText('your places', { exact: true })).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 
     // Switch UI to Portuguese via the header switcher.
     await page.getByTestId('user-locale-switcher').selectOption('pt')
 
-    // Heading reflects PT catalog.
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Restaurantes' }),
-    ).toBeVisible()
+    await expect(page.getByText('as vossas salas', { exact: true })).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt')
   })
 })

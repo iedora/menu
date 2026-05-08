@@ -27,7 +27,9 @@ test.describe('Signup → onboarding → dashboard (full UI flow)', () => {
 
     // 4. Lands on dashboard with the restaurant rendered
     await page.waitForURL('**/dashboard')
-    await expect(page.getByRole('heading', { level: 1, name: 'Restaurants' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'A carta da casa.' }),
+    ).toBeVisible()
     await expect(page.getByText('My E2E Bistro')).toBeVisible()
     await expect(page.getByText(`/r/${slug}`)).toBeVisible()
     // Header shows the user's email and a logout button

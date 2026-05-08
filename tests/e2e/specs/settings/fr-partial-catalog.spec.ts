@@ -43,10 +43,10 @@ test.describe('Dashboard UI locale (next-intl) — FR partial catalog', () => {
     ).toBeVisible()
 
     // (2b) Dashboard.title has no French translation in fr.json — must fall
-    // back to the English "Restaurants" rather than show a missing-key error
-    // or crash the page.
+    // back to the English value rather than show a missing-key error or
+    // crash the page. The English title is the brand phrase "A carta da casa."
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Restaurants' }),
+      page.getByRole('heading', { level: 1, name: 'A carta da casa.' }),
     ).toBeVisible()
   })
 })

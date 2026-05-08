@@ -36,13 +36,21 @@
     "creating": "Creating…"
   },
   "Dashboard": {
-    "eyebrow": "your rooms",
-    "title": "Restaurants",
-    "newRestaurant": "New restaurant",
+    "eyebrow": "your places",
+    "title": "A carta da casa.",
+    "subtitle": "Each restaurant is a room in your house. Open one to edit menus, theme, and the QR you've already printed.",
+    "newRestaurant": "+ new restaurant",
     "noRestaurants": "No restaurants yet",
     "noRestaurantsHint": "Create one to start building menus.",
-    "draft": "Draft",
-    "published": "Published"
+    "draft": "draft",
+    "published": "live",
+    "editedAt": "edited {when}",
+    "menuCount": "{count, plural, =0 {No menus} =1 {1 menu} other {# menus}}",
+    "dishCount": "{count, plural, =0 {No dishes} =1 {1 dish} other {# dishes}}",
+    "actionMenus": "menus",
+    "actionTheme": "theme",
+    "actionQr": "QR",
+    "footerSummary": "{published} of {total} published"
   },
   "Restaurant": {
     "eyebrow": "your room",
@@ -57,6 +65,9 @@
     "noMenus": "No menus yet",
     "noMenusHint": "Create one to start adding categories.",
     "categoryCount": "{count, plural, =0 {No categories} =1 {1 category} other {# categories}}",
+    "dishCount": "{count, plural, =0 {No dishes} =1 {1 dish} other {# dishes}}",
+    "statusActive": "active",
+    "statusDisabled": "disabled",
     "menuDisabled": "disabled",
     "publish": "Publish",
     "unpublish": "Unpublish",

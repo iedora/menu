@@ -31,7 +31,9 @@ test.describe('Onboarding gating', () => {
 
     await page.goto('/onboarding')
     await expect(page).toHaveURL(/\/dashboard$/)
-    await expect(page.getByRole('heading', { level: 1, name: 'Restaurants' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'A carta da casa.' }),
+    ).toBeVisible()
   })
 
   test('GET / for a logged-in user with an org goes to /dashboard', async ({
