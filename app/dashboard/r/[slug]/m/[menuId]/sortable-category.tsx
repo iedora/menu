@@ -19,8 +19,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import type { LanguageCode } from '@/lib/i18n'
 import {
   createItem,

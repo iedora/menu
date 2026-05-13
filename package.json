@@ -52,6 +52,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "eslint-plugin-boundaries": "^6.0.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

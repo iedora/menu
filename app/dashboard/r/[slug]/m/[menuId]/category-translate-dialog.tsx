@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
+} from '@/shared/ui/dialog'
 import { LocalizedFields } from '@/components/i18n/localized-fields'
 import type { LanguageCode, LocalizedText } from '@/lib/i18n'
 import { updateCategoryTranslations } from './actions'

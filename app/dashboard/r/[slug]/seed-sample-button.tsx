@@ -3,7 +3,7 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 import { seedSampleMenu } from './actions'
 
 export function SeedSampleButton({ slug }: { slug: string }) {

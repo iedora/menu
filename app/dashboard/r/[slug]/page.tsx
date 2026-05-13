@@ -2,13 +2,13 @@ import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireRestaurantBySlug } from '@/lib/dal'
 import { loadRestaurantAdminMenus } from '@/lib/menu/cached'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
+} from '@/shared/ui/card'
 import {
   EditorialList,
   formatEditedAt,

@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 import {
   Card,
   CardContent,
@@ -10,9 +10,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+} from '@/shared/ui/card'
+import { Input } from '@/shared/ui/input'
+import { Label } from '@/shared/ui/label'
 import { completeOnboarding, type OnboardingFormState } from './actions'
 
 function slugify(value: string) {

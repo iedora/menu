@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/shared/ui/input'
+import { Label } from '@/shared/ui/label'
+import { Textarea } from '@/shared/ui/textarea'
 import { LANGUAGE_META, type LanguageCode, type LocalizedText } from '@/lib/i18n'
 
 // Shared 1-or-2-field localized editor. Default-language values stay in

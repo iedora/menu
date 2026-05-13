@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { authClient } from '@/lib/auth-client'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 
 export function LogoutButton() {
   const router = useRouter()

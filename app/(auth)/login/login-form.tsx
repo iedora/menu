@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { authClient } from '@/lib/auth-client'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 import {
   Card,
   CardContent,
@@ -13,9 +13,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+} from '@/shared/ui/card'
+import { Input } from '@/shared/ui/input'
+import { Label } from '@/shared/ui/label'
 
 export function LoginForm() {
   const router = useRouter()

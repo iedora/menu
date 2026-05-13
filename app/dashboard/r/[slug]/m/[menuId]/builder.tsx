@@ -17,8 +17,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import type { LanguageCode } from '@/lib/i18n'
 import { createCategory, reorderCategories } from './actions'
 import { SortableCategory } from './sortable-category'

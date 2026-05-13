@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 
 // Render size in CSS pixels for the on-screen preview. PNG export uses a
 // higher pixel multiplier so prints stay sharp.
