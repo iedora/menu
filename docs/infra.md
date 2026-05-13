@@ -111,23 +111,28 @@ Apple Silicon (M1/M2/M3): tudo nativo ARM, build do container Ubuntu corre em al
 
 A stack corre **dentro do WSL 2 com Ubuntu**. O Docker Desktop continua no Windows mas o seu daemon é exposto ao WSL pela "WSL Integration".
 
-#### Passo 1 — Docker Desktop
+#### Passo 1 — Docker Desktop + Ubuntu WSL (PowerShell admin)
 
-Instala [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) e abre-o pelo menos uma vez para concluir o setup.
-
-#### Passo 2 — WSL 2 com Ubuntu
-
-Em **PowerShell como administrador**:
+Tudo copiável:
 
 ```powershell
-wsl --install -d Ubuntu
+# Docker Desktop (se ainda não tens)
+winget install --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements
+
+# Ubuntu no WSL sem prompt interactivo de user
+wsl --install -d Ubuntu --no-launch
+
+# Configurar Ubuntu para arrancar directamente como root
+# (evita o assistente interactivo que pede username + password)
+wsl -d Ubuntu --user root -- bash -c "printf '[user]\ndefault=root\n' > /etc/wsl.conf"
+wsl --terminate Ubuntu
 ```
 
-Reinicia se for pedido. Depois abre o "Ubuntu" no menu Iniciar e cria um utilizador Linux quando pedido (qualquer nome/password serve — só é usado dentro do WSL).
+Abrir o Docker Desktop pelo menos uma vez (no Iniciar) para concluir o setup.
 
-#### Passo 3 — Activar a "WSL Integration" no Docker Desktop
+#### Passo 2 — Activar a "WSL Integration" no Docker Desktop
 
-> **Importante** — sem este passo o `make up` falha imediatamente. O Docker Desktop corre o daemon Docker dentro da sua própria distro WSL (`docker-desktop`), isolada das outras. Por defeito, a distro Ubuntu **não tem o comando `docker` nem acesso ao daemon**. Activar a integração injecta o CLI na PATH do Ubuntu e abre o canal de comunicação para o daemon.
+> **Importante** — sem este passo o `make up` falha imediatamente. O Docker Desktop corre o daemon Docker dentro da sua própria distro WSL (`docker-desktop`), isolada das outras. Por defeito, a distro Ubuntu **não tem o comando `docker` nem acesso ao daemon**. Activar a integração injecta o CLI na PATH do Ubuntu e abre o canal de comunicação para o daemon. Não há CLI para isto, é mesmo manual.
 
 1. Abrir **Docker Desktop**
 2. **Settings** (engrenagem no topo direito)
@@ -135,37 +140,37 @@ Reinicia se for pedido. Depois abre o "Ubuntu" no menu Iniciar e cria um utiliza
 4. Activar o toggle ao lado de **"Ubuntu"**
 5. **Apply & Restart**
 
-Validar dentro do WSL:
+Validar (PowerShell):
 
-```bash
-wsl -d Ubuntu
-docker ps   # deve listar (vazio é OK; o erro "command not found" significa que falhou)
+```powershell
+wsl -d Ubuntu -- docker ps   # vazio é OK; "command not found" = integração off
 ```
 
-#### Passo 4 — Tofu / Ansible / make dentro do WSL Ubuntu
+#### Passo 3 — Tofu / Ansible / make / git (dentro do WSL, já como root)
 
-```bash
-# OpenTofu
-curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
-chmod +x /tmp/install-opentofu.sh
-sudo /tmp/install-opentofu.sh --install-method deb
-
-# Ansible + make
-sudo apt update
-sudo apt install -y ansible make
+```powershell
+wsl -d Ubuntu -- bash -c "
+  apt-get update -qq &&
+  apt-get install -y -qq ansible make git curl &&
+  curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh &&
+  chmod +x /tmp/install-opentofu.sh &&
+  /tmp/install-opentofu.sh --install-method deb
+"
 ```
 
-#### Passo 5 — Clone e arrancar
+#### Passo 4 — Clone e arrancar
 
 > Recomendado: clonar o repo num caminho **dentro do filesystem do WSL** (`~/projects/meta-menu`), não em `/mnt/c/…`. O I/O é uma ordem de grandeza mais rápido.
 
-```bash
-git clone https://github.com/eduvhc/meta-menu.git ~/projects/meta-menu
-cd ~/projects/meta-menu
-make up
+```powershell
+wsl -d Ubuntu -- bash -c "
+  git clone https://github.com/eduvhc/meta-menu.git ~/projects/meta-menu &&
+  cd ~/projects/meta-menu &&
+  make up
+"
 ```
 
-Se quiseres mesmo trabalhar a partir do filesystem Windows, funciona — basta abrir o WSL e fazer `cd /mnt/c/Users/<teu-user>/projects/meta-menu`. O `make up` corre na mesma.
+A partir daqui podes simplesmente abrir o "Ubuntu" no Iniciar (ou `wsl -d Ubuntu` em qualquer terminal) e entras directamente em `root@<host>:~#`, sem prompts.
 
 ## Comandos
 
