@@ -2,18 +2,17 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { getEffectiveOrganizationId } from '@/lib/dal'
 import { OnboardingForm } from './onboarding-form'
 
 export default async function OnboardingPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) redirect('/login')
 
-  const organizationId = await getEffectiveOrganizationId(
-    session.user.id,
-    session.session.activeOrganizationId,
-  )
-  if (organizationId) redirect('/dashboard')
+  // No org-existence gate here: /onboarding doubles as the "add another
+  // restaurant" form for existing users. The action (`completeOnboarding`)
+  // branches between creating an org + first restaurant vs. adding a
+  // restaurant under the existing org (with plan-limit check). The dashboard
+  // `+ new restaurant` link points here for that second case.
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">

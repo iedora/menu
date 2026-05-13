@@ -133,7 +133,7 @@ export type AdminMenusSnapshot = {
 export async function loadRestaurantAdminMenus(
   slug: string,
 ): Promise<AdminMenusSnapshot | null> {
-  return unstable_cache(
+  const cached = await unstable_cache(
     async (s: string): Promise<AdminMenusSnapshot | null> => {
       const rows = await db
         .select({ id: restaurant.id })
@@ -149,4 +149,19 @@ export async function loadRestaurantAdminMenus(
     [`restaurant-admin-menus:${slug}`],
     { tags: [restaurantTag(slug)], revalidate: false },
   )(slug)
+  if (!cached) return null
+
+  // unstable_cache serializes through JSON, which collapses Date → ISO string.
+  // Re-hydrate any timestamp the caller will pass into date-formatting helpers
+  // — otherwise `m.updatedAt.getTime is not a function` on a cache hit.
+  return {
+    restaurantId: cached.restaurantId,
+    menus: cached.menus.map((m) => ({
+      ...m,
+      updatedAt:
+        m.updatedAt instanceof Date
+          ? m.updatedAt
+          : new Date(m.updatedAt as unknown as string),
+    })),
+  }
 }
