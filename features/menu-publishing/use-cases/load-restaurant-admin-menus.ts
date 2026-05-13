@@ -1,7 +1,7 @@
 import 'server-only'
 import { eq } from 'drizzle-orm'
 import { unstable_cache } from 'next/cache'
-import { getRestaurantMenusWithCounts, type MenuWithCounts } from '@/lib/dashboard/queries'
+import { listMenusWithCounts, type MenuWithCounts } from '@/features/dashboard-home'
 import { db } from '@/lib/db'
 import { restaurant } from '@/lib/db/schema'
 import { restaurantTag } from '../cache'
@@ -37,7 +37,7 @@ export async function loadRestaurantAdminMenus(
       const r = rows[0]
       if (!r) return null
 
-      const menus = await getRestaurantMenusWithCounts(r.id)
+      const menus = await listMenusWithCounts(r.id)
       return { restaurantId: r.id, menus }
     },
     [`restaurant-admin-menus:${slug}`],

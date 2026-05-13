@@ -3,8 +3,8 @@ import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { getEffectiveOrganizationId } from '@/features/auth'
 import { getOrganizationPlan, planHas } from '@/features/plans'
-import { LogoutButton } from './logout-button'
-import { UserLocaleSwitcher } from './user-locale-switcher'
+import { LogoutButton } from '@/features/dashboard-home/ui/logout-button'
+import { UserLocaleSwitcher } from '@/features/dashboard-home/ui/user-locale-switcher'
 
 export default async function DashboardLayout({
   children,

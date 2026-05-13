@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireActiveOrganization } from '@/features/auth'
-import { getOrganizationRestaurantsWithCounts } from '@/lib/dashboard/queries'
+import { listRestaurantsWithCounts } from '@/features/dashboard-home'
 import { getOrganizationMonthlyViews } from '@/features/metrics'
 import { canAddRestaurant, getOrganizationPlan } from '@/features/plans'
 import {
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   const locale = await getLocale()
 
   const [restaurants, gate, plan, viewCount] = await Promise.all([
-    getOrganizationRestaurantsWithCounts(organizationId),
+    listRestaurantsWithCounts(organizationId),
     canAddRestaurant(organizationId),
     getOrganizationPlan(organizationId),
     getOrganizationMonthlyViews(organizationId),

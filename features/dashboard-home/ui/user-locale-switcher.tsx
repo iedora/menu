@@ -4,7 +4,7 @@ import { useTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { LANGUAGE_META, type LanguageCode } from '@/features/i18n'
-import { setUserLocale } from './actions'
+import { setUserLocale } from '../actions'
 
 // Compact native <select>. We deliberately don't pull in a fancy dropdown —
 // the locale picker is a rare-touch control; the OS native UI is good enough
