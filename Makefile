@@ -1,5 +1,6 @@
 .PHONY: up down recreate tofu ansible ssh ssh-key help \
-        kamal-setup kamal-deploy kamal-redeploy kamal-rollback kamal-logs kamal-app
+        kamal-setup kamal-deploy kamal-redeploy kamal-rollback kamal-logs kamal-app \
+        migrate
 
 TOFU_DIR    := infra/tofu/environments/local
 ANSIBLE_DIR := infra/ansible
@@ -17,11 +18,12 @@ help:  ## Mostra esta ajuda
 	@echo ""
 	@echo "App (Kamal):"
 	@echo "  make kamal-setup    - 1.ª vez: instala Docker no servidor + prepara accessories"
-	@echo "  make kamal-deploy   - Build + push + deploy zero-downtime"
+	@echo "  make kamal-deploy   - Build + push + deploy zero-downtime + migrate"
 	@echo "  make kamal-redeploy - Deploy sem rebuild (re-puxar imagem actual)"
 	@echo "  make kamal-rollback - Rollback para a versão anterior"
 	@echo "  make kamal-logs     - Tail dos logs da app"
 	@echo "  make kamal-app      - Shell no container da app"
+	@echo "  make migrate        - Aplica migrations Drizzle (executa node scripts/migrate.mjs)"
 
 up: tofu ansible  ## Provisiona servidor local completo
 
@@ -51,8 +53,12 @@ ssh:  ## SSH para o servidor local
 kamal-setup:     ## Primeiro deploy: bootstrap do servidor + accessories
 	kamal setup
 
-kamal-deploy:    ## Deploy zero-downtime (build + push + roll)
+kamal-deploy:    ## Deploy zero-downtime (build + push + roll) + migrate
 	kamal deploy
+	$(MAKE) migrate
+
+migrate:         ## Aplica migrations Drizzle no container actual
+	kamal app exec --reuse "node scripts/migrate.mjs"
 
 kamal-redeploy:  ## Redeploy sem rebuild (re-pull da imagem actual)
 	kamal redeploy

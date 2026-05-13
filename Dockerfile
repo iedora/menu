@@ -49,6 +49,10 @@ COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 
+# Migrations: script standalone + ficheiros SQL gerados pelo drizzle-kit
+COPY --from=builder --chown=nextjs:nextjs /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=builder --chown=nextjs:nextjs /app/drizzle ./drizzle
+
 USER nextjs
 EXPOSE 3000
 
