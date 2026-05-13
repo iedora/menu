@@ -20,7 +20,7 @@ proxy:
   host: localhost
   app_port: 3000
   healthcheck:
-    path: /
+    path: /up
     interval: 5
 
 # Registry — Kamal precisa de pushar a imagem para algures acessível ao servidor.

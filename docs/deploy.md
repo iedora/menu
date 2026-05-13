@@ -28,14 +28,20 @@ make up
 cp .kamal/secrets.example .kamal/secrets
 $EDITOR .kamal/secrets
 
-# 3. Bootstrap do servidor (instala Docker via Kamal, prepara accessories)
-make kamal-setup
+# 3. Bootstrap do servidor fresh (Docker + accessories + setup + 1.ª migration)
+make kamal-bootstrap
 
-# 4. Deploy
+# 4. Deploys seguintes (hooks correm automaticamente)
 make kamal-deploy
 ```
 
-O `kamal setup` é idempotente — corre só na primeira vez ou quando os accessories mudam.
+O `make kamal-bootstrap` corre `infra/scripts/bootstrap.sh`, que faz: `kamal server bootstrap` → `kamal accessory boot postgres redis` → `kamal setup --skip-hooks` → primeira migration explícita. É idempotente, mas só é preciso na primeira vez por servidor.
+
+### Bootstrap vs Deploy — porquê dois comandos?
+
+O `kamal setup` corre o `.kamal/hooks/pre-deploy` **antes** de bootar accessories (ver `lib/kamal/cli/main.rb` em [basecamp/kamal](https://github.com/basecamp/kamal)). O nosso hook aplica migrations contra Postgres — mas num servidor fresh o Postgres ainda não existe, logo a connection falha e o setup aborta ([basecamp/kamal#526](https://github.com/basecamp/kamal/issues/526)).
+
+A volta canónica: pré-arrancar accessories explicitamente, correr `kamal setup --skip-hooks`, migrar manualmente uma vez, e a partir daí `kamal deploy` toma conta — porque os accessories já estão up, o hook funciona normalmente em todos os deploys subsequentes.
 
 ## Deploys subsequentes
 

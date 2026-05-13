@@ -1,5 +1,5 @@
 .PHONY: up down recreate tofu ansible ansible-deps ssh ssh-key help \
-        kamal-setup kamal-deploy kamal-redeploy kamal-rollback kamal-logs kamal-app \
+        kamal-bootstrap kamal-deploy kamal-redeploy kamal-rollback kamal-logs kamal-app \
         migrate
 
 # Ambiente alvo: local (Docker) ou prod (Hetzner). Override:  make up ENV=prod
@@ -20,7 +20,7 @@ help:  ## Mostra esta ajuda
 	@echo "  make ssh              - SSH para o servidor local"
 	@echo ""
 	@echo "App (Kamal):"
-	@echo "  make kamal-setup      - 1.ª vez: bootstrap servidor + accessories"
+	@echo "  make kamal-bootstrap  - Primeira vez (servidor fresh) — pre-boot accessories + setup + 1.ª migration"
 	@echo "  make kamal-deploy     - Build + push + migrate (pre-deploy hook) + roll"
 	@echo "  make kamal-redeploy   - Deploy sem rebuild"
 	@echo "  make kamal-rollback   - Rollback"
@@ -65,8 +65,8 @@ ssh:  ## SSH para o servidor local
 	ssh -p 2222 -i ~/.ssh/id_ed25519 deploy@localhost
 
 # ── Kamal ─────────────────────────────────────────────────────────────────────
-kamal-setup:     ## Primeiro deploy: bootstrap + accessories
-	kamal setup
+kamal-bootstrap:  ## Primeira vez num servidor fresh (pre-boot accessories + setup --skip-hooks + 1.ª migration)
+	bash infra/scripts/bootstrap.sh
 
 kamal-deploy:    ## Deploy zero-downtime (pre-deploy hook corre migrations)
 	kamal deploy

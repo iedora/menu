@@ -45,17 +45,11 @@ RUN addgroup -S -g 1001 nextjs && \
     adduser -S -u 1001 -G nextjs nextjs
 
 # Standalone output inclui server.js + dependências mínimas
+# (drizzle-orm/postgres/drizzle/scripts/migrate.mjs vêm via outputFileTracingIncludes
+# no next.config.ts — ver vercel/next.js#88844)
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
-
-# Migrations: script standalone + ficheiros SQL gerados pelo drizzle-kit.
-# O Next inlina drizzle-orm/postgres dentro do server.js, mas o migrate.mjs é um
-# executável separado, por isso copiamos os pacotes explicitamente.
-COPY --from=builder --chown=nextjs:nextjs /app/scripts/migrate.mjs ./scripts/migrate.mjs
-COPY --from=builder --chown=nextjs:nextjs /app/drizzle ./drizzle
-COPY --from=builder --chown=nextjs:nextjs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --from=builder --chown=nextjs:nextjs /app/node_modules/postgres ./node_modules/postgres
 
 USER nextjs
 EXPOSE 3000
