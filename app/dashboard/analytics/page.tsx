@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireActiveOrganization } from '@/lib/dal'
+import { requireActiveOrganization } from '@/features/auth'
 import {
   getOrganizationAnalytics,
   isAnalyticsRange,

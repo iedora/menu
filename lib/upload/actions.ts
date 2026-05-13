@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { revalidateRestaurant } from '@/lib/menu/cached'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { requireRestaurantAccess } from '@/lib/dal'
+import { requireRestaurantAccess } from '@/features/auth'
 import { db } from '@/lib/db'
 import { item, restaurant } from '@/lib/db/schema'
 import {

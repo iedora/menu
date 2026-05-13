@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireRestaurantBySlug } from '@/lib/dal'
+import { requireRestaurantBySlug } from '@/features/auth'
 import { loadRestaurantAdminMenus } from '@/lib/menu/cached'
 import { Button } from '@/shared/ui/button'
 import {

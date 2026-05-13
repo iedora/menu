@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireActiveOrganization } from '@/lib/dal'
+import { requireActiveOrganization } from '@/features/auth'
 import { getInvoiceYears, getInvoicesForYear } from '@/lib/billing'
 import { PLANS, getOrganizationPlan } from '@/lib/plans'
 import { UpgradeButton } from './upgrade-button'

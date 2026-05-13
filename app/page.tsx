@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { getEffectiveOrganizationId } from '@/lib/dal'
+import { getEffectiveOrganizationId } from '@/features/auth'
 import LandingPage from '@/components/landing/landing-page'
 
 export default async function Home() {

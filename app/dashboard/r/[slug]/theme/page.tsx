@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { eq } from 'drizzle-orm'
 import { getTranslations } from 'next-intl/server'
-import { requireRestaurantBySlug } from '@/lib/dal'
+import { requireRestaurantBySlug } from '@/features/auth'
 import { db } from '@/lib/db'
 import { restaurant, type RestaurantTheme } from '@/lib/db/schema'
 import { resolveTheme } from '@/components/menu/theme'

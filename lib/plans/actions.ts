@@ -2,7 +2,7 @@
 
 import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { requireActiveOrganization } from '@/lib/dal'
+import { requireActiveOrganization } from '@/features/auth'
 import { db } from '@/lib/db'
 import { organization } from '@/lib/db/schema'
 import { isPlanCode } from './registry'
