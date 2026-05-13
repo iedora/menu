@@ -51,3 +51,4 @@ next-env.d.ts
 
 # Claude Code — local user settings (skills are shared)
 .claude/settings.local.json
+.claude/
