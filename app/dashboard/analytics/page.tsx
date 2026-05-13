@@ -6,7 +6,7 @@ import {
   getOrganizationAnalytics,
   isAnalyticsRange,
   type AnalyticsRange,
-} from '@/lib/metrics'
+} from '@/features/metrics'
 import { getOrganizationPlan, planHas } from '@/features/plans'
 import { KpiCard, ScansCard, ScansChart } from '../analytics-cards'
 

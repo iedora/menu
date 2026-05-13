@@ -1,4 +1,4 @@
-import type { AnalyticsRange, DailyPoint } from '@/lib/metrics'
+import type { AnalyticsRange, DailyPoint } from '@/features/metrics'
 
 /**
  * Generic three-line KPI card. Eyebrow on top (small uppercase), big number,

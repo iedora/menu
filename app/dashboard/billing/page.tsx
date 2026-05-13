@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireActiveOrganization } from '@/features/auth'
-import { getInvoiceYears, getInvoicesForYear } from '@/lib/billing'
+import { getInvoiceYears, getInvoicesForYear } from '@/features/billing'
 import { PLANS, getOrganizationPlan } from '@/features/plans'
 import { UpgradeButton } from './upgrade-button'
 

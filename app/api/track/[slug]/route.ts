@@ -7,7 +7,7 @@ import {
   type LanguageCode,
 } from '@/features/i18n'
 import { loadRestaurantSnapshot } from '@/features/menu-publishing'
-import { incrementDailyView } from '@/lib/metrics'
+import { incrementDailyView } from '@/features/metrics'
 
 /**
  * Pixel-beacon endpoint for public-menu view tracking. Decoupled from the

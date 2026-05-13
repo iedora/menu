@@ -27,5 +27,5 @@ from a mutation — AGENTS.md hard rule #12.
 No DB port yet — use-cases call Drizzle (`@/lib/db`) directly. Trade-off: four
 files would need rewriting to introduce a port today for marginal benefit. When
 tests land, introduce a `MenuReadPort` and an adapter. View tracking
-(`incrementDailyView`) stays in `@/lib/metrics` until the metrics slice is
-extracted in a later step.
+(`incrementDailyView`) lives in `@/features/metrics` — the beacon route imports
+it directly.

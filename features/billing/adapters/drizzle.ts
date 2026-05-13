@@ -1,33 +1,18 @@
 import 'server-only'
-import { cache } from 'react'
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { invoice, type InvoiceStatus } from '@/lib/db/schema'
-import type { PlanCode } from '@/features/plans'
-
-export type Invoice = {
-  id: string
-  plan: PlanCode
-  periodStart: Date
-  periodEnd: Date
-  amountCents: number
-  currency: string
-  status: InvoiceStatus
-  issuedAt: Date
-  paidAt: Date | null
-}
+import { invoice } from '@/lib/db/schema'
+import type { BillingReadPort } from '../ports'
 
 /**
- * Years with at least one invoice for the org, newest first. The page uses
- * this to render the year filter chips — never hardcode the current year, the
- * UI should follow what's actually billed.
- *
- * Postgres requires SELECT DISTINCT's ORDER BY expressions to match exactly
- * one of the select-list expressions; the year extract is bound to a single
- * `sql` fragment so the cast and the sort agree on identity.
+ * Production BillingReadPort. Wraps Drizzle reads against the `invoice`
+ * table. Server-only — the Drizzle client never belongs on the client.
  */
-export const getInvoiceYears = cache(
-  async (organizationId: string): Promise<number[]> => {
+export const drizzleBilling: BillingReadPort = {
+  async listInvoiceYears(organizationId) {
+    // Postgres requires SELECT DISTINCT's ORDER BY expressions to match
+    // exactly one of the select-list expressions; binding the year extract to
+    // a single `sql` fragment ensures cast and sort agree on identity.
     const yearExpr = sql<number>`extract(year from ${invoice.issuedAt})::int`
     const rows = await db
       .selectDistinct({ year: yearExpr })
@@ -36,10 +21,8 @@ export const getInvoiceYears = cache(
       .orderBy(desc(yearExpr))
     return rows.map((r) => Number(r.year))
   },
-)
 
-export const getInvoicesForYear = cache(
-  async (organizationId: string, year: number): Promise<Invoice[]> => {
+  async listInvoicesForYear(organizationId, year) {
     const start = new Date(Date.UTC(year, 0, 1))
     const end = new Date(Date.UTC(year + 1, 0, 1))
     const rows = await db
@@ -65,4 +48,4 @@ export const getInvoicesForYear = cache(
       paidAt: r.paidAt,
     }))
   },
-)
+}

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireActiveOrganization } from '@/features/auth'
 import { getOrganizationRestaurantsWithCounts } from '@/lib/dashboard/queries'
-import { getOrganizationMonthlyViews } from '@/lib/metrics'
+import { getOrganizationMonthlyViews } from '@/features/metrics'
 import { canAddRestaurant, getOrganizationPlan } from '@/features/plans'
 import {
   Card,
