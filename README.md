@@ -7,16 +7,20 @@ A self-hosted multi-tenant SaaS for restaurants to build digital menus by drag a
 - Email + password authentication via Better Auth, with multi-tenant organizations.
 - Drag-and-drop menu builder (categories and items, mouse + keyboard).
 - Item dialog for name, description, price, availability, photo.
-- **Image uploads** (logo, banner, item photos) via presigned PUT to S3-compatible storage (MinIO local, swap for R2/S3 in prod).
+- **Image uploads** (logo, banner, item photos) via presigned PUT to S3-compatible storage (LocalStack local, swap for R2/S3 in prod).
 - **Theme editor** with live preview: pick a template (classic, minimal), Google fonts, primary/secondary colors. Values persist in `restaurant.theme` and apply to `/r/<slug>` via CSS variables.
 - **Identity editor** for name, description, logo, banner — all changes feed the same live preview.
 - **QR code page** per restaurant: SVG/PNG download + print-friendly layout pointing at `/r/<slug>`.
 - **Multi-language menus** — restaurant admin picks default + supported languages; items, categories, menus, and the restaurant description carry per-language overrides. Public page negotiates language via `?lang=` or `Accept-Language` and falls back to default for missing translations. Languages are a registry pattern (`lib/i18n/`), so adding a new one is a single folder + one entry.
 - **Sample menu seed** — one click creates a realistic bistro menu (3 categories, 8 items) so the dashboard isn't empty during onboarding/demos.
-- Publish toggle: drafts return 404 on the public URL, published menus render server-side with metadata for sharing.
+- **Plans (Free / Casa)** — registry pattern (`lib/plans/`). Free caps restaurants and adds a soft 1,000 monthly-views nudge; Casa unlocks unlimited everything plus the analytics page. Adding a tier is a new folder + one literal.
+- **Billing page** combines the current plan card with an invoice ledger filtered by year (`/dashboard/billing`). Plan-switch is a placeholder action — Stripe wires in at the same chokepoint when ready.
+- **Casa analytics** at `/dashboard/analytics`: scan-rhythm card with sparkline + 7/30-day bar chart, plus menu / dish / language KPIs derived from the live data.
+- **Public menu is cached and tag-invalidated** — `loadRestaurantSnapshot(slug)` wraps `unstable_cache` with a per-slug tag. Every admin mutation calls `revalidateRestaurant(slug)` so the next visitor sees fresh data without polling.
+- **View tracking via pixel beacon** at `/api/track/[slug]` — survives any CDN sitting in front of the page; dedupes by `(visitor_cookie, restaurant, hour)`; bot UAs filtered. Powers the dashboard meter and Casa analytics.
 - Tenant isolation enforced in the data access layer — every query filters by `restaurantId` after a membership check; storage keys are tenant-prefixed (`r/{restaurantId}/...`) and verified at commit time.
 - Templates follow an open/closed registry pattern — adding a new layout is a new folder under `components/menu/templates/<id>/` plus one entry in `registry.ts`.
-- End-to-end Playwright suite (32 specs across 7 modules) covers signup, onboarding, redirects, tenancy, builder CRUD + sample seed, publish, theme + identity editing, QR generation, and image uploads (logo + item photos, replace, remove, oversize).
+- End-to-end Playwright suite (~50 specs across 12 modules) covers signup, onboarding, redirects, tenancy, builder CRUD, sample seed, theme + identity editing, QR generation, image uploads, plans, billing, view tracking, and analytics. A fixture fails tests fast on any RSC runtime error or 5xx response.
 
 ## Tech stack
 
@@ -27,7 +31,7 @@ A self-hosted multi-tenant SaaS for restaurants to build digital menus by drag a
 - **dnd-kit** for drag-and-drop.
 - **Bun** as package manager + test runner; **Node** as the production runtime (`next start`).
 - **Playwright** for E2E tests.
-- Self-hostable: Docker Compose for local services (Postgres, Redis, MinIO).
+- Self-hostable: Docker Compose for local services (Postgres, Redis, LocalStack S3).
 
 ## Prerequisites
 
@@ -41,7 +45,7 @@ A self-hosted multi-tenant SaaS for restaurants to build digital menus by drag a
 # 1. Install dependencies
 bun install
 
-# 2. Bring up Postgres, Redis and MinIO
+# 2. Bring up Postgres, Redis and LocalStack
 docker compose up -d
 
 # 3. Configure environment
@@ -79,33 +83,42 @@ Open <http://localhost:3000>, sign up, and you'll be taken through onboarding. Y
 
 ```
 app/
-  (auth)/             public auth pages (signup, login)
-  dashboard/          authenticated admin
-    r/[slug]/         restaurant home (publish toggle, sample seed, nav)
-      m/[menuId]/     dnd-kit menu builder
-      theme/          settings: identity + theme editor with live preview
-      qr/             QR code: SVG/PNG download + print-friendly layout
-  r/[slug]/           public menu page (consumes templates registry)
-  onboarding/         first-run org + restaurant creation
+  (auth)/                  public auth pages (signup, login)
+  dashboard/               authenticated admin
+    analytics/             Casa-only KPIs + scan chart (free → billing redirect)
+    billing/               current plan + invoice ledger
+    r/[slug]/              restaurant home + sample seed
+      m/[menuId]/          dnd-kit menu builder
+      theme/               settings: identity + theme editor with live preview
+      qr/                  QR code: SVG/PNG download + print-friendly layout
+  r/[slug]/                public menu page (cached snapshot, tag-invalidated)
+  onboarding/              first-time org AND add-another-restaurant flow
+  api/track/[slug]/        pixel-beacon view tracking endpoint
 lib/
-  auth.ts             Better Auth server config
-  auth-client.ts      Better Auth React client
-  dal.ts              Data access layer (verifySession, requireRestaurantAccess, …)
-  menu-themes.ts      Theme defaults + fonts; LAYOUTS derived from templates registry
-  i18n/               Per-language registry (en/pt/es/fr) + format helpers
+  auth.ts                  Better Auth server config
+  dal.ts                   Data access layer (verifySession, requireRestaurantAccess, …)
+  billing/                 invoice queries (year filter)
+  menu/
+    cached.ts              loadRestaurantSnapshot / loadRestaurantAdminMenus + revalidateRestaurant
+    load-tree.ts           raw tree fetch + localizeTree
+  metrics/                 view tracking + analytics queries
+  plans/                   plan registry (free, casa) + canAddRestaurant gate
+  i18n/                    per-language registry (en/pt/es/fr) + format helpers
   db/
-    index.ts          Drizzle client (postgres-js)
-    schema.ts         single source of truth — auth + domain tables
-  storage/            S3-compatible adapter (Storage interface + AWS SDK v3 impl)
-  upload/             presign / commit / clear actions, DAL-guarded
+    schema.ts              single source of truth — auth + domain tables
+  storage/                 S3-compatible adapter (Storage interface + AWS SDK v3 impl)
+  upload/                  presign / commit / clear actions, DAL-guarded
 components/
-  ui/                 shadcn primitives
-  upload/             generic <ImageUpload target=...> client component
-  menu/               renderer + shared types + per-template modules under templates/
-proxy.ts              Next 16 proxy (was middleware.ts)
-tests/e2e/specs/      Playwright specs organized by module (auth, tenancy, menu-builder, …)
-drizzle/              Generated migration files
-docker-compose.yml    Postgres + Redis + MinIO
+  ui/                      shadcn primitives
+  editorial-list/          editorial list/row pattern used across dashboard pages
+  upload/                  generic <ImageUpload target=...> client component
+  menu/                    renderer + shared types + per-template modules
+proxy.ts                   Next 16 proxy (was middleware.ts)
+scripts/check-migrations.ts  dev-time guardrail warning on pending migrations
+.github/workflows/ci.yml   Typecheck + Lint + Playwright E2E
+tests/e2e/                 fixtures + specs (auth, tenancy, menu-builder, plans, billing, metrics, …)
+drizzle/                   generated migration files
+docker-compose.yml         Postgres + Redis + LocalStack
 ```
 
 ## Architecture notes
@@ -115,6 +128,9 @@ docker-compose.yml    Postgres + Redis + MinIO
 - **Auth checks live in the data layer, not in layouts.** Next 16 layouts don't re-render on navigation, so layout-only auth checks are unsafe.
 - **Drag-and-drop reordering** uses integer `position` columns per parent. On reorder the affected rows are renumbered in a single transaction.
 - **Money is integer cents**; currency lives in a separate column.
+- **Public-menu cache is per-slug, tag-invalidated.** `lib/menu/cached.ts` wraps `unstable_cache` with `restaurant:${slug}` tags; mutations call the single `revalidateRestaurant(slug)` chokepoint. `unstable_cache` JSON-serializes Dates, so loaders that include timestamps must re-hydrate before returning.
+- **View tracking is a pixel beacon.** `/api/track/[slug]` runs outside the cached snapshot, so view counts survive even when the page is served from cache — and would still work behind a CDN.
+- **Plans live in a registry.** `lib/plans/` follows the same open/closed pattern as `lib/i18n/` and `components/menu/templates/`. The DB stores raw plan codes; the registry coerces unknown values to the default so a renamed tier never crashes a render.
 
 See `AGENTS.md` for the full conventions document used by AI coding assistants — it doubles as a contributor guide.
 
