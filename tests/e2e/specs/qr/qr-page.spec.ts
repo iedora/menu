@@ -20,12 +20,10 @@ test.describe('QR code — dashboard page', () => {
 
     await page.goto(`/dashboard/r/${org.slug}/qr`)
 
-    // Server component prints the public URL it encoded.
-    const expectedUrl = `http://localhost:3000/r/${org.slug}`
-    await expect(page.getByText(expectedUrl)).toBeVisible()
-
     // Client renders an SVG QR — viewBox is the canonical signal that
-    // qrcode.toString output landed in the DOM.
+    // qrcode.toString output landed in the DOM. (The URL is no longer
+    // rendered as visible text on the page since the QR header was
+    // condensed to a breadcrumb-only layout.)
     const svg = page.getByTestId('qr-svg').locator('svg')
     await expect(svg).toBeVisible()
     await expect(svg).toHaveAttribute('viewBox', /^0 0 \d+ \d+$/)
@@ -59,8 +57,8 @@ test.describe('QR code — dashboard page', () => {
     // query by button role rather than link role.
     await page.getByRole('button', { name: 'QR code' }).click()
     await expect(page).toHaveURL(`/dashboard/r/${org.slug}/qr`)
-    await expect(
-      page.getByRole('heading', { name: 'QR code', exact: true }),
-    ).toBeVisible()
+    // The page header is a breadcrumb (Restaurants / <name> / QR code) — the
+    // "QR code" lives in the current segment, which is the only h1.
+    await expect(page.getByRole('heading')).toContainText('QR code')
   })
 })

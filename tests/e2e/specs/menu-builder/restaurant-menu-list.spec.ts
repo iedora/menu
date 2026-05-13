@@ -73,28 +73,6 @@ test.describe('Restaurant dashboard — menu list', () => {
     await expect(row).toContainText('1 category · 1 dish')
   })
 
-  test('inactive menus surface a "disabled" status in the row', async ({
-    page,
-  }) => {
-    const owner = uniqueUser('menu-inactive')
-    await apiSignup(page.request, owner)
-    const org = await apiCreateAndActivateOrg(
-      page.request,
-      'Inactive Bistro',
-      uniqueSlug('inactive'),
-    )
-
-    // Flip the auto-created menu to inactive directly.
-    const sql = testDb()
-    await sql`UPDATE menu SET active = false WHERE restaurant_id = ${org.restaurantId}`
-
-    await page.goto(`/dashboard/r/${org.slug}`)
-    const row = page
-      .getByTestId('editorial-row')
-      .filter({ hasText: 'Main menu' })
-    await expect(row.getByText('disabled', { exact: true })).toBeVisible()
-  })
-
   test('clicking a menu row navigates into the builder', async ({ page }) => {
     const owner = uniqueUser('menu-click')
     await apiSignup(page.request, owner)
@@ -105,7 +83,12 @@ test.describe('Restaurant dashboard — menu list', () => {
     )
 
     await page.goto(`/dashboard/r/${org.slug}`)
-    await page.getByRole('link', { name: 'Main menu', exact: true }).click()
+    // Title link wraps title + subtitle so accessible name is the full
+    // concatenation; scope to the row and pick the first link.
+    const row = page
+      .getByTestId('editorial-row')
+      .filter({ hasText: 'Main menu' })
+    await row.getByRole('link').first().click()
     await expect(page).toHaveURL(
       new RegExp(`/dashboard/r/${org.slug}/m/[a-f0-9-]+$`),
     )

@@ -115,7 +115,12 @@ test.describe('Dashboard — editorial list', () => {
     )
 
     await page.goto('/dashboard')
-    await page.getByRole('link', { name: 'Click Bistro', exact: true }).click()
+    // The title link wraps title + subtitle inside one <Link>, so the
+    // accessible name is the full concatenation. Scope by row + first link.
+    const row = page
+      .getByTestId('editorial-row')
+      .filter({ hasText: 'Click Bistro' })
+    await row.getByRole('link').first().click()
     await expect(page).toHaveURL(new RegExp(`/dashboard/r/${org.slug}$`))
   })
 
@@ -153,8 +158,12 @@ test.describe('Dashboard — editorial list', () => {
 
     // Focus the title link first explicitly, then tab through and assert
     // each landing element is one of the row's interactive controls in the
-    // expected order.
-    const title = page.getByRole('link', { name: 'Kbd Bistro', exact: true })
+    // expected order. The title link wraps title + subtitle so we scope to
+    // the row and pick the first link rather than relying on accessible name.
+    const row = page
+      .getByTestId('editorial-row')
+      .filter({ hasText: 'Kbd Bistro' })
+    const title = row.getByRole('link').first()
     await title.focus()
     await expect(title).toBeFocused()
 
