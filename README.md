@@ -134,41 +134,18 @@ docker-compose.yml         Postgres + Redis + LocalStack
 
 See `AGENTS.md` for the full conventions document used by AI coding assistants — it doubles as a contributor guide.
 
-## Self-hosting (infra)
+## Self-hosting
 
-`infra/` é declarativo, cross-platform, e replicável. **Um único comando provisiona um servidor Ubuntu local idêntico ao de produção.**
-
-```
-infra/
-  docker/Dockerfile.server    base Ubuntu 24.04 + sshd + utilizador deploy
-  tofu/environments/
-    local/                    OpenTofu + Docker provider (servidor local)
-    prod/                     OpenTofu + Hetzner provider (VPS real)
-  ansible/setup.yml           configura Docker, UFW, hardening SSH
-                              (mesmo playbook nos dois ambientes)
-```
-
-### Pré-requisitos
-
-Comum a todos os SOs: **Docker**, **OpenTofu**, **Ansible**, **make**.
-
-| Plataforma | Notas |
-| --- | --- |
-| **Linux** | Tudo nativo via package manager (`apt`, `pacman`, …). |
-| **macOS** | [OrbStack](https://orbstack.dev/) para Docker (mais leve que Docker Desktop, nativo Apple Silicon). Tofu e Ansible via Homebrew. |
-| **Windows** | Docker Desktop + WSL 2 com Ubuntu. **Importante:** activar a WSL Integration para a distro Ubuntu em **Docker Desktop → Settings → Resources → WSL Integration → Ubuntu** (Apply & Restart). Tofu/Ansible/make instalados dentro do WSL. Os comandos `make` correm dentro do WSL. |
-
-### Comandos
+`infra/` provisiona um servidor Ubuntu (Docker localmente, Hetzner em prod) com OpenTofu + Ansible. Um único comando, mesma stack em Linux/macOS/Windows-via-WSL:
 
 ```bash
-make up        # provisiona servidor local (Tofu + Ansible)
-make down      # destrói o servidor local
-make recreate  # destrói e recria do zero (~30 segundos)
-make ssh       # SSH para o servidor (deploy@localhost:2222)
-make help      # lista todos os alvos
+make up        # provisiona servidor local
+make down      # destrói
+make recreate  # destrói e recria
+make ssh       # SSH para o servidor
 ```
 
-O servidor local fica acessível em `localhost:2222` como utilizador `deploy`. O mesmo playbook Ansible que corre aqui corre em produção — `infra/tofu/environments/prod/` substitui o container Docker por um VPS Hetzner, com configuração idêntica do servidor.
+Detalhes (arquitetura, pré-requisitos por SO, troubleshooting, nota sobre Docker Desktop WSL Integration no Windows) em **[`docs/infra.md`](docs/infra.md)**.
 
 ## License
 
