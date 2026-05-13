@@ -61,9 +61,28 @@
         state: started
       when: not dockerenv.stat.exists
 
-    - name: Iniciar dockerd directamente (container local)
-      shell: "nohup dockerd > /var/log/dockerd.log 2>&1 &"
+    # Em container, overlay-on-overlay falha — forçar vfs driver
+    # (mais lento mas funciona). Tem de existir antes do dockerd arrancar.
+    - name: Configurar dockerd para vfs em container
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "storage-driver": "vfs"
+          }
+        mode: "0644"
       when: dockerenv.stat.exists
+
+    - name: Garantir que dockerd está a correr em container
+      shell: |
+        if ! pgrep -x dockerd >/dev/null; then
+          nohup dockerd > /var/log/dockerd.log 2>&1 &
+          sleep 3
+        fi
+      args:
+        executable: /bin/bash
+      when: dockerenv.stat.exists
+      changed_when: false
 
     - name: Adicionar deploy user ao grupo docker
       user:
