@@ -37,11 +37,12 @@ else
   ENVRC="${REPO_ROOT}/.envrc.${ENV_NAME}"
 fi
 
-# Preserve any TF_VAR_* lines the user keeps in the file (token, passphrase,
-# account ID, zone ID, etc). onprem-sync only owns the Tofu-output exports below.
-EXISTING_TF_VARS=""
+# Preserve every export line EXCEPT the ones onprem-sync writes (Tofu outputs).
+# Lets the user keep TF_VAR_* secrets, ONPREM_HOST, custom additions in the file.
+MANAGED_KEYS="PUBLIC_HOSTNAME|ASSETS_HOSTNAME|CLOUDFLARED_TUNNEL_TOKEN|S3_ENDPOINT|S3_REGION|S3_BUCKET|CF_ENV"
+PRESERVED=""
 if [ -f "${ENVRC}" ]; then
-  EXISTING_TF_VARS="$(grep -E '^export TF_VAR_' "${ENVRC}" || true)"
+  PRESERVED="$(grep -E '^export [A-Z]' "${ENVRC}" | grep -vE "^export (${MANAGED_KEYS})=" || true)"
 fi
 
 PUBLIC_HOSTNAME="$(tofu output -raw public_hostname)"
@@ -50,12 +51,12 @@ CLOUDFLARED_TUNNEL_TOKEN="$(tofu output -raw tunnel_token)"
 
 umask 077
 {
-  echo "# Auto-managed by scripts/onprem-sync.sh — re-run after `make onprem-apply`."
+  echo "# Auto-managed by scripts/onprem-sync.sh — re-run after 'make onprem-apply'."
   echo "# Env: ${ENV_NAME}. Gitignored. Source manually or via direnv."
   echo
-  if [ -n "${EXISTING_TF_VARS}" ]; then
-    echo "# TF_VAR_* — preserved across syncs (you fill these once):"
-    echo "${EXISTING_TF_VARS}"
+  if [ -n "${PRESERVED}" ]; then
+    echo "# Preserved across syncs (you fill these once):"
+    echo "${PRESERVED}"
     echo
   fi
   echo "# Cloudflare-managed (Tofu outputs):"
