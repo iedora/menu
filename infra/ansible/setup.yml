@@ -1,18 +1,14 @@
 ---
-# Idempotent, FQCN-only, ansible-lint-clean. Targets real machines with
-# systemd (on-prem boxes, Hetzner VMs). Container-as-server simulation is
-# no longer supported — use an on-prem dev box if you need a real-system
-# rehearsal of the deploy.
+# Idempotent, FQCN-only, ansible-lint-clean.
+# Targets the on-prem hosts listed in inventory.yml.
+# Vars: infra/ansible/group_vars/all.yml (auto-loaded).
 
 # ════════════════════════════════════════════════════════════════════════
-#  Base — apt + Docker CE + deploy user + SSH hardening + UFW (rules only)
+#  Base — apt + Docker CE + deploy user + SSH hardening + UFW (enabled)
 # ════════════════════════════════════════════════════════════════════════
-- name: Base — packages, Docker, deploy user
-  hosts: servers
+- name: Base setup (Docker, UFW, SSH hardening)
+  hosts: onprem
   become: true
-
-  vars_files:
-    - ../shared/vars.yml
 
   pre_tasks:
     - name: Wait for SSH transport (auth + python ping)
@@ -38,8 +34,6 @@
       community.general.timezone:
         name: "{{ timezone }}"
 
-    # APT key + repo via deb822 (apt_key / apt_repository are deprecated,
-    # apt_repository is slated for removal in ansible-core 2.25).
     - name: Add Docker apt repository (deb822)
       ansible.builtin.deb822_repository:
         name: docker
@@ -63,18 +57,30 @@
         state: present
         update_cache: true
 
+    - name: Enable and start Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
     - name: Add deploy user to docker group
       ansible.builtin.user:
         name: "{{ deploy_user }}"
         groups: docker
         append: true
 
-    - name: Configure UFW allow rules (activation in metal play)
+    - name: Configure UFW allow rules
       community.general.ufw:
         rule: allow
         port: "{{ item }}"
         proto: tcp
       loop: "{{ firewall_allowed_ports }}"
+
+    - name: Activate UFW (deny incoming by default)
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
 
     - name: Disable SSH root login
       ansible.builtin.lineinfile:
@@ -99,36 +105,15 @@
         state: reloaded
 
 # ════════════════════════════════════════════════════════════════════════
-#  Metal — real servers: systemd Docker + UFW activation
-# ════════════════════════════════════════════════════════════════════════
-- name: Metal — systemd + UFW active
-  hosts: metal
-  become: true
-
-  tasks:
-    - name: Enable and start Docker (systemd)
-      ansible.builtin.systemd_service:
-        name: docker
-        enabled: true
-        state: started
-
-    - name: Activate UFW (deny incoming; rules already loaded by base play)
-      community.general.ufw:
-        state: enabled
-        policy: deny
-        direction: incoming
-
-# ════════════════════════════════════════════════════════════════════════
-#  On-prem — Cloudflare Tunnel (cloudflared via apt + hardened systemd)
+#  Cloudflare Tunnel — cloudflared via apt + hardened systemd unit
 #
 #  No public IP / no port-forward needed: cloudflared dials OUT to
-#  Cloudflare and proxies traffic to localhost:80 (kamal-proxy).
-#  Token comes from inventory var `cloudflared_token` (sourced from env
-#  CLOUDFLARED_TUNNEL_TOKEN — pass via the Makefile target).
-#  Empty token → play is skipped, so the host can be provisioned without
-#  the tunnel and the tunnel added later.
+#  Cloudflare and proxies traffic to localhost:80 (kamal-proxy) and
+#  localhost:9000 (MinIO accessory). Token from $CLOUDFLARED_TUNNEL_TOKEN
+#  (sourced from .envrc). Empty token → play is skipped, so a host can
+#  be provisioned without the tunnel and the tunnel added later.
 # ════════════════════════════════════════════════════════════════════════
-- name: On-prem — Cloudflare Tunnel
+- name: Cloudflare Tunnel (cloudflared service)
   hosts: onprem
   become: true
 
@@ -180,9 +165,9 @@
         group: cloudflared
         mode: "0750"
 
-    # Token in its own file so the systemd unit's ExecStart never
-    # references it. --token-file is supported by cloudflared >= 2025.4.0
-    # and is the upstream-recommended path (avoids token in `ps`).
+    # Token in its own file so the systemd unit's ExecStart never references
+    # it. --token-file is supported by cloudflared >= 2025.4.0 and is the
+    # upstream-recommended path (avoids token in `ps`).
     - name: Write tunnel token (cloudflared:cloudflared, 0400)
       ansible.builtin.copy:
         dest: /etc/cloudflared/token

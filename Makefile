@@ -79,18 +79,19 @@ BOOTSTRAP_USER ?= pwu
 
 host-bootstrap: ssh-key ansible-deps  ## 1st-time deploy-user creation via $(BOOTSTRAP_USER) + password
 	@command -v sshpass >/dev/null 2>&1 || { echo "Install sshpass (apt install sshpass) — required for --ask-pass"; exit 1; }
+	@if [ -z "$$ONPREM_HOST" ]; then echo "ONPREM_HOST not set — source .envrc first."; exit 1; fi
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_ENV) ansible-playbook \
-	  --limit onprem \
 	  -e ansible_user=$(BOOTSTRAP_USER) \
 	  --ask-pass --ask-become-pass \
 	  bootstrap.yml
 
 host-setup: ssh-key ansible-deps  ## Full server setup (Docker + UFW + cloudflared)
+	@if [ -z "$$ONPREM_HOST" ]; then echo "ONPREM_HOST not set — source .envrc first."; exit 1; fi
 	@if [ -z "$$CLOUDFLARED_TUNNEL_TOKEN" ]; then \
 	  echo "Note: CLOUDFLARED_TUNNEL_TOKEN not set — tunnel play will be skipped."; \
 	  echo "      Source .envrc first (set by 'make onprem-up')."; \
 	fi
-	cd $(ANSIBLE_DIR) && $(ANSIBLE_ENV) ansible-playbook --limit onprem setup.yml
+	cd $(ANSIBLE_DIR) && $(ANSIBLE_ENV) ansible-playbook setup.yml
 
 # ── Kamal ─────────────────────────────────────────────────────────────────────
 kamal-bootstrap:  ## 1st time on a fresh server (pre-boot accessories + 1st migration)

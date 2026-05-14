@@ -1,11 +1,9 @@
 ---
-# Bootstrap an existing server (not Tofu-provisioned) so subsequent
-# setup.yml runs can connect as `deploy` + SSH key.
+# Bootstrap a fresh on-prem server so subsequent setup.yml runs can connect
+# as `deploy` + SSH key. Run ONCE per server using an existing sudo user
+# (e.g. pwu, ubuntu) with password authentication:
 #
-# Run ONCE per fresh server using an existing sudo user (e.g. pwu, ubuntu)
-# with password authentication:
-#
-#   make ansible-onprem-bootstrap BOOTSTRAP_USER=pwu
+#   make host-bootstrap BOOTSTRAP_USER=pwu
 #
 # Idempotent — re-running on an already-bootstrapped host is a no-op.
 
@@ -16,8 +14,7 @@
 
   # ansible_user is overridden on the CLI by the Makefile target;
   # ansible_ssh_pass / ansible_become_pass come from --ask-pass / --ask-become-pass.
-  vars_files:
-    - ../shared/vars.yml
+  # group_vars/all.yml is auto-loaded — no vars_files needed.
 
   pre_tasks:
     - name: Wait for SSH transport (auth + python ping)

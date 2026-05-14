@@ -1,6 +1,6 @@
 # Kamal 2 — on-prem deploy config.
 #
-# Single target: 192.168.50.53 (the on-prem box). TLS terminates at the
+# Single target: <%= ENV.fetch("ONPREM_HOST") %> (the on-prem box). TLS terminates at the
 # Cloudflare edge (`make onprem-up` provisions the tunnel + DNS), so
 # kamal-proxy serves plain HTTP and trusts X-Forwarded-* headers.
 #
@@ -16,7 +16,7 @@ image: eduvhc/meta-menu
 servers:
   web:
     hosts:
-      - 192.168.50.53
+      - <%= ENV.fetch("ONPREM_HOST") %>
 
 proxy:
   ssl: false                              # Cloudflare Tunnel does TLS
@@ -79,7 +79,7 @@ env:
 accessories:
   postgres:
     image: postgres:18-alpine
-    host: 192.168.50.53
+    host: <%= ENV.fetch("ONPREM_HOST") %>
     env:
       clear:
         POSTGRES_USER: postgres
@@ -91,7 +91,7 @@ accessories:
 
   redis:
     image: redis:7-alpine
-    host: 192.168.50.53
+    host: <%= ENV.fetch("ONPREM_HOST") %>
     directories:
       - data:/data
 
@@ -100,7 +100,7 @@ accessories:
   # All from .kamal/secrets-common.
   minio:
     image: minio/minio:latest
-    host: 192.168.50.53
+    host: <%= ENV.fetch("ONPREM_HOST") %>
     port: "127.0.0.1:9000:9000"           # loopback — only cloudflared on the host hits this
     cmd: server /data --console-address ":9001"
     env:
