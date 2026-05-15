@@ -130,9 +130,8 @@ CLOUDFLARE_API_TOKEN=cf-token-from-step-3
 # The hostname your app lives at (must be a subdomain of your Cloudflare zone)
 PUBLIC_HOSTNAME=menu.example.com
 
-# The box (cloud VPS public IP or homelab LAN IP); SSH_USER stays root
+# The box (cloud VPS public IP or homelab LAN IP). Kamal connects as root.
 ONPREM_HOST=192.168.50.53
-SSH_USER=root
 
 # Your GitHub username — image will be pushed to ghcr.io/<this>/meta-menu
 GHCR_USER=eduvhc
@@ -246,7 +245,7 @@ scripts/migrate.mjs                  Drizzle migrator with pg_advisory_lock
 
 **`ssh root@host` asks for a password** — root SSH isn't accepting your key. Three causes: (a) key isn't in `/root/.ssh/authorized_keys` (re-run step 4b); (b) `/root/.ssh` perms are wrong (must be `700`, file `600`, both owned by `root`); (c) sshd disables root login (re-run step 4c to set `PermitRootLogin prohibit-password`).
 
-**`kamal server bootstrap` hangs or fails** — Kamal needs root. Either set `SSH_USER=root` and complete step 4, or pre-install Docker yourself and grant NOPASSWD sudo (the non-root path, not recommended).
+**`kamal server bootstrap` hangs or fails** — root SSH isn't working. Re-check step 4: `ssh root@$ONPREM_HOST 'whoami'` must print `root` instantly. If it doesn't, your key isn't in `/root/.ssh/authorized_keys` or sshd is set to `PermitRootLogin no`.
 
 **GHCR push returns "denied"** — `gh auth status` must show `write:packages` in the scopes line. Re-run step 2.
 

@@ -40,15 +40,17 @@ registry:
   password:
     - KAMAL_REGISTRY_PASSWORD
 
+# Kamal 2 canonical convention: root with SSH-key-only login. Kamal never
+# runs `sudo`; `kamal server bootstrap` curls get.docker.com which needs
+# root. Cloud VPS images ship with this exact setup by default.
 ssh:
-  user: <%= ENV.fetch("SSH_USER") %>
-  port: 22
+  user: root
 
 # Remote-only builder: SSH to the box and build there natively (amd64).
 # No buildx on the Mac, no QEMU, no source transfer over the WAN.
 builder:
   arch: amd64
-  remote: ssh://<%= ENV.fetch("SSH_USER") %>@<%= ENV.fetch("ONPREM_HOST") %>
+  remote: ssh://root@<%= ENV.fetch("ONPREM_HOST") %>
   local: false
   context: .
   dockerfile: Dockerfile

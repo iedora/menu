@@ -194,13 +194,13 @@ tests/e2e/
 - `docker compose up -d` — start Postgres + Redis + LocalStack (S3)
 - `bunx shadcn@latest add <name>` — add a shadcn component
 - `cp .env.example .env` — single config file (gitignored). Fill in 7 user inputs + 4 hand-generated secrets (`openssl rand -hex 32`); no script auto-generates them.
-- **First-time setup** (once, manual): `ssh-copy-id $SSH_USER@$ONPREM_HOST`; give the SSH user NOPASSWD sudo with one paste-and-run line in `make help`; `gh auth refresh -s write:packages`; then `make setup` (= `tofu apply` + `kamal server bootstrap` + `kamal accessory boot all` + `kamal deploy`).
+- **First-time setup** (once, manual): `ssh-copy-id root@$ONPREM_HOST` (Kamal's canonical SSH user — root with key-only login); `gh auth refresh -s write:packages`; then `make setup` (= `tofu apply` + `kamal server bootstrap` + `kamal accessory boot all` + `kamal deploy`). See `docs/deploy.md` for the homelab key-copy step when root SSH isn't already enabled.
 - `make deploy` — `tofu apply` + `kamal deploy`. Native make recipes; no shell-script wrapper.
 - `make logs` / `make console` / `make redeploy` / `make rollback` / `make migrate` — direct `kamal` calls with .env loaded via `-include`.
 - `make destroy` — `tofu destroy`: removes Cloudflare tunnel + DNS only (does not touch the box)
 - `make help` — list every target
 
-Build + push lives on the homelab box itself (`builder.remote: ssh://$SSH_USER@$ONPREM_HOST`, native amd64). Image is pushed to **GHCR** (`ghcr.io/$GHCR_USER/meta-menu`); auth is `gh auth token` evaluated from `.kamal/secrets`. No local registry, no buildx insecure-registry config, no daemon.json mutation.
+Build + push lives on the homelab box itself (`builder.remote: ssh://root@$ONPREM_HOST`, native amd64). Image is pushed to **GHCR** (`ghcr.io/$GHCR_USER/meta-menu`); auth is `gh auth token` evaluated from `.kamal/secrets`. No local registry, no buildx insecure-registry config, no daemon.json mutation.
 
 ## CI
 `.github/workflows/ci.yml` runs three jobs on every push and PR:
