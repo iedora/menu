@@ -14,7 +14,7 @@ test.describe('Auth page heading semantics', () => {
     await expect(
       page.getByRole('heading', {
         level: 1,
-        name: 'Create your Meta Menu account',
+        name: 'Create your Menu account',
       }),
     ).toBeVisible()
   })
@@ -22,7 +22,7 @@ test.describe('Auth page heading semantics', () => {
   test('login page exposes an h1 with the login title', async ({ page }) => {
     await page.goto('/login')
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Log in to Meta Menu' }),
+      page.getByRole('heading', { level: 1, name: 'Log in to Menu' }),
     ).toBeVisible()
   })
 })

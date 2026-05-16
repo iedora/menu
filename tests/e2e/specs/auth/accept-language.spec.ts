@@ -25,9 +25,9 @@ test.describe('Accept-Language fallback for anonymous auth pages', () => {
     const page = await ctx.newPage()
     await page.goto('/signup')
 
-    // Catalog key Auth.signupTitle = "Criar a tua conta no Meta Menu" in PT.
+    // Catalog key Auth.signupTitle = "Criar a tua conta no Menu" in PT.
     await expect(
-      page.getByText('Criar a tua conta no Meta Menu'),
+      page.getByText('Criar a tua conta no Menu'),
     ).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt')
 
@@ -51,7 +51,7 @@ test.describe('Accept-Language fallback for anonymous auth pages', () => {
     await page.goto('/signup')
 
     await expect(
-      page.getByText('Create your Meta Menu account'),
+      page.getByText('Create your Menu account'),
     ).toBeVisible()
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 
