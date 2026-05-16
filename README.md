@@ -7,7 +7,7 @@ Self-hosted, multi-tenant SaaS for restaurants to build digital menus by drag-an
 ```bash
 bun install
 cp .env.example .env.local            # then paste a fresh BETTER_AUTH_SECRET
-docker compose up -d                  # postgres, redis, localstack
+docker compose up -d                  # postgres, localstack
 bun run db:migrate
 bun run dev
 ```
@@ -22,6 +22,7 @@ bun run dev
 - **[`docs/deploy.md`](docs/deploy.md)** — single-box self-host: Kamal 2 + Cloudflare Tunnel, brand-new-machine walkthrough.
 - **[`docs/scaling.md`](docs/scaling.md)** — when one box isn't enough: vertical, Hetzner migration, multi-host via Tailscale.
 - **[`docs/backups.md`](docs/backups.md)** — daily Postgres dumps to Cloudflare R2 via a Kamal accessory + recovery procedures.
+- **[`docs/secrets.md`](docs/secrets.md)** — where every credential lives (BWS + .env + Tofu state), rotation procedures, leak-response playbook.
 
 ## License
 

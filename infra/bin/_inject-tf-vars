@@ -1,0 +1,16 @@
+#!/bin/sh
+# Private helper, invoked by bin/with-secrets after bws has populated env.
+# Re-exports BWS-fetched + .env-loaded values as the TF_VAR_* names Tofu
+# expects, then exec's the wrapped command.
+#
+# Kept separate from with-secrets because `bws run -- sh -c 'script' arg`
+# mis-parses; `bws run -- helper-script arg` works cleanly.
+set -eu
+
+export TF_VAR_account_id="${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID missing}"
+export TF_VAR_zone_id="${CLOUDFLARE_ZONE_ID:?CLOUDFLARE_ZONE_ID missing}"
+export TF_VAR_cloudflare_api_token="${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN missing in BWS}"
+export TF_VAR_state_passphrase="${STATE_PASSPHRASE:?STATE_PASSPHRASE missing in BWS}"
+export TF_VAR_public_hostname="${PUBLIC_HOSTNAME:?PUBLIC_HOSTNAME missing}"
+
+exec "$@"

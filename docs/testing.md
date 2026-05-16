@@ -159,7 +159,7 @@ workflow creates that database explicitly (see `.github/workflows/ci.yml`).
 `.github/workflows/ci.yml` runs three jobs on push and PR:
 
 - **Typecheck** and **Lint** (parallel, Bun runtime, ~2-3 minutes each).
-- **E2E (Playwright)** gated on the cheap jobs. Postgres 18, Redis 7, and
+- **E2E (Playwright)** gated on the cheap jobs. Postgres 18 and
   LocalStack run as service containers. The Next.js build runs under
   **Node** (`node --run build`); Playwright + everything else uses Bun.
   Caches `.next/cache` (Turbopack persistent cache) and

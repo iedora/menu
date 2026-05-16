@@ -8,6 +8,7 @@ import {
 } from '@/features/i18n'
 import { loadRestaurantSnapshot } from '@/features/menu-publishing'
 import { incrementDailyView } from '@/features/metrics'
+import { enforceRateLimit, extractClientIp } from '@/features/rate-limit'
 
 /**
  * Pixel-beacon endpoint for public-menu view tracking. Decoupled from the
@@ -72,6 +73,16 @@ export async function GET(
 
   const ua = request.headers.get('user-agent') ?? ''
   if (BOT_UA.test(ua)) return pixelResponse()
+
+  // Per-IP throttle. Beacon must always 204 (fire-and-forget pixel), so the
+  // policy is fail-open — if Redis is down the request still falls through
+  // to the cookie-dedup'd insert. When over limit we still return the pixel
+  // but skip the DB work; the visitor's browser is none the wiser.
+  const ip = extractClientIp(request)
+  if (ip) {
+    const decision = await enforceRateLimit('beacon', `ip:${ip}`)
+    if (!decision.ok) return pixelResponse()
+  }
 
   // Cached snapshot — cheap. Gives us the restaurant id + org id + the set of
   // supported languages without an extra round-trip.

@@ -4,8 +4,34 @@ output "public_hostname" {
 }
 
 output "assets_hostname" {
-  description = "FQDN routed to the MinIO accessory."
-  value       = coalesce(var.assets_hostname, "assets.${join(".", slice(split(".", var.public_hostname), 1, length(split(".", var.public_hostname))))}")
+  description = "FQDN where the public R2 assets bucket is served from."
+  value       = local.assets_hostname
+}
+
+output "assets_public_url" {
+  description = "Base URL for public asset reads — used as S3_PUBLIC_URL by the app."
+  value       = "https://${local.assets_hostname}"
+}
+
+output "assets_endpoint" {
+  description = "S3-compatible endpoint for the assets bucket — used as S3_ENDPOINT by the app."
+  value       = "https://${var.account_id}.r2.cloudflarestorage.com"
+}
+
+output "assets_bucket_name" {
+  description = "Name of the R2 bucket holding user-uploaded assets."
+  value       = cloudflare_r2_bucket.assets.name
+}
+
+output "assets_r2_access_key_id" {
+  description = "R2 S3-compatible Access Key ID for the app's asset uploads."
+  value       = cloudflare_api_token.assets_r2.id
+}
+
+output "assets_r2_secret_access_key" {
+  description = "R2 S3-compatible Secret Access Key (SHA-256 of the token value)."
+  value       = sha256(cloudflare_api_token.assets_r2.value)
+  sensitive   = true
 }
 
 output "tunnel_id" {
@@ -19,26 +45,19 @@ output "tunnel_token" {
   sensitive   = true
 }
 
-output "r2_bucket_name" {
+output "backups_bucket_name" {
   description = "Name of the R2 bucket holding Postgres dumps."
   value       = cloudflare_r2_bucket.backups.name
 }
 
-output "r2_account_id" {
-  description = "Cloudflare account ID — used to derive the S3 endpoint URL https://<account_id>.r2.cloudflarestorage.com."
-  value       = var.account_id
-}
-
-# R2 S3-compatible credentials derived from the Cloudflare API token:
-#   Access Key ID    = token ID
-#   Secret Access Key = sha256(token value)
-# Consumed by .kamal/secrets via `tofu output -raw`.
-output "r2_access_key_id" {
+# Backups R2 S3-compatible credentials — consumed by .kamal/secrets for the
+# `backups` accessory. Same derivation pattern as the assets token above.
+output "backups_r2_access_key_id" {
   description = "R2 S3-compatible Access Key ID for the backups accessory."
   value       = cloudflare_api_token.backups_r2.id
 }
 
-output "r2_secret_access_key" {
+output "backups_r2_secret_access_key" {
   description = "R2 S3-compatible Secret Access Key (SHA-256 of the token value)."
   value       = sha256(cloudflare_api_token.backups_r2.value)
   sensitive   = true

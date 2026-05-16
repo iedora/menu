@@ -74,7 +74,6 @@ env:
   secret:
     - BETTER_AUTH_SECRET
     - DATABASE_URL
-    - REDIS_URL
     - S3_ACCESS_KEY
     - S3_SECRET_KEY
 
@@ -89,7 +88,7 @@ aliases:
 # bypasses UFW (basecamp/kamal#1790).
 accessories:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.4-alpine
     host: <%= ENV.fetch("ONPREM_HOST") %>
     env:
       clear:
@@ -100,31 +99,24 @@ accessories:
     directories:
       - data:/var/lib/postgresql
 
-  redis:
-    image: redis:7-alpine
-    host: <%= ENV.fetch("ONPREM_HOST") %>
-    directories:
-      - data:/data
+  # Rate limiting + Better Auth's own throttle live in Postgres now — no
+  # Redis accessory needed. See src/features/rate-limit/adapters/postgres.ts
+  # for the sliding-window-with-advisory-lock pattern.
 
-  # S3-compatible storage. MinIO root creds double as S3 keys.
-  # Reachable from cloudflared (same network) at http://meta-menu-minio:9000.
-  minio:
-    image: minio/minio:latest
-    host: <%= ENV.fetch("ONPREM_HOST") %>
-    cmd: server /data --console-address ":9001"
-    env:
-      secret:
-        - MINIO_ROOT_USER
-        - MINIO_ROOT_PASSWORD
-    directories:
-      - data:/data
+  # Asset storage lives in Cloudflare R2 (managed by infra/tofu/) served via
+  # custom domain on Cloudflare's edge. No accessory needed here — the app
+  # talks to R2 directly via the S3_ENDPOINT in .kamal/secrets.
 
   # Cloudflare Tunnel — outbound only, terminates TLS at the edge.
   # Tunnel ingress (set via tofu apply):
   #   PUBLIC_HOSTNAME  → http://kamal-proxy
   #   ASSETS_HOSTNAME  → http://meta-menu-minio:9000
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Tag + digest pinned — see comment on the minio accessory. cloudflared
+    # talks straight to your private network, so a malicious image pull
+    # would be catastrophic. Roll forward by checking the latest tag at
+    # https://hub.docker.com/r/cloudflare/cloudflared/tags and updating both.
+    image: cloudflare/cloudflared:2026.5.0@sha256:59bab8d3aceec09bf6bdb07d6beca0225ca5cd7ab79436a87ea97978fe1dc4f9
     host: <%= ENV.fetch("ONPREM_HOST") %>
     cmd: tunnel --no-autoupdate run
     env:

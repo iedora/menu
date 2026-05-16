@@ -30,11 +30,11 @@ const serverSchema = z.object({
   // in-memory rate limiter so the E2E suite can create users in a loop.
   DISABLE_AUTH_RATE_LIMIT: z.enum(['true', 'false']).optional(),
 
-  // Cache / queue -------------------------------------------------------
-  // Optional — no runtime client wired yet (we have docker-compose redis
-  // ready for when rate-limiting or job queues land). Mark required when
-  // first consumer ships.
-  REDIS_URL: z.url().optional(),
+  // Rate-limit kill-switch. Set 'true' in e2e tests so the slice short-circuits
+  // to "always ok" and load-bearing flows (org creation, asset upload) can
+  // run in tight loops. Never enable in production. Mirrors the equivalent
+  // DISABLE_AUTH_RATE_LIMIT toggle for Better Auth's own throttle.
+  DISABLE_RATE_LIMIT: z.enum(['true', 'false']).optional(),
 
   // Object storage (S3 / MinIO / LocalStack / R2) -----------------------
   // All required — every uploaded asset path goes through getStorage().

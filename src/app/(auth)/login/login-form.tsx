@@ -17,11 +17,20 @@ import {
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 
+// Reject anything that could navigate off-origin. `router.push` follows absolute
+// URLs and protocol-relative `//host` paths; a crafted `?next=https://evil` would
+// otherwise bounce a freshly-authenticated user to the attacker's site.
+function safeNextPath(raw: string | null): string {
+  if (!raw || !raw.startsWith('/')) return '/'
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/'
+  return raw
+}
+
 export function LoginForm() {
   const router = useRouter()
   const t = useTranslations('Auth')
   const searchParams = useSearchParams()
-  const next = searchParams.get('next') ?? '/'
+  const next = safeNextPath(searchParams.get('next'))
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 

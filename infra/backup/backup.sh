@@ -18,10 +18,15 @@ TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT
 
 echo "[backup] $(date -u +%FT%TZ) pg_dump ${POSTGRES_DATABASE}@${POSTGRES_HOST}"
+# Stream pg_dump stdout to gpg; the passphrase goes via fd 3 so it never
+# appears in /proc/<pid>/cmdline (where `--passphrase=$VAR` would leak it to
+# any process that can list pids on the host).
 pg_dump --format=custom --compress=9 \
   -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" \
-  | gpg --batch --yes --passphrase="$PASSPHRASE" --symmetric --cipher-algo AES256 \
-      --output "$TMP"
+  | gpg --batch --yes --passphrase-fd 3 --symmetric --cipher-algo AES256 \
+      --output "$TMP" 3<<EOF
+$PASSPHRASE
+EOF
 
 SIZE=$(stat -c %s "$TMP" 2>/dev/null || stat -f %z "$TMP")
 echo "[backup] encrypted size: ${SIZE} bytes; uploading s3://${S3_BUCKET}/${KEY}"

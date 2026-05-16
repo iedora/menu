@@ -58,9 +58,21 @@ variable "public_hostname" {
 }
 
 variable "assets_hostname" {
-  description = "FQDN for the MinIO bucket. If unset, derived as `assets.<rest-of-public-hostname>`."
+  description = "FQDN for user-uploaded assets. If unset, derived as `assets.<rest-of-public-hostname>`. Becomes the public-readable custom domain on the R2 assets bucket."
   type        = string
   default     = null
+}
+
+variable "assets_bucket_name" {
+  description = "Cloudflare R2 bucket name for user-uploaded restaurant assets (logos, banners, item photos). Globally unique within your account."
+  type        = string
+  default     = "meta-menu-assets"
+}
+
+variable "assets_bucket_location" {
+  description = "R2 location hint for the assets bucket. EEUR keeps data + edge cache origin in Europe."
+  type        = string
+  default     = "EEUR"
 }
 
 variable "backups_bucket_name" {

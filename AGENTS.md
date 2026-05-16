@@ -164,15 +164,15 @@ src/                       all Next.js source under here (Next's "src dir" conve
 next.config.ts             Next-required root file
 drizzle.config.ts          schema path → ./src/shared/db/schema.ts
 tsconfig.json              "@/*": ["./src/*"]
-docker-compose.yml         postgres + redis + localstack
+docker-compose.yml         postgres + localstack
 .env.example               dev template — copy to .env.local (Next.js dev)
 infra/                     ALL infra lives here — Make forwarder at root delegates `make X` → `make -C infra X`
   Dockerfile               app build (multi-stage Bun-install + Node-build + standalone)
-  Makefile                 deploy/destroy/rotate/logs/etc. targets; loads infra/.env
+  Makefile                 deploy/destroy/rotate-secret/logs/etc. targets; loads infra/.env
   .env.example             infra template — copy to infra/.env (gitignored, NOT loaded by Next, so creds never reach process.env)
   tofu/                    Cloudflare tunnel + DNS + ingress + R2 bucket (state encrypted, public_hostname from TF_VAR_)
   kamal/
-    config/deploy.yml      Kamal 2 deploy config — app + 4 accessories (postgres, redis, minio, cloudflared)
+    config/deploy.yml      Kamal 2 deploy config — app + 3 accessories (postgres, cloudflared, backups)
     .kamal/secrets         shell-evaluated references: TUNNEL_TOKEN from tofu, KAMAL_REGISTRY_PASSWORD from `gh auth token`, rest from infra/.env
   backup/                  self-built Postgres-backup image (Dockerfile + bash); built via `make build-backup`
 scripts/
@@ -200,15 +200,15 @@ tests/e2e/
 - `bun run db:push` — push schema directly (dev only, no migration files)
 - `bun run db:studio` — open Drizzle Studio
 - `bun run auth:generate` — sync Better Auth tables into `src/shared/db/schema.ts` (re-run after changing auth plugins)
-- `docker compose up -d` — start Postgres + Redis + LocalStack (S3)
+- `docker compose up -d` — start Postgres + LocalStack (S3 mock)
 - `bunx shadcn@latest add <name>` — add a shadcn component
-- `cp infra/.env.example infra/.env` — infra config (gitignored, NOT loaded by Next.js). Fill in 6 user inputs (Cloudflare ×3, PUBLIC_HOSTNAME, ONPREM_HOST, GHCR_USER) + 5 hand-generated secrets (`openssl rand -hex 32` for STATE_PASSPHRASE / BETTER_AUTH_SECRET / POSTGRES_PASSWORD / MINIO_ROOT_PASSWORD / BACKUP_PASSPHRASE). The matching `.env.local` (for Next dev) is separate so Cloudflare/R2 creds never reach Next's `process.env`.
+- `cp infra/.env.example infra/.env` — infra config (gitignored, NOT loaded by Next.js). Fill in 5 user inputs (Cloudflare account/zone IDs, PUBLIC_HOSTNAME, ONPREM_HOST, GHCR_USER) + BWS access token. All 6 production secrets (CLOUDFLARE_API_TOKEN, STATE_PASSPHRASE, BETTER_AUTH_SECRET, POSTGRES_PASSWORD, BACKUP_PASSPHRASE, GHCR_TOKEN) live in Bitwarden Secrets Manager — populated via the `bws secret create` loop in `docs/deploy.md`. The matching `.env.local` (for Next dev) is separate so Cloudflare/R2 creds never reach Next's `process.env`.
 - **First-time setup** (once, manual): `ssh-copy-id root@$ONPREM_HOST` (Kamal's canonical SSH user — root with key-only login); `gh auth refresh -s write:packages`; then `make deploy`. See `docs/deploy.md` for the homelab key-copy step when root SSH isn't already enabled.
 - `make deploy` — single command, idempotent. Internally: `tofu apply` + `kamal setup` (= server bootstrap + accessory boot all + deploy). ~10s overhead on subsequent runs from the no-op idempotence checks; acceptable for not having to remember a separate first-time command.
 - `make logs` / `make console` / `make redeploy` / `make rollback` / `make migrate` — direct `kamal` calls with infra/.env loaded via `-include`.
 - `make backup` / `make restore` — force a Postgres dump now / restore latest (interactive).
 - `make build-backup` — rebuild the backup accessory image (only needed when bumping the Postgres major).
-- `make rotate` — rotate all Tofu-managed tokens (R2 S3 keys + Cloudflare tunnel). ~30-60s public-traffic blip.
+- `make rotate-secret KEY=<name>` — rotate one BWS secret (prompts new value, edits BWS, reminds to redeploy). For sub-tokens (R2, tunnel): `bin/with-secrets tofu -chdir=tofu apply -replace=<resource>`. See `docs/secrets.md`.
 - `make destroy` — `tofu destroy`: removes Cloudflare tunnel + DNS only (does not touch the box)
 - `make help` — list every target
 
@@ -217,7 +217,7 @@ Build + push lives on the homelab box itself (`builder.remote: ssh://root@$ONPRE
 ## CI
 `.github/workflows/ci.yml` runs three jobs on every push and PR:
 - **Typecheck** and **Lint** in parallel (Bun runtime).
-- **E2E (Playwright)** with Postgres 18, Redis 7, and LocalStack as service containers. Build runs under Node (`node --run build`) because Bun + `next build` is unstable. Caches `.next/cache` and `~/.cache/ms-playwright`.
+- **E2E (Playwright)** with Postgres 18 and LocalStack as service containers. Build runs under Node (`node --run build`) because Bun + `next build` is unstable. Caches `.next/cache` and `~/.cache/ms-playwright`.
 
 Branch protection: deliberately NOT enabled — solo, AI-driven project; the CI itself is the signal. Revisit when adding collaborators or after the first "broken main" incident.
 

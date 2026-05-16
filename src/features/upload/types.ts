@@ -29,11 +29,21 @@ export type PresignedUpload = {
   expiresInSeconds: number
 }
 
+export type StoredObject = {
+  contentLength: number
+  contentType: string | undefined
+}
+
 // Storage interface — this is the slice's port. Implementations live under
 // `./adapters/`. Server actions depend on this, never on a concrete SDK.
 // Swap MinIO for R2/S3 in prod by changing only `./adapters/factory.ts`.
 export interface Storage {
   presignPut(key: string, req: PresignedUploadRequest): Promise<PresignedUpload>
+  // Used by commit-asset.ts to verify a client actually completed the PUT —
+  // returns null if the object isn't there. Defends against a client that
+  // got a presign, never PUT, then called commit (would otherwise pollute
+  // the DB with broken-image URLs).
+  head(key: string): Promise<StoredObject | null>
   delete(key: string): Promise<void>
   // Inverse of `publicUrl` returned by presignPut. Returns null when the URL
   // didn't originate from this storage (e.g. a hand-pasted external URL the

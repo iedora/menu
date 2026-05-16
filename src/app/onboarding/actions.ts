@@ -10,6 +10,7 @@ import { getEffectiveOrganizationId } from '@/features/auth'
 import { db } from '@/shared/db/client'
 import { menu, organization, restaurant, session as sessionTable } from '@/shared/db/schema'
 import { canAddRestaurant } from '@/features/plans'
+import { enforceRateLimit } from '@/features/rate-limit'
 
 const slugRegex = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/
 
@@ -71,6 +72,13 @@ export async function completeOnboarding(
 
   const session = await auth.api.getSession({ headers: reqHeaders })
   if (!session?.user) redirect('/login')
+
+  // Throttle per-user — org doesn't exist yet on first call. Fail-open by
+  // policy (cosmetic UX gate, not a brute-force surface).
+  const decision = await enforceRateLimit('onboarding', `user:${session.user.id}`)
+  if (!decision.ok) {
+    return { error: `Too many attempts. Try again in ${decision.retryAfterSec}s.` }
+  }
 
   // Existing org? Add the restaurant under it (gated by plan limit). Brand-new
   // user? Create org + first restaurant. Plans are scoped to the org so the

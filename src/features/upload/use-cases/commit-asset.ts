@@ -53,6 +53,15 @@ export async function commitAsset(
 
   assertKeyBelongsToTarget(key, target)
 
+  // Verify the client actually completed the PUT — without this, a buggy or
+  // malicious caller could presign, never upload, then commit, leaving the
+  // DB pointing at a broken image. R2/S3 HEAD returns 404 if the object
+  // doesn't exist; head() returns null in that case.
+  const head = await deps.storage.head(key)
+  if (!head) {
+    return { ok: false, error: 'Upload did not complete. Try again.' }
+  }
+
   const previousUrl = await readCurrentAssetUrl(target)
 
   await writeAssetUrl(target, publicUrl)

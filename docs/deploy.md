@@ -3,10 +3,9 @@
 End-to-end self-host: edit one config file, run one command, app live behind a Cloudflare Tunnel with TLS. Kamal 2 does the heavy lifting; the only "script" is the Makefile.
 
 ```
-Internet → Cloudflare edge (TLS) ─→ cloudflared accessory (outbound)
-                                       │   (kamal Docker network)
-                                       ├─→ http://kamal-proxy          → app:3000
-                                       └─→ http://meta-menu-minio:9000 → MinIO
+Internet → Cloudflare edge (TLS)
+            ├─→ cloudflared accessory (outbound) → http://kamal-proxy → app:3000
+            └─→ R2 bucket via custom domain      → assets.<your-zone>
 ```
 
 The same flow works identically on a homelab Ubuntu box and a fresh cloud VPS (DigitalOcean, Hetzner, Linode, AWS). The only difference: cloud VPS images already ship with root SSH + your key; a homelab box needs the key copied to root once.
@@ -113,7 +112,7 @@ ssh root@<box-ip> 'whoami'
 
 ---
 
-## Step 5 — Clone, configure, generate secrets
+## Step 5 — Clone, configure, populate Bitwarden Secrets Manager
 
 ```bash
 git clone https://github.com/<you>/meta-menu.git
@@ -121,13 +120,12 @@ cd meta-menu
 cp infra/.env.example infra/.env
 ```
 
-`infra/.env` has 6 inputs you fill in and 5 secrets you generate. Use `openssl rand -hex 32` five times and paste into `STATE_PASSPHRASE` / `BETTER_AUTH_SECRET` / `POSTGRES_PASSWORD` / `MINIO_ROOT_PASSWORD` / `BACKUP_PASSPHRASE`:
+All production secrets live in Bitwarden Secrets Manager. `infra/.env` holds only non-secret IDs + the BWS access token that unlocks the vault:
 
 ```bash
 # Cloudflare (from step 3)
-CLOUDFLARE_ACCOUNT_ID=2716bf6ee8be2880904e70f19050d2ef
-CLOUDFLARE_ZONE_ID=133ea809e27a8770c6ea83a257ba2ff5
-CLOUDFLARE_API_TOKEN=cf-token-from-step-3
+CLOUDFLARE_ACCOUNT_ID=your-account-id-from-dashboard
+CLOUDFLARE_ZONE_ID=your-zone-id-from-dashboard
 
 # The hostname your app lives at (must be a subdomain of your Cloudflare zone)
 PUBLIC_HOSTNAME=menu.example.com
@@ -138,17 +136,26 @@ ONPREM_HOST=192.168.50.53
 # Your GitHub username — image will be pushed to ghcr.io/<this>/meta-menu
 GHCR_USER=eduvhc
 
-# Generated secrets (openssl rand -hex 32 each)
-STATE_PASSPHRASE=…
-BETTER_AUTH_SECRET=…
-POSTGRES_PASSWORD=…
-MINIO_ROOT_PASSWORD=…
-BACKUP_PASSPHRASE=…    # GPG passphrase for R2 backup dumps — keep in password manager
-
-MINIO_ROOT_USER=metamenu
+# Bitwarden Secrets Manager: vault.bitwarden.com/#/sm → New project "meta-menu",
+# new Machine account with R/W on the project, new access token.
+BWS_ACCESS_TOKEN=0.…
+BWS_PROJECT_ID=…uuid…
 ```
 
-Keep `infra/.env` in your password manager — it holds everything needed to redeploy from scratch. The file is gitignored.
+Then populate BWS with 7 secrets — use the same machine to avoid pasting tokens around. `bws` CLI install: `brew install bitwarden/tap/bws` on macOS or download from https://github.com/bitwarden/sdk-sm/releases.
+
+```bash
+source infra/.env
+for KEY in CLOUDFLARE_API_TOKEN STATE_PASSPHRASE BETTER_AUTH_SECRET \
+           POSTGRES_PASSWORD BACKUP_PASSPHRASE GHCR_TOKEN; do
+  read -s -p "$KEY: " V && echo
+  bws secret create "$KEY" "$V" "$BWS_PROJECT_ID" -o none
+done
+```
+
+Generate each value with `openssl rand -hex 32`, except `CLOUDFLARE_API_TOKEN` (from step 3) and `GHCR_TOKEN` (https://github.com/settings/tokens — classic PAT, `write:packages` scope).
+
+Keep the BWS access token in your password manager — losing it means losing access to every other secret. `infra/.env` is gitignored.
 
 ---
 
@@ -160,10 +167,10 @@ make deploy
 
 Same command for first-time AND every-other-time. Internally it runs:
 
-1. **`tofu apply`** — creates (or updates) the Cloudflare Tunnel + 2 ingress rules + 2 DNS CNAMEs.
+1. **`tofu apply`** — creates (or updates) the Cloudflare Tunnel + ingress, R2 buckets (assets + backups), R2 sub-tokens, DNS records.
 2. **`kamal setup`** — Kamal's idempotent first-time-or-anytime command:
    - `kamal server bootstrap` — installs Docker on the box if not already (no-op on subsequent runs).
-   - `kamal accessory boot all` — boots postgres, redis, minio, cloudflared (no-op if already running).
+   - `kamal accessory boot all` — boots postgres, cloudflared, backups (no-op if already running).
    - `kamal deploy` — builds the image natively on the box (amd64, no QEMU on the Mac via `builder.remote`), pushes to GHCR, pulls on the box, starts the app container.
 
 The app container's start command is `node scripts/migrate.mjs && node server.js` — Drizzle migrations run under a `pg_advisory_lock` (safe across multiple replicas) before the server boots.
@@ -224,7 +231,7 @@ Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothi
 ```
 .env.example                         dev template — copy to .env.local (Next.js dev)
 infra/.env.example                  infra template — copy to infra/.env (Tofu + Kamal; NOT loaded by Next)
-infra/kamal/config/deploy.yml                    Kamal config — app + 4 accessories (postgres, redis, minio, cloudflared)
+infra/kamal/config/deploy.yml                    Kamal config — app + 3 accessories (postgres, cloudflared, backups)
 infra/kamal/.kamal/secrets           shell-evaluated references; committed, no values
 infra/tofu/                          Cloudflare tunnel + DNS + ingress (encrypted state)
 Makefile                             the only entry point (calls tofu + kamal directly)

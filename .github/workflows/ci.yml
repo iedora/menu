@@ -1,12 +1,15 @@
 # Continuous integration for meta-menu.
 #
-# Three jobs: typecheck and lint run on every push (fast, cheap, parallel);
+# Four jobs: typecheck, lint, and unit run on every push (fast, parallel);
 # e2e gates merges and only runs once the cheap jobs are green so a broken
 # branch doesn't burn ~10 min of runner time before failing.
 #
 # Runtime split (see AGENTS.md): Bun for installs and script orchestration,
 # Node for `next build` and `next start`. Bun + `next build` is unstable as
 # of 2026 (oven-sh/bun#23944), and CI must mirror production runtime anyway.
+# Vitest is invoked via `bun run test` so the `vitest` binary's Node shebang
+# takes over — testcontainers (used by the real-Redis integration suite)
+# doesn't currently work under Bun's runtime (oven-sh/bun#21342).
 
 name: CI
 
@@ -50,32 +53,41 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
 
+  unit:
+    name: Unit (Vitest)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # ubuntu-24.04 runners ship Docker Engine, which testcontainers needs
+    # for the real-Redis integration suite. No extra setup required.
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Run Vitest
+        # `bun run test` invokes the `vitest` binary which uses a Node shebang,
+        # so testcontainers' `@testcontainers/*` modules run under Node here
+        # (they fail under Bun's runtime — see oven-sh/bun#21342).
+        run: bun run test
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    needs: [typecheck, lint]
+    needs: [typecheck, lint, unit]
 
     services:
       # `POSTGRES_DB` stays as the default `postgres` admin DB — the e2e
       # global-setup connects to it to CREATE the `metamenu_test` DB.
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18.4-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -112,6 +124,7 @@ jobs:
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       BETTER_AUTH_URL: http://localhost:3000
       DISABLE_AUTH_RATE_LIMIT: 'true'
+      DISABLE_RATE_LIMIT: 'true'
       # LocalStack accepts any credentials; we use the conventional `test/test`
       # pair the AWS SDK uses for local development.
       S3_ENDPOINT: http://localhost:4566

@@ -8,19 +8,19 @@ See [`deploy.md`](./deploy.md) for the current single-host flow this builds on.
 
 ## 1. Current — single homelab box
 
-Stack as deployed today: one Ubuntu box, Kamal 2, Cloudflare Tunnel outbound, all five containers (`app`, `postgres`, `redis`, `minio`, `cloudflared`) on the same Docker network. No inbound ports open. See [`deploy.md`](./deploy.md).
+Stack as deployed today: one Ubuntu box, Kamal 2, Cloudflare Tunnel outbound, four containers (`app`, `postgres`, `cloudflared`, `backups`) on the same Docker network. Image uploads + backups both live in Cloudflare R2 (zero egress, served from the edge), not on the box. No inbound ports open. See [`deploy.md`](./deploy.md).
 
 **Natural ceiling.** Three independent limits, whichever bites first:
 
 | Limit | Threshold | Why |
 |---|---|---|
-| Concurrent users | ~50–100 simultaneous public-menu viewers | Node single-process + Postgres on same CPU. Public menu is `unstable_cache`'d per slug (hard rule #12), so steady-state load is mostly the `/api/track/[slug]` beacon + image fetches from MinIO. |
+| Concurrent users | ~50–100 simultaneous public-menu viewers | Node single-process + Postgres on same CPU. Public menu is `unstable_cache`'d per slug (hard rule #12), so steady-state load is mostly the `/api/track/[slug]` beacon — image fetches go direct to R2's edge, not through the box. |
 | Upstream bandwidth | ~10 Mbps real-world on Starlink residential ([plans](https://www.starlink.com/business/plans)) | Symmetric-ish on paper, but residential tier is best-effort and uplink dips hardest under contention. A page with 6 dish photos at 200 KB each = 1.2 MB; ~8 concurrent first-paint loads saturates uplink. |
 | Reliability | ~99.0–99.5% / month realistic | Residential ISP + consumer-grade power. Starlink itself publishes no SLA for residential ([Starlink terms](https://www.starlink.com/legal/documents/DOC-1134-89405-69)). One thunderstorm = one outage. |
 
 **When to upgrade.** First of these to be true:
 - A real (paying) customer complains about an outage you can't explain.
-- The CDN-bypass uploads (admin uploading menu images via signed URL → MinIO on the box) become painful, i.e. minutes per image. Means uplink is saturated.
+- The admin upload flow becomes painful (presigned PUTs go to R2 directly, but Server Actions still round-trip through the box).
 - You start serving customers outside Western Europe and the Cloudflare edge can't hide the round-trip to your box anymore.
 
 Until then: stay here. It's free.
@@ -33,7 +33,7 @@ Until then: stay here. It's free.
 
 Buy more box, same address. Cheapest scaling motion.
 
-**What it fixes.** CPU-bound rendering, Postgres memory pressure, MinIO IOPS. A modern N100 mini-PC (€150–250 one-off) or a used Xeon E-2278G tower off eBay (€200–400) gets you ~4× the current single-box throughput.
+**What it fixes.** CPU-bound rendering, Postgres memory pressure. A modern N100 mini-PC (€150–250 one-off) or a used Xeon E-2278G tower off eBay (€200–400) gets you ~4× the current single-box throughput.
 
 **What it does NOT fix:**
 - Starlink uplink cap (~10 Mbps) — still the ceiling for outbound bandwidth.
@@ -58,16 +58,14 @@ Single command-flow change. Same `make deploy`, different IP.
 # 1. Provision Hetzner box, paste ~/.ssh/id_ed25519.pub during creation.
 # 2. ssh root@<new-ip> 'whoami'  → "root" instantly. No host-init needed.
 
-# 3. On the OLD box: dump postgres + sync minio data.
+# 3. On the OLD box: dump postgres. Assets live in R2 already — no migration needed.
 ssh root@$OLD_HOST 'docker exec meta-menu-postgres pg_dump -U postgres metamenu | gzip' > db.sql.gz
-ssh root@$OLD_HOST 'tar czf - -C /var/lib/docker/volumes/meta-menu-minio-data/_data .' > minio.tgz
 
 # 4. Edit infra/.env: ONPREM_HOST=<new-ip>
 # 5. make deploy   → tofu re-points the tunnel ingress, kamal boots fresh stack on new box.
 
 # 6. Restore data on the new box.
 gunzip < db.sql.gz | ssh root@$NEW_HOST 'docker exec -i meta-menu-postgres psql -U postgres metamenu'
-ssh root@$NEW_HOST 'docker run --rm -v meta-menu-minio-data:/data -i busybox tar xzf - -C /data' < minio.tgz
 
 # 7. Hit https://$PUBLIC_HOSTNAME/up — should be {"ok":true,"db":"ok"}.
 ```
@@ -106,7 +104,7 @@ accessories:
     # e.g. DB_HOST=100.64.10.5  (MagicDNS: db.tail-xxxx.ts.net also works)
 ```
 
-App containers reach Postgres over the tailnet (`DATABASE_URL=postgres://...@100.64.10.5:5432/metamenu`). MinIO and Redis follow the same pattern. Kamal-proxy on each web host load-balances locally; Cloudflare Tunnel ingress points to the kamal-proxy on either box (or both via two `cloudflared` accessories).
+App containers reach Postgres over the tailnet (`DATABASE_URL=postgres://...@100.64.10.5:5432/metamenu`). Kamal-proxy on each web host load-balances locally; Cloudflare Tunnel ingress points to the kamal-proxy on either box (or both via two `cloudflared` accessories). R2 assets + backups stay on Cloudflare, accessed identically from each web host.
 
 **Latency reality.** Tailscale picks the lowest-latency path it can:
 - **Direct WireGuard** EU↔EU: typically 15–40 ms. Possible when at least one peer has a public IP (any Hetzner box does). Per DB round-trip.

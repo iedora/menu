@@ -107,15 +107,11 @@ make rollback              # instant — Kamal rolls the container back to previ
 
 Drizzle migrations are forward-only; the migrator detects the DB schema is newer than the code's `drizzle/` dir and logs a warning but doesn't auto-down-migrate.
 
-### MinIO data (image uploads) — not covered
+### Image uploads — Cloudflare R2
 
-`postgres-backup-s3` only handles Postgres. Image uploads in the `meta-menu-minio` volume aren't backed up. Options when you actually care (post-revenue):
+User-uploaded restaurant assets live in the `meta-menu-assets` R2 bucket (separate from the `meta-menu-backups` bucket used here). Cloudflare R2 has built-in redundancy across edge regions, so the assets themselves don't need a separate backup pipeline — the bucket is the source of truth.
 
-- **On Hetzner**: enable Cloud Backups (€0.90/mo · €11/yr for CX22), full-VM snapshots include MinIO.
-- **rclone cron**: sync `meta-menu-minio-data` → R2 daily. Cheap, ~10 lines of bash.
-- **Switch to R2 as primary**: instead of MinIO + R2 backup, push uploads directly to R2. Same accessory pattern, no backup needed because R2 already does versioning.
-
-Decide when image loss becomes a real risk (= first paying customer who's uploaded something).
+If you ever want defense-in-depth (e.g. against accidental delete via a leaked R2 token), enable R2 Object Versioning on the assets bucket via the Cloudflare dashboard — adds delete markers instead of hard-deleting.
 
 ## Beyond pg_dump
 

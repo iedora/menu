@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -8,6 +9,7 @@ import {
   StorageError,
   type PresignedUpload,
   type PresignedUploadRequest,
+  type StoredObject,
   type Storage,
 } from '../types'
 
@@ -70,6 +72,23 @@ export class S3Storage implements Storage {
     }
   }
 
+  async head(key: string): Promise<StoredObject | null> {
+    try {
+      const res = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.config.bucket, Key: key }),
+      )
+      return {
+        contentLength: typeof res.ContentLength === 'number' ? res.ContentLength : 0,
+        contentType: res.ContentType,
+      }
+    } catch (cause) {
+      // 404 → object isn't there yet (client never completed PUT, or the
+      // presigned URL leaked but was never used). Bubble anything else.
+      if (isNotFound(cause)) return null
+      throw new StorageError('Failed to head object', cause)
+    }
+  }
+
   keyFromPublicUrl(url: string): string | null {
     const prefix = this.config.publicBaseUrl.replace(/\/$/, '') + '/'
     return url.startsWith(prefix) ? url.slice(prefix.length) : null
@@ -98,4 +117,14 @@ function isNoSuchKey(err: unknown): boolean {
   return Boolean(
     err && typeof err === 'object' && 'name' in err && err.name === 'NoSuchKey',
   )
+}
+
+function isNotFound(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const name = 'name' in err ? err.name : undefined
+  const status =
+    '$metadata' in err && err.$metadata && typeof err.$metadata === 'object'
+      ? (err.$metadata as { httpStatusCode?: number }).httpStatusCode
+      : undefined
+  return name === 'NotFound' || name === 'NoSuchKey' || status === 404
 }

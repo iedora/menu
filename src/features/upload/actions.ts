@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { requireRestaurantAccess } from '@/features/auth'
+import { enforceRateLimit } from '@/features/rate-limit'
 import { getStorage } from './adapters/factory'
 import { clearAsset as runClearAsset } from './use-cases/clear-asset'
 import { commitAsset as runCommitAsset } from './use-cases/commit-asset'
@@ -31,28 +32,39 @@ function pickRestaurantId(raw: unknown): string | null {
   return parsed.success ? parsed.data.target.restaurantId : null
 }
 
+async function gate(
+  input: unknown,
+  policy: 'presign' | 'commit' | 'clear',
+): Promise<{ ok: true; orgId: string; restaurantId: string } | { ok: false; error: string }> {
+  const restaurantId = pickRestaurantId(input)
+  if (!restaurantId) return { ok: false, error: 'Invalid input' }
+  const { organizationId } = await requireRestaurantAccess(restaurantId)
+  const decision = await enforceRateLimit(policy, `org:${organizationId}`)
+  if (!decision.ok) {
+    return { ok: false, error: `Too many requests. Try again in ${decision.retryAfterSec}s.` }
+  }
+  return { ok: true, orgId: organizationId, restaurantId }
+}
+
 export async function requestUploadUrl(
   input: unknown,
 ): Promise<Result<PresignedUpload>> {
-  const restaurantId = pickRestaurantId(input)
-  if (!restaurantId) return { ok: false, error: 'Invalid input' }
-  await requireRestaurantAccess(restaurantId)
+  const guarded = await gate(input, 'presign')
+  if (!guarded.ok) return guarded
   const storage = await getStorage()
   return runPresignAsset({ storage }, input)
 }
 
 export async function commitAsset(input: unknown): Promise<Result<{ url: string }>> {
-  const restaurantId = pickRestaurantId(input)
-  if (!restaurantId) return { ok: false, error: 'Invalid input' }
-  await requireRestaurantAccess(restaurantId)
+  const guarded = await gate(input, 'commit')
+  if (!guarded.ok) return guarded
   const storage = await getStorage()
   return runCommitAsset({ storage }, input)
 }
 
 export async function clearAsset(input: unknown): Promise<Result<null>> {
-  const restaurantId = pickRestaurantId(input)
-  if (!restaurantId) return { ok: false, error: 'Invalid input' }
-  await requireRestaurantAccess(restaurantId)
+  const guarded = await gate(input, 'clear')
+  if (!guarded.ok) return guarded
   const storage = await getStorage()
   return runClearAsset({ storage }, input)
 }

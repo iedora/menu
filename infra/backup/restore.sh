@@ -32,7 +32,10 @@ DUMP=$(mktemp)
 trap 'rm -f "$TMP" "$DUMP"' EXIT
 
 aws --endpoint-url "$S3_ENDPOINT" s3 cp "s3://${S3_BUCKET}/${KEY}" "$TMP"
-gpg --batch --yes --passphrase="$PASSPHRASE" --decrypt --output "$DUMP" "$TMP"
+# Passphrase via fd 3 — see comment in backup.sh.
+gpg --batch --yes --passphrase-fd 3 --decrypt --output "$DUMP" "$TMP" 3<<EOF
+$PASSPHRASE
+EOF
 
 echo "[restore] pg_restore into ${POSTGRES_DATABASE}@${POSTGRES_HOST}"
 pg_restore --clean --if-exists --no-owner --no-privileges \
