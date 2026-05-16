@@ -1,8 +1,15 @@
-# Cloudflare-managed (one homelab box, one tunnel):
+# Menu product (menu.iedora.com) — its own root module with its own state.
+#
+# Owns:
 #   - Tunnel + ingress for the app (1 route: kamal-proxy)
-#   - DNS CNAME for the public hostname
+#   - DNS CNAME for the menu hostname
 #   - R2 buckets: assets (public via custom domain) + backups (private)
 #   - Scoped R2 tokens per bucket
+#
+# The Cloudflare zone is also looked up in sibling product roots (e.g.
+# `../../../house/infra/tofu/`) — same zone (`iedora.com`), one data source
+# per root. That duplication is the price of keeping each product's state
+# independently appliable; well worth the blast-radius isolation.
 #
 # Assets are served directly from R2 via a custom domain on Cloudflare's CDN
 # — no tunnel hop, no Starlink uplink involved on hot paths. The tunnel only
@@ -10,12 +17,11 @@
 
 locals {
   # The zone is everything after the first dot in public_hostname:
-  # `menu.iedora.com` → `iedora.com`. Looked up live via the Cloudflare API
-  # so we don't carry a redundant CLOUDFLARE_ZONE_ID alongside PUBLIC_HOSTNAME
-  # — change the hostname, the zone follows.
+  # `menu.iedora.com` → `iedora.com`. Looked up live so we don't carry a
+  # redundant CLOUDFLARE_ZONE_ID alongside PUBLIC_HOSTNAME.
   zone_name = join(".", slice(split(".", var.public_hostname), 1, length(split(".", var.public_hostname))))
 
-  # Default: assets.<rest-of-public-hostname>. Override via var.assets_hostname.
+  # Default: assets.<rest-of-menu-hostname>. Override via var.assets_hostname.
   derived_assets_hostname = "assets.${local.zone_name}"
   assets_hostname         = coalesce(var.assets_hostname, local.derived_assets_hostname)
 }

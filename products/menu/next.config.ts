@@ -4,6 +4,7 @@ import createNextIntlPlugin from 'next-intl/plugin'
 const nextConfig: NextConfig = {
   // Standalone output gera um bundle minimal com server.js — ideal para Docker
   output: 'standalone',
+  transpilePackages: ['@iedora/design-system'],
   outputFileTracingIncludes: {
     // Workaround: Turbopack standalone não rastreia drizzle-orm/postgres
     // automaticamente porque a app importa-os mas o `scripts/migrate.mjs`

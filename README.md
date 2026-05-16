@@ -12,7 +12,7 @@ bun run db:migrate
 bun run dev
 ```
 
-`bun run` lists every script; `make help` lists every deploy target.
+`bun run` lists every script; `just` lists every deploy target.
 
 ## Docs
 

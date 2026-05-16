@@ -28,11 +28,19 @@ env:
   NODE_VERSION: '22'
   PLAYWRIGHT_VERSION: '1.59.1'
 
+# All jobs operate on the menu product (the only one with code right now).
+# `defaults.run.working-directory` is set per-job below — that's the level
+# GH Actions accepts; setting it at the workflow level doesn't apply
+# inherited defaults to `services:` / cache `path:` keys anyway.
+
 jobs:
   typecheck:
     name: Typecheck
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: products/menu
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -45,6 +53,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: products/menu
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -57,6 +68,9 @@ jobs:
     name: Unit (Vitest)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: products/menu
     # ubuntu-24.04 runners ship Docker Engine, which testcontainers needs
     # for the real-Redis integration suite. No extra setup required.
     steps:
@@ -76,6 +90,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     needs: [typecheck, lint, unit]
+    defaults:
+      run:
+        working-directory: products/menu
 
     services:
       # `POSTGRES_DB` stays as the default `postgres` admin DB — the e2e
@@ -154,10 +171,12 @@ jobs:
         with:
           # Turbopack's persistent cache lives here in Next 16 — large saving
           # on warm runs. Keying on source files invalidates when code changes.
-          path: .next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('bun.lock') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.tsx') }}
+          # Path is repo-root-relative; actions/cache doesn't honour the job's
+          # `defaults.run.working-directory`.
+          path: products/menu/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('products/menu/bun.lock') }}-${{ hashFiles('products/menu/src/**/*.ts', 'products/menu/src/**/*.tsx') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('bun.lock') }}-
+            ${{ runner.os }}-nextjs-${{ hashFiles('products/menu/bun.lock') }}-
 
       - name: Cache Playwright browsers
         id: pw-cache

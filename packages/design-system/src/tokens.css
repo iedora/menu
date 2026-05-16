@@ -1,0 +1,47 @@
+/*
+ * @iedora/design-system — design tokens
+ *
+ * Editorial paper-and-ink language. Paper as ground, ink as type,
+ * cinnabar as the only accent. Fraunces and JetBrains Mono carry
+ * voice; the rest is hairlines and quiet space.
+ *
+ * Tokens are exposed as CSS custom properties under :where(:root) so
+ * any consumer (Next.js app, plain HTML, MDX) gets them with zero
+ * specificity cost. Override per-scope by re-declaring inside any
+ * container.
+ */
+
+:where(:root) {
+  /* ── ink + paper ─────────────────────────────────────────────── */
+  --ds-paper:        #EFE8DA;
+  --ds-paper-2:      #E7DFCF;
+  --ds-ink:          #1A1815;
+  --ds-ink-70:       rgba(26, 24, 21, 0.70);
+  --ds-ink-55:       rgba(26, 24, 21, 0.55);
+  --ds-ink-40:       rgba(26, 24, 21, 0.40);
+  --ds-ink-22:       rgba(26, 24, 21, 0.22);
+  --ds-ink-14:       rgba(26, 24, 21, 0.14);
+  --ds-ink-08:       rgba(26, 24, 21, 0.08);
+  --ds-cinnabar:     #B83A26;
+
+  /* ── type ────────────────────────────────────────────────────── */
+  --ds-serif:        "Fraunces", "Times New Roman", serif;
+  --ds-mono:         "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ── motion ──────────────────────────────────────────────────── */
+  --ds-ease:         cubic-bezier(.2, .7, .2, 1);
+  --ds-ease-open:    cubic-bezier(.16, .84, .26, 1);
+  --ds-ease-close:   cubic-bezier(.55, 0, .35, 1);
+
+  /* ── editorial scale ─────────────────────────────────────────── */
+  --ds-fs-meta:      11px;
+  --ds-fs-label:     10px;
+  --ds-fs-body:      17px;
+  --ds-fs-statement: 21px;
+  --ds-fs-display:   clamp(120px, 18vw, 232px);
+  --ds-fs-inline:    30px;
+
+  /* ── rules ───────────────────────────────────────────────────── */
+  --ds-rule:         1px solid var(--ds-ink-14);
+  --ds-rule-strong:  1px solid var(--ds-ink-22);
+}

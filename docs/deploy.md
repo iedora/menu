@@ -1,6 +1,6 @@
 # Deploy — homelab box or cloud VPS behind a Cloudflare Tunnel
 
-End-to-end self-host: edit one config file, run one command, app live behind a Cloudflare Tunnel with TLS. Kamal 2 does the heavy lifting; the only "script" is the Makefile.
+End-to-end self-host: edit one config file, run one command, app live behind a Cloudflare Tunnel with TLS. Kamal 2 does the heavy lifting; the only "script" is the `products/menu/infra/justfile` (run via `just X` from anywhere in the repo).
 
 ```
 Internet → Cloudflare edge (TLS)
@@ -74,7 +74,7 @@ You need an existing zone (a domain you control, like `example.com`, added to yo
    - **Account · Account Settings · Read**
    - **Account · Workers R2 Storage · Edit** (Tofu manages the backups bucket)
    - **User · API Tokens · Edit** (Tofu creates the R2 S3 sub-token for the backups accessory)
-3. Copy the token — you'll paste it into `infra/.env`.
+3. Copy the token — you'll paste it into `products/menu/infra/.env`.
 
 Also grab your **Account ID** and **Zone ID** from the right sidebar of any Cloudflare dashboard page.
 
@@ -117,10 +117,10 @@ ssh root@<box-ip> 'whoami'
 ```bash
 git clone https://github.com/<you>/meta-menu.git
 cd meta-menu
-cp infra/.env.example infra/.env
+cp products/menu/infra/.env.example products/menu/infra/.env
 ```
 
-All production secrets live in Bitwarden Secrets Manager. `infra/.env` holds only non-secret IDs + the BWS access token that unlocks the vault:
+All production secrets live in Bitwarden Secrets Manager. `products/menu/infra/.env` holds only non-secret IDs + the BWS access token that unlocks the vault:
 
 ```bash
 # Cloudflare (from step 3)
@@ -145,7 +145,7 @@ BWS_PROJECT_ID=…uuid…
 Then populate BWS with 7 secrets — use the same machine to avoid pasting tokens around. `bws` CLI install: `brew install bitwarden/tap/bws` on macOS or download from https://github.com/bitwarden/sdk-sm/releases.
 
 ```bash
-source infra/.env
+source products/menu/infra/.env
 for KEY in CLOUDFLARE_API_TOKEN STATE_PASSPHRASE BETTER_AUTH_SECRET \
            POSTGRES_PASSWORD BACKUP_PASSPHRASE GHCR_TOKEN; do
   read -s -p "$KEY: " V && echo
@@ -155,14 +155,14 @@ done
 
 Generate each value with `openssl rand -hex 32`, except `CLOUDFLARE_API_TOKEN` (from step 3) and `GHCR_TOKEN` (https://github.com/settings/tokens — classic PAT, `write:packages` scope).
 
-Keep the BWS access token in your password manager — losing it means losing access to every other secret. `infra/.env` is gitignored.
+Keep the BWS access token in your password manager — losing it means losing access to every other secret. `products/menu/infra/.env` is gitignored.
 
 ---
 
 ## Step 6 — Deploy
 
 ```bash
-make deploy
+just menu::deploy
 ```
 
 Same command for first-time AND every-other-time. Internally it runs:
@@ -183,21 +183,26 @@ When it finishes, hit `https://$PUBLIC_HOSTNAME/up` — should return `{"ok":tru
 
 ## Day-2 commands
 
+Run from the repo root (or `cd products/menu/infra` and drop the `menu::` namespace):
+
 ```bash
-make logs           # tail app logs (rolling)
-make console        # bash inside a fresh app container with env loaded
-make migrate        # run migrations on the current image (rare; container start already does this)
-make redeploy       # re-pull current image, no rebuild
-make rollback       # roll back to the previous version
-make destroy        # tofu destroy — removes the Cloudflare tunnel + DNS only; box untouched
+just menu::deploy        # idempotent — tofu apply + kamal setup. Same on day-1 and day-N.
+just menu::logs          # tail app logs (rolling)
+just menu::console       # bash inside a fresh app container with env loaded
+just menu::rollback      # roll back to the previous version
+just menu::backup        # force a pg_dump now (cron runs daily)
+just menu::restore       # restore latest dump (interactive)
+just menu::destroy       # tofu destroy — removes the Cloudflare tunnel + DNS only; box untouched
 ```
 
-All are direct `kamal` calls — the Makefile only loads `infra/.env`, exports its values, and resolves the gem-bin PATH so subprocesses find `kamal`.
+All are direct `kamal` (or `tofu`) calls — the justfile loads `products/menu/infra/.env` (`set dotenv-load`), runs each recipe through `bin/with-secrets`, and resolves the gem-bin PATH so subprocesses find `kamal`.
 
-For ad-hoc kamal commands (e.g. `kamal app stop`, `kamal accessory exec`), source `infra/.env` first:
+**Why no `migrate` or `redeploy` recipe?** Migrations run on container start via the Kamal `servers.web.cmd` (`node scripts/migrate.mjs && node server.js`) — guarded by a pg_advisory_lock so multiple replicas don't race. And `redeploy` was just `deploy` minus a few idempotent steps (registry login, pruning); `deploy` itself is idempotent and only ~10s slower in the no-op case, so one verb is enough. Ad-hoc: `cd products/menu/infra/kamal && kamal app exec ...` for one-offs.
+
+For ad-hoc kamal commands (e.g. `kamal app stop`, `kamal accessory exec`), source `products/menu/infra/.env` first:
 
 ```bash
-set -a; . infra/.env; set +a
+set -a; . products/menu/infra/.env; set +a
 kamal app stop
 ```
 
@@ -205,16 +210,16 @@ kamal app stop
 
 ## Adding a second box / a cloud VPS later
 
-Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothing** is needed in step 4 because the image ships with root SSH already. For a second box, you'd typically use Kamal's multi-host config — bump `servers.web.hosts` in `infra/kamal/config/deploy.yml` to a list, and Kamal load-balances behind kamal-proxy.
+Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothing** is needed in step 4 because the image ships with root SSH already. For a second box, you'd typically use Kamal's multi-host config — bump `servers.web.hosts` in `products/menu/infra/kamal/config/deploy.yml` to a list, and Kamal load-balances behind kamal-proxy.
 
 ---
 
 ## How values flow
 
-- **`infra/.env`** → Makefile `-include` + `export` → visible to every `tofu`/`kamal` subprocess.
-- **Tunnel token** → generated by `tofu apply`, read at deploy time by `infra/kamal/.kamal/secrets` via `$(tofu -chdir=../tofu output -raw tunnel_token)` (paths are relative to Kamal's cwd, `infra/kamal/`). No manual copy step.
+- **`products/menu/infra/.env`** → justfile `set dotenv-load` → visible to every `tofu`/`kamal` subprocess that the recipe spawns.
+- **Tunnel token** → generated by `tofu apply` in `products/menu/infra/tofu/`, read at deploy time by `products/menu/infra/kamal/.kamal/secrets` via `$(tofu -chdir=../tofu output -raw tunnel_token)` (paths are relative to Kamal's cwd, `products/menu/infra/kamal/`). No manual copy step.
 - **Registry password** → `$(gh auth token)` evaluated when Kamal logs into ghcr.io.
-- **App secrets** (BETTER_AUTH_SECRET, POSTGRES_PASSWORD, etc.) → `.kamal/secrets` references `$VAR` form, which Kamal evaluates against the env (sourced from `infra/.env` via the Makefile).
+- **App secrets** (BETTER_AUTH_SECRET, POSTGRES_PASSWORD, etc.) → `.kamal/secrets` references `$VAR` form, which Kamal evaluates against the env (sourced from `products/menu/infra/.env` via the justfile).
 
 `.kamal/secrets` is checked into git — it contains **only references**, never values.
 
@@ -222,7 +227,34 @@ Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothi
 
 ## Updating the Cloudflare tunnel (adding routes, etc.)
 
-`infra/tofu/main.tf` defines ingress + DNS. Edit it (e.g. add a third ingress rule for a new accessory), then `make deploy` — `tofu apply` runs first and pushes the change. DNS + ingress propagate in seconds.
+`products/menu/infra/tofu/menu.tf` defines ingress + DNS for the menu app. Edit it (e.g. add a third ingress rule for a new accessory), then `just menu::deploy` — `tofu apply` (against `tofu/menu/`) runs first and pushes the change. DNS + ingress propagate in seconds. The brand-level iedora.com Pages site is a separate root (`products/house/infra/tofu/`) with its own state and own deploy recipe (`just house::deploy`).
+
+---
+
+## Why one Tofu root per product (and not one shared root)
+
+Each product owns its own Tofu root under `products/<name>/infra/tofu/` with its own encrypted state file. The shared bits (Cloudflare provider, encryption envelope, zone data source) are duplicated per root — that's deliberate.
+
+**The benefits paid for by that duplication:**
+
+1. **Blast radius.** `tofu apply` in `products/house/infra/tofu/` literally cannot plan a change against the menu tunnel — the state isn't there. A typo in house resources can't accidentally destroy R2 buckets.
+2. **Lifecycles.** The menu app changes weekly; the house site changes maybe once a quarter. Splitting state means routine menu deploys don't even read the Pages config, and a stuck Pages-domain provisioning doesn't block `just menu::deploy`.
+3. **Secrets surface.** The narrow `pages_deploy` token (see `docs/secrets.md` — Token tiers) lives only in the house state. wrangler reads it via `tofu -chdir=tofu output`, never seeing the menu tunnel or R2 keys.
+4. **Adding a 3rd product is mechanical** — `mkdir products/<name>/`, copy the shape of `products/house/infra/` as a starting point, append `mod <name> 'products/<name>/infra'` to the root `justfile`. No edits to existing products.
+
+**The cost.** ~30 lines duplicated per root: `versions.tf` (provider + encryption), `variables.tf` for the credentials each root happens to need (api_token, account_id, state_passphrase), and a `data.cloudflare_zone "this"` lookup. The Terraform monorepo articles ([Spacelift](https://spacelift.io/blog/terraform-monorepo), [Cloud Posse, Scalr]) all call this out as the trade-off the pattern asks for; the alternative (one root, multiple `.tf` files, shared state) puts everything inside one blast radius.
+
+---
+
+## Why `just` (not Make)
+
+The entry point is `<repo>/justfile`, a tiny forwarder that uses `mod menu 'products/menu/infra'` + `mod house 'products/house/infra'` to expose per-product recipes as `just menu::deploy` / `just house::deploy` / etc. Each product has its own self-contained `infra/justfile`. Switched from Make in May 2026 for three reasons:
+
+1. **Modules.** `just` has first-class module support — `mod <name> '<path>'` namespaces an entire justfile under a prefix. Adding a 3rd product is one line in the root forwarder; Make would need per-target forwarders or a parameterized convention that gets brittle fast.
+2. **Auto-help.** `just` (no args) lists every recipe with the comment line above it as the description. The Make version had a 30-line `@echo` block in the `help:` target that had to be kept in sync by hand.
+3. **No escape pain.** Shebang recipes (`#!/usr/bin/env bash`) let multi-step recipes (`deploy`, `rotate-secret`, `build-backup`) be plain bash scripts inside the recipe body — no `&&` chains, no `\` line continuations, no `$$` doubling for shell vars.
+
+Install: `brew install just` (macOS) or `cargo install just` (Linux). Single Rust binary, no daemon, ~10ms cold start.
 
 ---
 
@@ -230,12 +262,13 @@ Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothi
 
 ```
 .env.example                         dev template — copy to .env.local (Next.js dev)
-infra/.env.example                  infra template — copy to infra/.env (Tofu + Kamal; NOT loaded by Next)
-infra/kamal/config/deploy.yml                    Kamal config — app + 3 accessories (postgres, cloudflared, backups)
-infra/kamal/.kamal/secrets           shell-evaluated references; committed, no values
-infra/tofu/                          Cloudflare tunnel + DNS + ingress (encrypted state)
-Makefile                             the only entry point (calls tofu + kamal directly)
-infra/Dockerfile                     multi-stage build for the Next app (Bun install, Node build, standalone)
+products/menu/infra/.env.example                  infra template — copy to products/menu/infra/.env (Tofu + Kamal; NOT loaded by Next)
+products/menu/infra/kamal/config/deploy.yml                    Kamal config — app + 3 accessories (postgres, cloudflared, backups)
+products/menu/infra/kamal/.kamal/secrets           shell-evaluated references; committed, no values
+products/menu/infra/tofu/                    menu.iedora.com — Cloudflare tunnel + DNS + R2 (encrypted state)
+products/house/infra/tofu/              iedora.com root — Cloudflare Pages project + apex DNS (encrypted state)
+justfile + products/menu/infra/justfile            entry point (root forwards into infra/, where recipes live)
+products/menu/infra/Dockerfile                     multi-stage build for the Next app (Bun install, Node build, standalone)
 scripts/migrate.mjs                  Drizzle migrator with pg_advisory_lock
 ```
 
@@ -243,7 +276,7 @@ scripts/migrate.mjs                  Drizzle migrator with pg_advisory_lock
 
 ## Troubleshooting
 
-**`make deploy` errors with `key not found` early on** — `infra/.env` is missing or a required key isn't filled. Copy `infra/.env.example` and fill in every value.
+**`just menu::deploy` errors with `key not found` early on** — `products/menu/infra/.env` is missing or a required key isn't filled. Copy `products/menu/infra/.env.example` and fill in every value.
 
 **`ssh root@host` asks for a password** — root SSH isn't accepting your key. Three causes: (a) key isn't in `/root/.ssh/authorized_keys` (re-run step 4b); (b) `/root/.ssh` perms are wrong (must be `700`, file `600`, both owned by `root`); (c) sshd disables root login (re-run step 4c to set `PermitRootLogin prohibit-password`).
 
@@ -251,12 +284,19 @@ scripts/migrate.mjs                  Drizzle migrator with pg_advisory_lock
 
 **GHCR push returns "denied"** — `gh auth status` must show `write:packages` in the scopes line. Re-run step 2.
 
-**`cloudflared` reports 1033 or restart-loops after `make destroy && make deploy`** — `kamal accessory boot` (called inside `kamal setup`) is idempotent but skips containers that already exist, even Exited ones. The cloudflared container with the dead tunnel token sits there. Fix: `kamal accessory reboot cloudflared` (force-recreate). One-shot, not a recurring problem.
+**`cloudflared` reports 1033 or restart-loops after `just menu::destroy && just menu::deploy`** — `kamal accessory boot` (called inside `kamal setup`) is idempotent but skips containers that already exist, even Exited ones. The cloudflared container with the dead tunnel token sits there. Fix: `kamal accessory reboot cloudflared` (force-recreate). One-shot, not a recurring problem.
 
 **502 from the tunnel** — `docker network inspect kamal` on the box should list 5 containers (kamal-proxy + 4 accessories + the app). If one's missing: `kamal accessory boot <name>` for that accessory, or check `kamal logs` for the app.
 
-**Healthcheck flaps on first deploy** — app starts slower than `interval`. Raise `proxy.healthcheck.interval` in `infra/kamal/config/deploy.yml`.
+**Healthcheck flaps on first deploy** — app starts slower than `interval`. Raise `proxy.healthcheck.interval` in `products/menu/infra/kamal/config/deploy.yml`.
 
 **`unable to find image` on the server** — registry push failed. `gh auth status` must show `write:packages`; if the smoketest `echo $(gh auth token) | docker login ghcr.io -u <user> --password-stdin` fails, the token is wrong.
 
-**Build-time warnings about `BETTER_AUTH_SECRET`** — Better Auth reads `process.env` during `next build`. `infra/Dockerfile` sets placeholder values for build-only; runtime values from Kamal's `--env-file` override them. If the warnings come back after a Dockerfile change, the placeholders got removed — re-add the `ENV BETTER_AUTH_SECRET=…` / `ENV BETTER_AUTH_URL=…` lines before `RUN node --run build`.
+**Build-time warnings about `BETTER_AUTH_SECRET`** — Better Auth reads `process.env` during `next build`. `products/menu/infra/Dockerfile` sets placeholder values for build-only; runtime values from Kamal's `--env-file` override them. If the warnings come back after a Dockerfile change, the placeholders got removed — re-add the `ENV BETTER_AUTH_SECRET=…` / `ENV BETTER_AUTH_URL=…` lines before `RUN node --run build`.
+
+**`tofu destroy` prints `Warning: Resource Destruction Considerations` for `cloudflare_zero_trust_tunnel_cloudflared_config` and `cloudflare_r2_bucket_cors`** — harmless, expected, no action needed. The Cloudflare provider can't delete these two resource types via API because Cloudflare doesn't expose a separate delete endpoint for them — they're subresources of their parents:
+
+- `cloudflare_zero_trust_tunnel_cloudflared_config` — the tunnel's ingress rules. Lives inside the tunnel; deleted automatically when the parent `cloudflare_zero_trust_tunnel_cloudflared.menu` is destroyed (which **does** work).
+- `cloudflare_r2_bucket_cors` — the bucket's CORS policy. Lives inside the R2 bucket; deleted automatically when the parent `cloudflare_r2_bucket.assets` is destroyed.
+
+Tofu only removes them from local state — that's all the warning is saying. Verified after a real `tofu destroy`: tunnel and buckets are gone from the Cloudflare dashboard along with their orphaned configs. On the next `tofu apply` the parents get recreated and Tofu provisions the configs anew. If you ever DO end up with a real orphan (e.g. you delete the tunnel out-of-band but the config sticks), `tofu apply` will reconcile by creating a new tunnel with new config and the old config disappears with its dead parent.

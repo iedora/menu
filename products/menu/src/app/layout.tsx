@@ -9,6 +9,7 @@ import {
 } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
+import "@iedora/design-system/styles.css";
 import "./globals.css";
 
 const geistSans = Geist({

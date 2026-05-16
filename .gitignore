@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# dependencies — each product has its own node_modules (no workspaces)
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,7 +17,7 @@
 .vitest-cache/
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -40,8 +40,8 @@ yarn-error.log*
 .env.*.local
 !.env.example
 !.env.test
-# Infra .env (gitignored); the example file IS tracked.
-infra/.env
+# Per-product infra .env (gitignored); the example files ARE tracked.
+products/*/infra/.env
 
 # vercel
 .vercel
@@ -51,23 +51,23 @@ infra/.env
 next-env.d.ts
 
 # Playwright
-/test-results/
-/playwright-report/
-/playwright/.cache/
-/blob-report/
-/playwright/.auth/
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+playwright/.auth/
 
 # Claude Code — local user settings (skills are shared)
 .claude/settings.local.json
 .claude/
 
 # Infra — tofu state, never in git
-infra/**/*.iso
-infra/**/.terraform/
-infra/**/terraform.tfstate
-infra/**/terraform.tfstate.backup
-infra/**/terraform.tfstate.d/
-infra/**/terraform.tfvars
+**/.terraform/
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfstate.*.backup
+**/terraform.tfstate.d/
+**/terraform.tfvars
 # .terraform.lock.hcl SHOULD be committed — pins provider versions
 
 # Kamal — .kamal/secrets is committed (only references, no values). Real
@@ -80,3 +80,4 @@ infra/**/terraform.tfvars
 *.dump.gpg
 *.sql.gz
 *.bak
+.playwright-mcp/

@@ -1,0 +1,274 @@
+/*
+ * @iedora/design-system — component styles
+ *
+ * Pulls in tokens.css and defines the `.ds-*` class surface. All
+ * component selectors are scoped under their own class so the
+ * stylesheet is safe to drop into any host (Next.js + Tailwind,
+ * plain HTML, etc.) without leaking onto unrelated elements.
+ */
+
+@import "./tokens.css";
+
+/* ── ground ─────────────────────────────────────────────────────
+ *
+ * .ds-root sets the editorial ground: paper background, ink type,
+ * Fraunces by default. Wrap any subtree where you want the design
+ * system to take over. Does NOT reset the entire document.
+ */
+
+.ds-root {
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  font-family: var(--ds-serif);
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.ds-root *,
+.ds-root *::before,
+.ds-root *::after {
+  box-sizing: border-box;
+}
+
+/* Subtle paper texture — radial wash from corners. Optional;
+ * apply `.ds-root--washed` to opt in. */
+.ds-root--washed {
+  position: relative;
+}
+.ds-root--washed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 800px at 12% 0%, rgba(26, 24, 21, 0.025), transparent 60%),
+    radial-gradient(1000px 700px at 100% 100%, rgba(26, 24, 21, 0.03), transparent 55%);
+  z-index: 0;
+}
+
+/* ── wordmark ───────────────────────────────────────────────── */
+
+.ds-wordmark {
+  font-family: var(--ds-serif);
+  font-weight: 300;
+  font-variation-settings: "opsz" 144;
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+  margin: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  cursor: default;
+  user-select: none;
+  color: var(--ds-ink);
+}
+
+.ds-wordmark--display { font-size: var(--ds-fs-display); }
+.ds-wordmark--inline  { font-size: var(--ds-fs-inline); line-height: 1; letter-spacing: -0.035em; }
+
+.ds-wordmark__d   { font-weight: 400; }
+.ds-wordmark__dot { color: var(--ds-cinnabar); font-weight: 400; }
+
+/* ── meta strip ─────────────────────────────────────────────── */
+
+.ds-meta-strip {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  font-family: var(--ds-mono);
+  font-size: var(--ds-fs-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-ink-55);
+  padding-bottom: 18px;
+  border-bottom: var(--ds-rule);
+  gap: 28px;
+}
+
+.ds-meta-strip__left   { justify-self: start;  display: flex; gap: 28px; }
+.ds-meta-strip__center { justify-self: center; }
+.ds-meta-strip__right  { justify-self: end;    display: flex; gap: 28px; }
+
+.ds-meta-strip a {
+  color: inherit;
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  transition: border-color .25s var(--ds-ease), color .25s var(--ds-ease);
+}
+.ds-meta-strip a:hover {
+  border-color: var(--ds-ink-40);
+  color: var(--ds-ink);
+}
+
+/* ── lintel (form top bar) ──────────────────────────────────── */
+
+.ds-lintel {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 10px;
+}
+
+.ds-lintel__rule {
+  display: block;
+  height: 1px;
+  background: var(--ds-ink-22);
+  align-self: center;
+  transform: translateY(-2px);
+}
+
+/* ── pane / editorial field ─────────────────────────────────── */
+
+.ds-pane-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: var(--ds-rule-strong);
+}
+
+.ds-pane {
+  position: relative;
+  display: block;
+  padding: 14px 22px 12px;
+  border-right: var(--ds-rule);
+  border-bottom: var(--ds-rule);
+  min-height: 0;
+}
+.ds-pane-grid > .ds-pane:nth-child(2n) { border-right: 0; }
+
+.ds-pane--full {
+  grid-column: 1 / -1;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.ds-pane__label {
+  font-family: var(--ds-mono);
+  font-size: var(--ds-fs-label);
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--ds-ink-55);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ds-pane__label-hint {
+  font-family: var(--ds-serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-ink-40);
+}
+
+.ds-input,
+.ds-textarea {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--ds-ink-22);
+  padding: 6px 0 4px;
+  margin-top: 6px;
+  font-family: var(--ds-serif);
+  font-weight: 300;
+  font-size: var(--ds-fs-body);
+  line-height: 1.3;
+  color: var(--ds-ink);
+  outline: none;
+  transition: border-color .3s var(--ds-ease);
+}
+
+.ds-input::placeholder,
+.ds-textarea::placeholder {
+  color: var(--ds-ink-22);
+  font-style: italic;
+}
+
+.ds-input:focus,
+.ds-textarea:focus {
+  border-bottom-color: var(--ds-cinnabar);
+}
+
+.ds-textarea {
+  resize: none;
+  font-size: 14.5px;
+  min-height: 44px;
+  line-height: 1.45;
+  padding-top: 8px;
+}
+
+/* ── send button ───────────────────────────────────────────── */
+
+.ds-send-btn {
+  font-family: var(--ds-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ds-paper);
+  background: var(--ds-ink);
+  border: 0;
+  padding: 10px 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  transition: background .3s var(--ds-ease), transform .35s var(--ds-ease);
+}
+.ds-send-btn:hover  { background: var(--ds-cinnabar); }
+.ds-send-btn__arrow { transition: transform .3s var(--ds-ease); }
+.ds-send-btn:hover .ds-send-btn__arrow { transform: translateX(3px); }
+
+.ds-send-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.ds-send-btn[disabled]:hover {
+  background: var(--ds-ink);
+}
+
+/* ── statement (italic Fraunces tagline) ────────────────────── */
+
+.ds-statement {
+  max-width: 360px;
+  font-family: var(--ds-serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: var(--ds-fs-statement);
+  line-height: 1.45;
+  color: var(--ds-ink-70);
+  text-wrap: pretty;
+  margin: 0;
+}
+.ds-statement em {
+  font-style: normal;
+  color: var(--ds-ink);
+}
+
+/* ── small label (key/value column header) ─────────────────── */
+
+.ds-key {
+  font-family: var(--ds-mono);
+  font-size: 10px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--ds-ink-40);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.ds-value {
+  font-family: var(--ds-serif);
+  font-weight: 300;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ds-ink-70);
+}
+.ds-value strong {
+  font-weight: 500;
+  color: var(--ds-ink);
+}

@@ -4,10 +4,19 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Meta Menu — project conventions
+# Iedora monorepo — project conventions
+
+> This repo is grouped by product (see "File layout" below). The hard rules
+> and dev commands in this file are written for the **menu product** at
+> `products/menu/` — relative paths like `src/...`, `eslint.config.mjs`, etc.
+> are relative to that directory. The house product (`products/house/`) is a
+> static landing page and has no code-level conventions of its own beyond
+> `products/house/README.md`.
 
 ## What this is
-SaaS multi-tenant restaurant menu builder. Each tenant is a Better Auth `organization` that owns one or more `restaurant` rows. Admins build menus via drag-and-drop; the public menu renders from the same data.
+SaaS multi-tenant restaurant menu builder (the menu product). Each tenant is a Better Auth `organization` that owns one or more `restaurant` rows. Admins build menus via drag-and-drop; the public menu renders from the same data.
+
+The menu app is one of several **works** under the Iedora umbrella. The umbrella's brand landing page (iedora.com) lives at `products/house/` — separate codebase, separate deploy, deliberately small.
 
 ## Stack
 - **Next.js 16** (App Router, Turbopack default, Cache Components)
@@ -65,15 +74,29 @@ For asset targets, languages, plans, templates: the registry pattern is already 
 
 ## File layout
 
-The codebase is organised as **vertical slices** under `src/features/` (one folder
-per business capability) plus **`src/shared/`** for cross-slice infrastructure.
-Each slice follows a hexagonal-ish layout: `ports.ts` (interfaces) +
-`adapters/` (Drizzle/Better Auth implementations) + `use-cases/` (pure logic)
-+ `actions.ts` (server-action shells) + `ui/` (slice-owned components) +
+This is a **monorepo grouped by product**. Each product is a self-contained
+folder under `products/`, with its own source tree (if any), its own `infra/`
+(Tofu root + deploy config), its own `justfile`. Sibling products never share
+files — anything that looked shared (BWS credentials, the Cloudflare zone)
+gets duplicated per product so each one is independently appliable.
+
+```
+products/
+  menu/                    the menu product (menu.iedora.com — Next.js app)
+  house/                   the iedora.com root brand site (static HTML)
+```
+
+The menu product itself is organised as **vertical slices** under
+`products/menu/src/features/` (one folder per business capability) plus
+**`products/menu/src/shared/`** for cross-slice infrastructure. Each slice
+follows a hexagonal-ish layout: `ports.ts` (interfaces) + `adapters/`
+(Drizzle/Better Auth implementations) + `use-cases/` (pure logic) +
+`actions.ts` (server-action shells) + `ui/` (slice-owned components) +
 `index.ts` (the slice's public API).
 
 ```
-src/                       all Next.js source under here (Next's "src dir" convention)
+products/menu/             menu product root
+  src/                     all Next.js source under here (Next's "src dir" convention)
   app/                     Next.js App Router routes only
     (auth)/                  public auth pages (signup, login)
     _components/             page-local components (Next-private folder)
@@ -159,37 +182,53 @@ src/                       all Next.js source under here (Next's "src dir" conve
       button.tsx, card.tsx, dialog.tsx, dropdown-menu.tsx, input.tsx, label.tsx, separator.tsx, textarea.tsx
     utils.ts                 shadcn cn() helper
     testing/                 shared test fixtures
-  proxy.ts                 Next 16 proxy (was middleware) — at src/ root (App Router convention)
-  i18n/                    next-intl request config + message catalogues
-next.config.ts             Next-required root file
-drizzle.config.ts          schema path → ./src/shared/db/schema.ts
-tsconfig.json              "@/*": ["./src/*"]
-docker-compose.yml         postgres + localstack
-.env.example               dev template — copy to .env.local (Next.js dev)
-infra/                     ALL infra lives here — Make forwarder at root delegates `make X` → `make -C infra X`
-  Dockerfile               app build (multi-stage Bun-install + Node-build + standalone)
-  Makefile                 deploy/destroy/rotate-secret/logs/etc. targets; loads infra/.env
-  .env.example             infra template — copy to infra/.env (gitignored, NOT loaded by Next, so creds never reach process.env)
-  tofu/                    Cloudflare tunnel + DNS + ingress + R2 bucket (state encrypted, public_hostname from TF_VAR_)
-  kamal/
-    config/deploy.yml      Kamal 2 deploy config — app + 3 accessories (postgres, cloudflared, backups)
-    .kamal/secrets         shell-evaluated references: TUNNEL_TOKEN from tofu, KAMAL_REGISTRY_PASSWORD from `gh auth token`, rest from infra/.env
-  backup/                  self-built Postgres-backup image (Dockerfile + bash); built via `make build-backup`
-scripts/
-  migrate.mjs              Drizzle migrations under pg_advisory_lock
-  check-migrations.ts      dev-time guardrail; warns when journal has pending migrations
+    proxy.ts               Next 16 proxy (was middleware) — at src/ root (App Router convention)
+    i18n/                  next-intl request config + message catalogues
+  next.config.ts           Next-required (per-product) config
+  drizzle.config.ts        schema path → ./src/shared/db/schema.ts
+  tsconfig.json            "@/*": ["./src/*"]
+  docker-compose.yml       postgres + localstack (dev only)
+  .env.example             Next.js dev template — copy to .env.local
+  package.json, bun.lock   menu-only deps (no workspaces — each product owns its node_modules)
+  scripts/
+    migrate.mjs            Drizzle migrations under pg_advisory_lock
+    check-migrations.ts    dev-time guardrail; warns when journal has pending migrations
+  tests/e2e/
+    fixtures.ts            auto-fixture: fails fast on any RSC error / 5xx response
+    specs/                 organized by module: auth, tenancy, menu-builder, public-menu, …
+    helpers/               shared signup/org/db utilities
+  infra/                   menu product's deploy machinery
+    Dockerfile             app build (multi-stage Bun-install + Node-build + standalone)
+    justfile               deploy/destroy/rotate-secret/logs/etc. recipes; `set dotenv-load` pulls infra/.env
+    .env.example           infra template — copy to infra/.env (gitignored)
+    bin/with-secrets       BWS-env wrapper; injects TF_VAR_* aliases
+    tofu/                  Cloudflare tunnel + DNS + R2 buckets (encrypted state)
+    kamal/
+      config/deploy.yml    Kamal 2 deploy config — app + 3 accessories (postgres, cloudflared, backups)
+      .kamal/secrets       shell-evaluated references: TUNNEL_TOKEN from tofu, KAMAL_REGISTRY_PASSWORD from `gh auth token`, rest from infra/.env
+    backup/                self-built Postgres-backup image (Dockerfile + bash); built via `just menu::build-backup`
+
+products/house/            iedora.com root brand site
+  index.html               single-file editorial landing — ships to Cloudflare Pages
+  README.md                what it is + how to deploy
+  .assetsignore            wrangler exclude list (keeps README + infra/ out of the public bundle)
+  infra/
+    justfile               provision Pages project + apex DNS + upload static content
+    .env.example           shared BWS access + Cloudflare account id (3 keys)
+    bin/with-secrets       lighter wrapper — no PUBLIC_HOSTNAME / ONPREM_HOST / GHCR_USER
+    tofu/                  Cloudflare Pages project + apex DNS + narrow pages_deploy token
+
+justfile                   repo-root forwarder: `just menu::X` → products/menu/infra/, `just house::X` → products/house/infra/
 .github/workflows/
-  ci.yml                   Typecheck + Lint + E2E (Playwright); Bun for installs, Node for build
+  ci.yml                   Typecheck + Lint + E2E (Playwright); jobs scoped to products/menu/
 .mcp.json                  shadcn, postgres, bun, next-devtools, playwright MCP servers
-eslint.config.mjs          enforces no cross-slice imports via eslint-plugin-boundaries (slices may only import shared/* or their own siblings via barrels)
-tests/e2e/
-  fixtures.ts              auto-fixture: fails fast on any RSC error / 5xx response
-  specs/                   organized by module: auth, tenancy, menu-builder, public-menu,
-                           settings, qr, uploads, plans, billing, metrics, dashboard, landing
-  helpers/                 shared signup/org/db utilities
+docs/                      brand-level docs (deploy + secrets + backups + scaling — apply across products)
 ```
 
 ## Useful commands
+
+Dev-loop commands run inside `products/menu/` (the only product with code right now). Either `cd products/menu/` first, or invoke from repo root (Bun resolves the local `package.json`).
+
 - `bun run dev` — Next.js dev server (Turbopack). Also warns at startup when migrations are pending.
 - `bun run typecheck` — TS check without emit
 - `bun run lint` — ESLint (boundary rules included)
@@ -202,15 +241,22 @@ tests/e2e/
 - `bun run auth:generate` — sync Better Auth tables into `src/shared/db/schema.ts` (re-run after changing auth plugins)
 - `docker compose up -d` — start Postgres + LocalStack (S3 mock)
 - `bunx shadcn@latest add <name>` — add a shadcn component
-- `cp infra/.env.example infra/.env` — infra config (gitignored, NOT loaded by Next.js). Fill in 5 user inputs (Cloudflare account/zone IDs, PUBLIC_HOSTNAME, ONPREM_HOST, GHCR_USER) + BWS access token. All 6 production secrets (CLOUDFLARE_API_TOKEN, STATE_PASSPHRASE, BETTER_AUTH_SECRET, POSTGRES_PASSWORD, BACKUP_PASSPHRASE, GHCR_TOKEN) live in Bitwarden Secrets Manager — populated via the `bws secret create` loop in `docs/deploy.md`. The matching `.env.local` (for Next dev) is separate so Cloudflare/R2 creds never reach Next's `process.env`.
-- **First-time setup** (once, manual): `ssh-copy-id root@$ONPREM_HOST` (Kamal's canonical SSH user — root with key-only login); `gh auth refresh -s write:packages`; then `make deploy`. See `docs/deploy.md` for the homelab key-copy step when root SSH isn't already enabled.
-- `make deploy` — single command, idempotent. Internally: `tofu apply` + `kamal setup` (= server bootstrap + accessory boot all + deploy). ~10s overhead on subsequent runs from the no-op idempotence checks; acceptable for not having to remember a separate first-time command.
-- `make logs` / `make console` / `make redeploy` / `make rollback` / `make migrate` — direct `kamal` calls with infra/.env loaded via `-include`.
-- `make backup` / `make restore` — force a Postgres dump now / restore latest (interactive).
-- `make build-backup` — rebuild the backup accessory image (only needed when bumping the Postgres major).
-- `make rotate-secret KEY=<name>` — rotate one BWS secret (prompts new value, edits BWS, reminds to redeploy). For sub-tokens (R2, tunnel): `bin/with-secrets tofu -chdir=tofu apply -replace=<resource>`. See `docs/secrets.md`.
-- `make destroy` — `tofu destroy`: removes Cloudflare tunnel + DNS only (does not touch the box)
-- `make help` — list every target
+- `cp products/menu/infra/.env.example products/menu/infra/.env` — menu infra config (gitignored, NOT loaded by Next.js). Fill in 5 user inputs (Cloudflare account ID, PUBLIC_HOSTNAME, ONPREM_HOST, GHCR_USER) + BWS access token. All 6 production secrets (CLOUDFLARE_API_TOKEN, STATE_PASSPHRASE, BETTER_AUTH_SECRET, POSTGRES_PASSWORD, BACKUP_PASSPHRASE, GHCR_TOKEN) live in Bitwarden Secrets Manager — populated via the `bws secret create` loop in `docs/deploy.md`. The matching `.env.local` (for Next dev) is separate so Cloudflare/R2 creds never reach Next's `process.env`.
+
+Deploy commands go through `just` at the repo root, namespaced per product:
+
+- **First-time setup** (once, manual): `ssh-copy-id root@$ONPREM_HOST` (Kamal's canonical SSH user — root with key-only login); `gh auth refresh -s write:packages`; then `just menu::deploy`. See `docs/deploy.md` for the homelab key-copy step when root SSH isn't already enabled.
+- `just menu::deploy` — menu app: tofu apply + kamal setup, idempotent. ~10s overhead on subsequent runs from no-op idempotence checks.
+- `just menu::logs` / `console` / `rollback` — direct `kamal` calls; menu's `.env` is auto-loaded via `set dotenv-load`. (Migrations run on container start via the Kamal `cmd:` — no separate `migrate` recipe needed.)
+- `just menu::backup` / `restore` — force a Postgres dump now / restore latest (interactive).
+- `just menu::build-backup` — rebuild the backup accessory image (only needed when bumping the Postgres major).
+- `just menu::rotate-secret <KEY>` — rotate one BWS secret (prompts new value, edits BWS, reminds to redeploy). For sub-tokens (R2, tunnel): `cd products/menu/infra && bin/with-secrets tofu -chdir=tofu apply -replace=<resource>`. See `docs/secrets.md`.
+- `just menu::destroy` — `tofu destroy` for menu: removes Cloudflare tunnel + DNS (does not touch the box).
+- `just house::deploy` / `house::destroy` — manage the iedora.com root site (Cloudflare Pages project + apex DNS + content upload).
+- `just menu` / `just house` — list each product's recipes.
+- `just` — list both modules.
+
+`just` itself is a Rust task runner — `brew install just` on macOS, `cargo install just` on the homelab. Replaces the old root + infra Makefiles.
 
 Build + push lives on the homelab box itself (`builder.remote: ssh://root@$ONPREM_HOST`, native amd64). Image is pushed to **GHCR** (`ghcr.io/$GHCR_USER/meta-menu`); auth is `gh auth token` evaluated from `.kamal/secrets`. No local registry, no buildx insecure-registry config, no daemon.json mutation.
 

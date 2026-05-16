@@ -1,8 +1,8 @@
 # Backups — daily Postgres dumps to Cloudflare R2
 
-A `backups` Kamal accessory runs a self-built image based on `postgres:18-alpine` (source: `infra/backup/`) on the same network as the `postgres` accessory. Daily it `pg_dump`s the `metamenu` database, GPG-encrypts the dump with `BACKUP_PASSPHRASE`, and uploads to a Cloudflare R2 bucket. 14-day retention. ~€0/yr at our size (R2 free tier ≤ 10 GB + zero egress).
+A `backups` Kamal accessory runs a self-built image based on `postgres:18-alpine` (source: `products/menu/infra/backup/`) on the same network as the `postgres` accessory. Daily it `pg_dump`s the `metamenu` database, GPG-encrypts the dump with `BACKUP_PASSPHRASE`, and uploads to a Cloudflare R2 bucket. 14-day retention. ~€0/yr at our size (R2 free tier ≤ 10 GB + zero egress).
 
-> **Why self-built** — the canonical community image `eeshugerman/postgres-backup-s3` stops at tag `:16` upstream as of mid-2026. Postgres rejects pg_dump version mismatch outright, so a 16-client image can't dump our PG 18 server. The self-built image (~40 lines of bash + a 7-line Dockerfile based on `postgres:18-alpine`) guarantees client/server version parity. When you bump Postgres, bump the image tag here too and run `make build-backup`.
+> **Why self-built** — the canonical community image `eeshugerman/postgres-backup-s3` stops at tag `:16` upstream as of mid-2026. Postgres rejects pg_dump version mismatch outright, so a 16-client image can't dump our PG 18 server. The self-built image (~40 lines of bash + a 7-line Dockerfile based on `postgres:18-alpine`) guarantees client/server version parity. When you bump Postgres, bump the image tag here too and run `just menu::build-backup`.
 
 Kamal itself doesn't manage backups — this is the canonical "use an accessory" pattern (confirmed across discussions [#654](https://github.com/basecamp/kamal/discussions/654), [#1150](https://github.com/basecamp/kamal/discussions/1150), [#1240](https://github.com/basecamp/kamal/discussions/1240), [#1414](https://github.com/basecamp/kamal/discussions/1414)).
 
@@ -10,29 +10,29 @@ Kamal itself doesn't manage backups — this is the canonical "use an accessory"
 
 Tofu provisions BOTH the R2 bucket AND the S3 access keys via a single `cloudflare_api_token` resource — Cloudflare's R2 S3 API accepts a regular Cloudflare API token as credentials (Access Key ID = token ID, Secret = SHA-256(token value), see [docs](https://developers.cloudflare.com/r2/api/tokens/)). `.kamal/secrets` reads both from `tofu output -raw`, same shape as `TUNNEL_TOKEN`. No dashboard interaction.
 
-Prerequisite: your existing `CLOUDFLARE_API_TOKEN` needs **User · API Tokens · Edit** added (so Tofu can create the R2 sub-token). The other required scopes are listed in `infra/.env.example`.
+Prerequisite: your existing `CLOUDFLARE_API_TOKEN` needs **User · API Tokens · Edit** added (so Tofu can create the R2 sub-token). The other required scopes are listed in `products/menu/infra/.env.example`.
 
-The one value you provide yourself: `BACKUP_PASSPHRASE` in `infra/.env` — the GPG passphrase that encrypts each dump. **Save it to your password manager** the moment you generate it. Lose the passphrase = lose the ability to decrypt past backups.
+The one value you provide yourself: `BACKUP_PASSPHRASE` in `products/menu/infra/.env` — the GPG passphrase that encrypts each dump. **Save it to your password manager** the moment you generate it. Lose the passphrase = lose the ability to decrypt past backups.
 
 ```bash
-# generate once, paste into infra/.env, copy to password manager:
+# generate once, paste into products/menu/infra/.env, copy to password manager:
 openssl rand -hex 32
 ```
 
 Then:
 
 ```bash
-make build-backup   # one-off: build + push ghcr.io/$GHCR_USER/meta-menu-backup:18
-make deploy         # Tofu creates bucket + R2 token; Kamal boots the accessory
-make backup         # force an immediate dump to verify end-to-end
+just menu::build-backup   # one-off: build + push ghcr.io/$GHCR_USER/meta-menu-backup:18
+just menu::deploy         # Tofu creates bucket + R2 token; Kamal boots the accessory
+just menu::backup         # force an immediate dump to verify end-to-end
 ```
 
-`make build-backup` only needs to be re-run when the Postgres major changes (bump the tag in `infra/kamal/config/deploy.yml` to match) or when `infra/backup/*.sh` is edited.
+`just menu::build-backup` only needs to be re-run when the Postgres major changes (bump the tag in `products/menu/infra/kamal/config/deploy.yml` to match) or when `products/menu/infra/backup/*.sh` is edited.
 
 ## Forcing an on-demand backup
 
 ```bash
-make backup
+just menu::backup
 ```
 
 This runs the dump-and-upload script immediately, in addition to the scheduled cron. Output lands in R2 with a timestamped key like `pg/metamenu-2026-05-15T14:30:00.dump.gpg`.
@@ -59,7 +59,7 @@ pg_restore -h localhost -p 5433 -U postgres -d postgres /tmp/dump
 pg_dump -h localhost -p 5433 -U postgres -t <table> --data-only > rows.sql
 
 # 5. Insert into live:
-make console
+just menu::console
 # Inside the app container: psql $DATABASE_URL < rows.sql
 ```
 
@@ -67,17 +67,19 @@ make console
 
 ```bash
 # 1. Stop accessing the DB (or take the app offline)
-make rollback                       # roll back to known-good version
+just menu::rollback                       # roll back to known-good version
 
 # 2. Wipe the postgres volume + boot fresh
 ssh root@$ONPREM_HOST 'docker rm -f meta-menu-postgres && docker volume rm meta-menu-postgres-data'
 kamal accessory boot postgres
 
 # 3. Restore latest dump
-make restore                        # prompts for timestamp; defaults to latest
+just menu::restore                  # prompts for timestamp; defaults to latest
 
-# 4. Schema is at whatever the latest dump captured; run any new migrations
-make migrate
+# 4. Schema is at whatever the latest dump captured; re-running `just menu::deploy`
+#    rolls the container, and the boot-time `node scripts/migrate.mjs` applies
+#    any migrations newer than the dump captured (idempotent, pg_advisory_lock).
+just menu::deploy
 ```
 
 Wall-clock: ~10 min for a < 1 GB dump.
@@ -88,10 +90,10 @@ Same flow as the [Hetzner migration](./scaling.md#3-migration-move-entirely-to-a
 
 ```bash
 # 1. Provision new box, get root SSH working (docs/deploy.md step 4)
-# 2. infra/.env: ONPREM_HOST=<new-ip>
-# 3. make deploy           # tofu re-points the tunnel, Kamal boots fresh stack on new box
-# 4. make restore          # pulls latest dump from R2, restores into the new postgres
-# 5. make migrate          # apply any migrations newer than the dump captured
+# 2. products/menu/infra/.env: ONPREM_HOST=<new-ip>
+# 3. just menu::deploy     # tofu re-points the tunnel, Kamal boots fresh stack on new box,
+#                          #   container start runs migrations (pg_advisory_lock)
+# 4. just menu::restore    # pulls latest dump from R2, restores into the new postgres
 ```
 
 Wall-clock: ~30 min. The Cloudflare tunnel + DNS doesn't change (Tofu repoints ingress), so user-facing hostname stays put.
@@ -99,7 +101,7 @@ Wall-clock: ~30 min. The Cloudflare tunnel + DNS doesn't change (Tofu repoints i
 ### Bad migration shipped
 
 ```bash
-make rollback              # instant — Kamal rolls the container back to previous version
+just menu::rollback              # instant — Kamal rolls the container back to previous version
 
 # If the migration was destructive (DROP COLUMN, etc.) and you need data back:
 # follow the "lost rows" recipe above against yesterday's dump.

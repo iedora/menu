@@ -1,6 +1,6 @@
 # Scaling — what to do when one homelab box isn't enough
 
-**TL;DR.** A single homelab box on Starlink is fine until you hit either ~100 concurrent users or your first sustained outage. Then migrate the whole stack to the cheapest Hetzner VPS (€4/mo · €48/yr) — same `make deploy`, just a different `ONPREM_HOST`. Don't add a second box for redundancy until you have paying customers who care, and even then prefer two Hetzner boxes over a hybrid homelab+VPS pair — the latency budget on Starlink CGNAT (40–150 ms per DB round-trip via Tailscale) eats your page render time faster than the €48/yr saves you. The one zero-cost thing worth doing today: install Tailscale on the homelab so future east-west joins are two lines, not a one-hour networking project.
+**TL;DR.** A single homelab box on Starlink is fine until you hit either ~100 concurrent users or your first sustained outage. Then migrate the whole stack to the cheapest Hetzner VPS (€4/mo · €48/yr) — same `just menu::deploy`, just a different `ONPREM_HOST`. Don't add a second box for redundancy until you have paying customers who care, and even then prefer two Hetzner boxes over a hybrid homelab+VPS pair — the latency budget on Starlink CGNAT (40–150 ms per DB round-trip via Tailscale) eats your page render time faster than the €48/yr saves you. The one zero-cost thing worth doing today: install Tailscale on the homelab so future east-west joins are two lines, not a one-hour networking project.
 
 See [`deploy.md`](./deploy.md) for the current single-host flow this builds on.
 
@@ -48,7 +48,7 @@ Buy more box, same address. Cheapest scaling motion.
 
 ## 3. Migration — move entirely to a Hetzner VPS
 
-Single command-flow change. Same `make deploy`, different IP.
+Single command-flow change. Same `just menu::deploy`, different IP.
 
 **Box.** Hetzner Cloud CX22 (x86, 2 vCPU, 4 GB, 40 GB SSD) is **€4.51/mo · €54.12/yr** as of May 2026; CAX11 (Ampere ARM, 2 vCPU, 4 GB) is **€3.79/mo · €45.48/yr** ([Hetzner Cloud pricing](https://www.hetzner.com/cloud)). ARM is the cheapest viable tier; both run the same Docker image fine (the `Dockerfile` builds for `linux/amd64` today, swap to `arm64` for CAX11 — one line in `builder.arch`).
 
@@ -61,8 +61,8 @@ Single command-flow change. Same `make deploy`, different IP.
 # 3. On the OLD box: dump postgres. Assets live in R2 already — no migration needed.
 ssh root@$OLD_HOST 'docker exec meta-menu-postgres pg_dump -U postgres metamenu | gzip' > db.sql.gz
 
-# 4. Edit infra/.env: ONPREM_HOST=<new-ip>
-# 5. make deploy   → tofu re-points the tunnel ingress, kamal boots fresh stack on new box.
+# 4. Edit products/menu/infra/.env: ONPREM_HOST=<new-ip>
+# 5. just menu::deploy   → tofu re-points the tunnel ingress, kamal boots fresh stack on new box.
 
 # 6. Restore data on the new box.
 gunzip < db.sql.gz | ssh root@$NEW_HOST 'docker exec -i meta-menu-postgres psql -U postgres metamenu'
@@ -90,7 +90,7 @@ This is the recommended next step. Do not skip it to chase multi-host.
 Two web boxes, one DB. The DHH-endorsed pattern ([X post](https://x.com/dhh/status/1919681760532586706)): join all hosts to a Tailscale tailnet, address the DB by its tailnet IP, let WireGuard handle the encrypted east-west link.
 
 ```yaml
-# infra/kamal/config/deploy.yml — multi-host snippet
+# products/menu/infra/kamal/config/deploy.yml — multi-host snippet
 servers:
   web:
     hosts:
@@ -157,13 +157,13 @@ tailscale up --ssh --hostname=meta-menu-homelab
 # Authenticate via the printed URL (one-time, your Tailscale account).
 
 # Note the MagicDNS hostname Tailscale assigns (something like
-# meta-menu-homelab.tail-xxxx.ts.net) — write it in infra/.env as a comment
+# meta-menu-homelab.tail-xxxx.ts.net) — write it in products/menu/infra/.env as a comment
 # next to ONPREM_HOST. That's it.
 ```
 
 Why on the host, not in a container: Tailscale-as-container forces you to share its netns or run sidecars per accessory. Host-level means every container's outbound traffic can reach the tailnet via the host's routing table, no Kamal config changes today.
 
-No `infra/kamal/config/deploy.yml` change required now. When you eventually add a second box, the diff is exactly:
+No `products/menu/infra/kamal/config/deploy.yml` change required now. When you eventually add a second box, the diff is exactly:
 
 ```yaml
 servers:
@@ -184,6 +184,6 @@ That's the entire "prep for multi-host" investment. Do it next time you SSH to t
 |---|---|---|---|---|
 | 1. Single homelab | €0 | 0 (baseline) | None | Today. Pre-revenue, EU-local, ≤100 concurrent. |
 | 2. Bigger homelab | €30–80 (amortized) | 0 | Low | CPU-bound but uplink+power still fine. Skip if undecided. |
-| 3. Migrate to Hetzner | €48 | -10 to -50 ms (faster) | None — same `make deploy` | First paying customer, or any reliability complaint. **Default next step.** |
+| 3. Migrate to Hetzner | €48 | -10 to -50 ms (faster) | None — same `just menu::deploy` | First paying customer, or any reliability complaint. **Default next step.** |
 | 4. Multi-host shared-DB (Tailscale) | €48 (one extra Hetzner) | +30 to +150 ms (east-west DB) | Medium — two hosts, tailnet, partial HA only | Paying users + zero-downtime deploys mandatory. Both boxes in same Hetzner region. |
 | 5. Multi-region separate DBs | €108+ | depends — usually -50 to -150 ms for far users | High — replication, conflicts, cache invalidation | Thousands of tenants, real geographic spread. Not soon. |

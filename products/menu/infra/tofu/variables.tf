@@ -7,6 +7,7 @@ variable "cloudflare_api_token" {
       - Account · Workers R2 Storage · Edit
       - User · API Tokens · Edit
     Provide via TF_VAR_cloudflare_api_token (set by bin/with-secrets from BWS).
+    The house/ product needs `Account · Cloudflare Pages · Edit` in addition.
   EOT
   type        = string
   sensitive   = true
