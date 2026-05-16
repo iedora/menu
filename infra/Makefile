@@ -18,19 +18,14 @@ KAMAL_GEM_BIN := $(firstword \
   $(wildcard $(HOME)/.gem/ruby/*/bin) \
   $(wildcard $(HOME)/.rbenv/versions/*/bin))
 
-# Tofu wrapper: bws run -- helper injects secrets + TF_VAR_* aliases.
-# Bitwarden's Terraform provider is still pre-GA (v0.5.4, UUID-only lookup,
-# no BWS_ACCESS_TOKEN support) — not worth migrating until v1.0. Until then,
-# we keep TF_VAR_ env injection.
-#
-# Kamal has its own native bitwarden-sm adapter (see .kamal/secrets), so
-# Kamal commands DON'T need this wrapper.
-TOFU  := bin/with-secrets tofu -chdir=tofu
-
-# Paths are relative to this Makefile (infra/). Kamal needs to run from
-# infra/kamal/ so it finds `config/deploy.yml` + `.kamal/secrets` via its
-# own conventions.
-KAMAL := cd kamal && $(if $(KAMAL_GEM_BIN),PATH="$(KAMAL_GEM_BIN):$$PATH" )kamal
+# Both Tofu and Kamal go through `bin/with-secrets`. The wrapper does a
+# `bws run` (injects every BWS secret into env) and aliases STATE_PASSPHRASE
+# → TF_VAR_state_passphrase so subshells inside `.kamal/secrets` that call
+# `$(tofu output …)` can decrypt the encrypted Tofu state without each line
+# repeating the env. Kamal still uses its own bitwarden-sm adapter for the
+# app secrets it fetches itself — this wrapper just sets the parent env.
+TOFU := bin/with-secrets tofu -chdir=tofu
+KAMAL := bin/with-secrets sh -c 'cd kamal && $(if $(KAMAL_GEM_BIN),PATH="$(KAMAL_GEM_BIN):$$PATH" )exec kamal "$$@"' --
 
 help:  ## Show this help
 	@echo "First-time setup (once, manual):"

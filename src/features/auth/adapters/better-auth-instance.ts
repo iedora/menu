@@ -16,6 +16,10 @@ export const auth = betterAuth({
       organization: schema.organization,
       member: schema.member,
       invitation: schema.invitation,
+      // rateLimit table backs `rateLimit.storage: 'database'` below — without
+      // it here, Better Auth's adapter errors with "model rateLimit not found"
+      // on the first auth request that hits the limiter.
+      rateLimit: schema.rateLimit,
     },
   }),
   trustedOrigins: [env.BETTER_AUTH_URL],
