@@ -88,7 +88,20 @@ export default async function AdminWebhookDetailPage({
           </dd>
           <dt style={dtStyle}>Secret</dt>
           <dd style={ddStyle}>
-            <SecretReveal secret={sub.secret} />
+            {sub.secret === null ? (
+              <em
+                style={{
+                  fontFamily: 'var(--serif)',
+                  fontStyle: 'italic',
+                  color: 'var(--cinnabar)',
+                }}
+              >
+                Could not decrypt — secret unrecoverable. Delete and
+                re-register this subscription.
+              </em>
+            ) : (
+              <SecretReveal secret={sub.secret} />
+            )}
           </dd>
           <dt style={dtStyle}>Updated</dt>
           <dd style={ddStyle}>

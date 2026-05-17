@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
+import { secretStorage } from '@iedora/identity'
 import { requireAdmin } from '@/features/admin'
 import { requireFreshSession } from '@/features/auth'
 import { emit } from '@/features/webhooks'
@@ -72,12 +73,16 @@ export async function registerSubscriptionAction(
   }
 
   const id = generateId()
+  // Encrypt the freshly-generated secret before persisting. The plaintext
+  // itself never lands on disk; the reveal-secret affordance reads back
+  // through `secretStorage.decrypt` in `getSubscriptionById`.
+  const secret = generateSecret()
   try {
     await db.insert(webhookSubscription).values({
       id,
       name,
       url,
-      secret: generateSecret(),
+      secret: secretStorage.encrypt(secret),
       events,
       enabled: true,
     })

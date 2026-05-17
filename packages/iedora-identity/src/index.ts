@@ -34,3 +34,10 @@ export type {
   HandlerMap,
   WebhookSubscription,
 } from "./types";
+
+export {
+  createHkdfEncryptor,
+  secretStorage,
+  type SaltVersion,
+  type SecretEncryptor,
+} from "./secret-storage";
