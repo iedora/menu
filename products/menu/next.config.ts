@@ -29,7 +29,16 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: [
     'metamenu.733113.xyz'
-  ]
+  ],
+  // `next build` typechecks everything reachable from tsconfig include.
+  // Tests import @iedora/auth-testkit which re-exports genkan's schema
+  // via a workspace-relative path that doesn't exist in menu's Docker
+  // build context (only menu + packages/* are copied). Point the build
+  // at a tsconfig that excludes tests; `bun run typecheck` still uses
+  // the unrestricted tsconfig.json so dev + CI catch test typos.
+  typescript: {
+    tsconfigPath: './tsconfig.build.json',
+  },
 }
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
