@@ -148,13 +148,13 @@ export function makeAuth(database: AuthDb) {
           'org:read', // can read user's organizations + members
           'org:admin', // can create/update/delete organizations
         ],
-        // Pre-register first-party clients here (env-driven so secrets stay
-        // in BWS). Dynamic clients (third-party) register via the
-        // `/oauth2/register` endpoint and are stored in oauth_application.
-        trustedClients: TRUSTED_CLIENTS,
-        // Auto-cache trusted clients on first lookup so the hot path is in
-        // memory, not DB.
-        cacheTrustedClients: true,
+        // Set of client_ids to mark as pre-trusted: their oauth_client rows
+        // are cached + made immutable through the public CRUD endpoints.
+        // The actual rows are seeded into the DB by scripts/migrate.mjs
+        // from the TRUSTED_CLIENTS env var; this set is just the pin list.
+        cachedTrustedClients: new Set(
+          TRUSTED_CLIENTS.map((c) => c.client_id),
+        ),
         // Sign-up landing within the OIDC `prompt=create` flow.
         signup: {
           page: '/signup',
