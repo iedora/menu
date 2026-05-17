@@ -130,7 +130,15 @@ jobs:
     env:
       # --- Database + auth ---
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/metamenu_test
-      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      # The cookie-injection fast path (tests/e2e/helpers/sign-in.ts) pre-signs
+      # session cookies with this exact literal. playwright.config.ts:14 sets
+      # the same string on the webServer's env. Pinning it here means the
+      # `next build` step ALSO sees this value — without that, the build was
+      # baking in whatever was in the `BETTER_AUTH_SECRET` GH secret, and
+      # signInAs's cookie signatures didn't validate at runtime → every
+      # signed-in spec bounced to genkan login. This is a fixture value, not
+      # a real secret; the literal lives in source already.
+      BETTER_AUTH_SECRET: test-secret-do-not-use-in-prod-test-secret-do-not-use-in-prod
       BETTER_AUTH_URL: http://localhost:3000
       DISABLE_AUTH_RATE_LIMIT: 'true'
       DISABLE_RATE_LIMIT: 'true'
