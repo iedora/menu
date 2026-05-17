@@ -7,6 +7,7 @@ import { db } from '@/shared/db/client'
 import { oauthAccessToken, oauthConsent, oauthRefreshToken } from '@/shared/db/schema'
 import { auth } from '@/features/auth/adapters/better-auth-instance'
 import { emit } from '@/features/webhooks'
+import { getRequestContext, record } from '@/features/audit'
 
 /**
  * Revoke a single OAuth grant — deletes the consent row and invalidates any
@@ -58,6 +59,20 @@ export async function revokeGrant(formData: FormData) {
     event: 'grant.revoked',
     payload: { user_id: userId, client_id: clientId },
   })
+
+  // Self-revoke: the actor is the user themselves. `actorRole` is whatever
+  // role they currently carry on `user.role` — typically `user`, but an
+  // admin who revokes their own grant will land here too.
+  const reqHeaders = await headers()
+  const actorRole = (session.user as { role?: string | null }).role ?? null
+  await record(
+    {
+      action: 'grant.revoke',
+      targetId: consentId,
+      payload: { user_id: userId, client_id: clientId },
+    },
+    getRequestContext(reqHeaders, { id: userId, role: actorRole }),
+  )
 
   revalidatePath('/profile')
 }

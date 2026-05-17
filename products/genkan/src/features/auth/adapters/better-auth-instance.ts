@@ -148,6 +148,21 @@ export function makeAuth(database: AuthDb) {
         },
       },
     },
+    // Step-up freshness marker. `lastPasswordAt` is the timestamp of the
+    // most recent password confirmation on this session row. Initialized
+    // at session creation (see `databaseHooks.session.create.before` below)
+    // and refreshed by the /reauth flow. Read by `requireFreshSession()` to
+    // gate destructive operations (user/org/app delete, role-to-admin,
+    // impersonate, ban, etc).
+    session: {
+      additionalFields: {
+        lastPasswordAt: {
+          type: 'date',
+          required: false,
+          input: false,
+        },
+      },
+    },
     advanced: {
       // No more crossSubDomainCookies — products federate via OIDC now. Each
       // app keeps its own host-scoped cookie; the OAuth handshake carries
@@ -181,6 +196,27 @@ export function makeAuth(database: AuthDb) {
      * own `*Organization` / `*Member` callbacks below.
      */
     databaseHooks: {
+      // Stamp every new session with a fresh `lastPasswordAt`. This covers
+      // sign-in (email+password), sign-up (auto-session), and impersonation
+      // (a new session row is created for the actor). Without this hook the
+      // `defaultNow()` Drizzle default still fires, but the explicit assign
+      // is diff-visible and survives a future schema-side change to the
+      // column default.
+      session: {
+        create: {
+          before: async (sessionRow) => {
+            // Only assign when missing — preserve any value the caller set
+            // explicitly (e.g. the /reauth path UPDATEs by id, so create
+            // hooks shouldn't run there, but stay defensive).
+            if (!('lastPasswordAt' in sessionRow) || sessionRow.lastPasswordAt == null) {
+              return {
+                data: { ...sessionRow, lastPasswordAt: new Date() },
+              }
+            }
+            return undefined
+          },
+        },
+      },
       user: {
         update: {
           before: async (user) => {

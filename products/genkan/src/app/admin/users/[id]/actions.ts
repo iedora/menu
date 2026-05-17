@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { requireAdmin } from '@/features/admin'
+import { requireFreshSession } from '@/features/auth'
 import { auth } from '@/features/auth/adapters/better-auth-instance'
 import { db } from '@/shared/db/client'
 import { user } from '@/shared/db/schema'
@@ -42,6 +43,12 @@ export async function setRoleAction(
     .limit(1)
   const fromRole = prev?.role ?? 'user'
 
+  // Step-up only when promoting to admin — privilege escalation is the
+  // destructive bit. Demotions / lateral moves don't need to re-prompt.
+  if (role === 'admin' && fromRole !== 'admin') {
+    await requireFreshSession({ returnTo: `/admin/users/${userId}` })
+  }
+
   try {
     await auth.api.setRole({
       headers: await headers(),
@@ -71,6 +78,7 @@ export async function banAction(
   formData: FormData,
 ): Promise<Result> {
   const session = await requireAdmin()
+  await requireFreshSession({ returnTo: `/admin/users/${userId}` })
   const banReason = String(formData.get('banReason') ?? '').trim()
   const banExpiresInDays = Number(formData.get('banExpiresInDays') ?? '')
   const banExpiresIn =
@@ -132,6 +140,7 @@ export async function unbanAction(userId: string): Promise<Result> {
 
 export async function impersonateAction(userId: string) {
   const session = await requireAdmin()
+  await requireFreshSession({ returnTo: `/admin/users/${userId}` })
   try {
     await auth.api.impersonateUser({
       headers: await headers(),
@@ -177,6 +186,7 @@ export async function revokeSessionAction(
 
 export async function deleteUserAction(userId: string): Promise<Result> {
   const session = await requireAdmin()
+  await requireFreshSession({ returnTo: `/admin/users/${userId}` })
   try {
     await auth.api.removeUser({
       headers: await headers(),

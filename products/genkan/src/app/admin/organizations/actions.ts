@@ -26,7 +26,7 @@ const slugRegex = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/
 export async function createOrganizationAction(
   formData: FormData,
 ): Promise<Result> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const name = String(formData.get('name') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim().toLowerCase()
   if (name.length < 2 || name.length > 80) {
@@ -49,6 +49,25 @@ export async function createOrganizationAction(
       error: toMessage(e, 'Could not create organization. The slug may be taken.'),
     }
   }
+  // Better Auth's createOrganization doesn't return the row in a typed
+  // shape we can rely on. Look it up by the (just-created) slug — it's
+  // unique-indexed so this is a constant-time read.
+  const [createdRow] = await db
+    .select({ id: organization.id })
+    .from(organization)
+    .where(eq(organization.slug, slug))
+    .limit(1)
+  if (createdRow) {
+    const audit = await recordAdminEvent(
+      {
+        action: 'org.create',
+        targetId: createdRow.id,
+        payload: { name, slug },
+      },
+      session,
+    )
+    if (!audit.ok) return audit
+  }
   revalidatePath('/admin/organizations')
   return { ok: true }
 }
@@ -56,7 +75,7 @@ export async function createOrganizationAction(
 export async function deleteOrganizationAction(
   organizationId: string,
 ): Promise<Result> {
-  await requireAdmin()
+  const session = await requireAdmin()
   try {
     await auth.api.deleteOrganization({
       headers: await headers(),
@@ -68,6 +87,11 @@ export async function deleteOrganizationAction(
       error: toMessage(e, 'Could not delete organization.'),
     }
   }
+  const audit = await recordAdminEvent(
+    { action: 'org.delete', targetId: organizationId },
+    session,
+  )
+  if (!audit.ok) return audit
   revalidatePath('/admin/organizations')
   redirect('/admin/organizations')
 }

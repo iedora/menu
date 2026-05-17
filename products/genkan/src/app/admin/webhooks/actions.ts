@@ -5,9 +5,11 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { requireAdmin } from '@/features/admin'
+import { requireFreshSession } from '@/features/auth'
 import { emit } from '@/features/webhooks'
 import { db } from '@/shared/db/client'
 import { webhookSubscription } from '@/shared/db/schema'
+import { recordAdminEvent } from '../_lib/audit'
 import { KNOWN_IDENTITY_EVENTS } from './_events'
 
 type Result = { ok: true } | { ok: false; error: string }
@@ -48,7 +50,7 @@ function parseEvents(formData: FormData): string[] | null {
 export async function registerSubscriptionAction(
   formData: FormData,
 ): Promise<RegisterResult> {
-  await requireAdmin()
+  const adminSession = await requireAdmin()
   const name = String(formData.get('name') ?? '').trim() || null
   const url = String(formData.get('url') ?? '').trim()
   const events = parseEvents(formData)
@@ -82,6 +84,17 @@ export async function registerSubscriptionAction(
   } catch (e) {
     return { ok: false, error: toMessage(e, 'Could not create subscription.') }
   }
+  // Record URL + events but NEVER the HMAC secret — same audit-payload
+  // discipline as `app.register` (no secrets in the audit table).
+  const audit = await recordAdminEvent(
+    {
+      action: 'webhook.register',
+      targetId: id,
+      payload: { url, events },
+    },
+    adminSession,
+  )
+  if (!audit.ok) return { ok: false, error: audit.error }
   revalidatePath('/admin/webhooks')
   return { ok: true, id }
 }
@@ -90,7 +103,8 @@ export async function updateSubscriptionAction(
   id: string,
   formData: FormData,
 ): Promise<Result> {
-  await requireAdmin()
+  const adminSession = await requireAdmin()
+  await requireFreshSession({ returnTo: `/admin/webhooks/${id}` })
   const name = String(formData.get('name') ?? '').trim() || null
   const url = String(formData.get('url') ?? '').trim()
   const enabled = formData.get('enabled') === 'on'
@@ -112,6 +126,19 @@ export async function updateSubscriptionAction(
     }
   }
 
+  // Snapshot the pre-update row so the audit `changed` payload only lists
+  // columns the operator actually moved.
+  const [prev] = await db
+    .select({
+      name: webhookSubscription.name,
+      url: webhookSubscription.url,
+      events: webhookSubscription.events,
+      enabled: webhookSubscription.enabled,
+    })
+    .from(webhookSubscription)
+    .where(eq(webhookSubscription.id, id))
+    .limit(1)
+
   try {
     await db
       .update(webhookSubscription)
@@ -126,6 +153,24 @@ export async function updateSubscriptionAction(
   } catch (e) {
     return { ok: false, error: toMessage(e, 'Could not update subscription.') }
   }
+  const changed: string[] = []
+  if (prev) {
+    if ((prev.name ?? null) !== (name ?? null)) changed.push('name')
+    if (prev.url !== url) changed.push('url')
+    if (!arrayShallowEq(prev.events ?? null, events)) changed.push('events')
+    if (prev.enabled !== enabled) changed.push('enabled')
+  }
+  if (changed.length > 0) {
+    const audit = await recordAdminEvent(
+      {
+        action: 'webhook.update',
+        targetId: id,
+        payload: { changed },
+      },
+      adminSession,
+    )
+    if (!audit.ok) return audit
+  }
   revalidatePath(`/admin/webhooks/${id}`)
   revalidatePath('/admin/webhooks')
   return { ok: true }
@@ -134,7 +179,8 @@ export async function updateSubscriptionAction(
 export async function deleteSubscriptionAction(
   id: string,
 ): Promise<Result> {
-  await requireAdmin()
+  const adminSession = await requireAdmin()
+  await requireFreshSession({ returnTo: `/admin/webhooks/${id}` })
   try {
     await db
       .delete(webhookSubscription)
@@ -142,8 +188,23 @@ export async function deleteSubscriptionAction(
   } catch (e) {
     return { ok: false, error: toMessage(e, 'Could not delete subscription.') }
   }
+  const audit = await recordAdminEvent(
+    { action: 'webhook.delete', targetId: id },
+    adminSession,
+  )
+  if (!audit.ok) return audit
   revalidatePath('/admin/webhooks')
   redirect('/admin/webhooks')
+}
+
+function arrayShallowEq(
+  a: string[] | null,
+  b: string[] | null,
+): boolean {
+  if (a === b) return true
+  if (a === null || b === null) return false
+  if (a.length !== b.length) return false
+  return a.every((v, i) => v === b[i])
 }
 
 /**

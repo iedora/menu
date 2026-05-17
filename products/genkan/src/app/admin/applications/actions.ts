@@ -5,9 +5,11 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { requireAdmin } from '@/features/admin'
+import { requireFreshSession } from '@/features/auth'
 import { auth } from '@/features/auth/adapters/better-auth-instance'
 import { db } from '@/shared/db/client'
 import { oauthClient } from '@/shared/db/schema'
+import { recordAdminEvent } from '../_lib/audit'
 
 type Result = { ok: true } | { ok: false; error: string }
 type RegisterResult =
@@ -37,7 +39,7 @@ function splitLines(s: string): string[] {
 export async function registerApplicationAction(
   formData: FormData,
 ): Promise<RegisterResult> {
-  await requireAdmin()
+  const adminSession = await requireAdmin()
   const clientName = String(formData.get('client_name') ?? '').trim()
   const redirectUris = splitLines(
     String(formData.get('redirect_uris') ?? ''),
@@ -81,6 +83,20 @@ export async function registerApplicationAction(
       .from(oauthClient)
       .where(eq(oauthClient.clientId, clientId))
       .limit(1)
+    // Record name + redirect_uris but never the client_secret — the
+    // payload is intentionally non-sensitive (it lands in a queryable
+    // table that ops eyeballs on a regular basis).
+    const audit = await recordAdminEvent(
+      {
+        action: 'app.register',
+        targetId: row?.id ?? clientId,
+        payload: { name: clientName, redirect_uris: redirectUris },
+      },
+      adminSession,
+    )
+    if (!audit.ok) {
+      return { ok: false, error: audit.error }
+    }
     revalidatePath('/admin/applications')
     return {
       ok: true,
@@ -98,7 +114,8 @@ export async function registerApplicationAction(
 export async function deleteApplicationAction(
   internalId: string,
 ): Promise<Result> {
-  await requireAdmin()
+  const adminSession = await requireAdmin()
+  await requireFreshSession({ returnTo: `/admin/applications/${internalId}` })
   try {
     await db.delete(oauthClient).where(eq(oauthClient.id, internalId))
   } catch (e) {
@@ -107,6 +124,11 @@ export async function deleteApplicationAction(
       error: toMessage(e, 'Could not delete application.'),
     }
   }
+  const audit = await recordAdminEvent(
+    { action: 'app.delete', targetId: internalId },
+    adminSession,
+  )
+  if (!audit.ok) return audit
   revalidatePath('/admin/applications')
   redirect('/admin/applications')
 }

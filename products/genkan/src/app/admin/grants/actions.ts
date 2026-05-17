@@ -10,6 +10,7 @@ import {
   oauthConsent,
   oauthRefreshToken,
 } from '@/shared/db/schema'
+import { recordAdminEvent } from '../_lib/audit'
 
 type Result = { ok: true } | { ok: false; error: string }
 
@@ -30,7 +31,10 @@ function toMessage(e: unknown, fallback: string): string {
 export async function revokeGrantAction(
   consentId: string,
 ): Promise<Result> {
-  await requireAdmin()
+  const adminSession = await requireAdmin()
+  // Resolve (userId, clientId) BEFORE the delete so the audit payload
+  // survives the cascade.
+  let auditPayload: { user_id: string; client_id: string } | null = null
   try {
     const [consent] = await db
       .select({
@@ -41,6 +45,9 @@ export async function revokeGrantAction(
       .where(eq(oauthConsent.id, consentId))
       .limit(1)
     if (!consent) return { ok: false, error: 'Grant not found.' }
+    if (consent.userId) {
+      auditPayload = { user_id: consent.userId, client_id: consent.clientId }
+    }
 
     await db.transaction(async (tx) => {
       await tx.delete(oauthConsent).where(eq(oauthConsent.id, consentId))
@@ -77,6 +84,17 @@ export async function revokeGrantAction(
       ok: false,
       error: toMessage(e, 'Could not revoke grant.'),
     }
+  }
+  if (auditPayload) {
+    const audit = await recordAdminEvent(
+      {
+        action: 'grant.revoke',
+        targetId: consentId,
+        payload: auditPayload,
+      },
+      adminSession,
+    )
+    if (!audit.ok) return audit
   }
   revalidatePath('/admin/grants')
   return { ok: true }
