@@ -27,8 +27,8 @@ const cells = Array.from({ length: 49 }, (_, i) => {
 });
 ---
 
-<section class="works-scroll" id="works" data-screen-label="Works">
-  <div class="ds-value work w-meta" data-work="0">
+<section class="works-scroll" id="works">
+  <div class="ds-value work w-meta" data-work="0" data-screen-label="Menu · Work 01">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -91,7 +91,9 @@ const cells = Array.from({ length: 49 }, (_, i) => {
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
   }
-  .work .ds-v-track { height: 220vh; }
+  /* Same speed budget as the About rooms — one screen of QR cascade,
+     one screen of meta fade. Was 220vh. */
+  .work .ds-v-track { height: 170vh; }
 
   .work-stage {
     display: grid;
@@ -166,11 +168,11 @@ const cells = Array.from({ length: 49 }, (_, i) => {
 
   @media (max-width: 1080px) {
     .work-stage { grid-template-columns: 1fr; gap: 32px; }
-    .work .ds-v-track { height: 200vh; }
+    .work .ds-v-track { height: 160vh; }
     .work-meta { margin: 0 auto; }
   }
   @media (max-width: 760px) {
-    .work .ds-v-track { height: 180vh; }
+    .work .ds-v-track { height: 150vh; }
   }
   @media (max-width: 680px) {
     .work-title { font-size: clamp(40px, 12vw, 64px); }

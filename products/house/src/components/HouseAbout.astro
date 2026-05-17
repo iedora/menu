@@ -108,7 +108,7 @@ const timelineMarks = [
   </div>
 
   <!-- 03 Quietly ───────────────────────────────────────────── -->
-  <div class="ds-value v-quietly" data-value="2" data-name="Quietly">
+  <div class="ds-value v-quietly" data-value="2" data-name="Quietly" data-screen-label="Voice">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -143,7 +143,7 @@ const timelineMarks = [
   </div>
 
   <!-- 04 Together ───────────────────────────────────────────── -->
-  <div class="ds-value v-together" data-value="3" data-name="Together">
+  <div class="ds-value v-together" data-value="3" data-name="Together" data-screen-label="House">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -187,6 +187,11 @@ const timelineMarks = [
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
   }
+
+  /* Faster scroll: design-system default is 320vh × 4 rooms (≈ 13 screens
+     just for About). 200vh still gives the phrases / line draws room to
+     breathe but takes ~40% less wheel travel. */
+  .about .ds-v-track { height: 200vh; }
 
   /* 01 Mission — two-column: copy on the left, house on the right. */
   .v-mission__stage {
@@ -240,8 +245,11 @@ const timelineMarks = [
     .v-mission__stage,
     .v-together__stage { grid-template-columns: 1fr; gap: 32px; }
   }
+  @media (max-width: 1080px) {
+    .about .ds-v-track { height: 180vh; }
+  }
   @media (max-width: 760px) {
-    .ds-v-track { height: 240vh; }
+    .about .ds-v-track { height: 170vh; }
     .ds-phrases { min-height: 9em; }
   }
   @media (max-width: 680px) {

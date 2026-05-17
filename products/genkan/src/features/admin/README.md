@@ -32,7 +32,9 @@ Read use-cases (import directly from `./use-cases/*` inside admin pages):
 - `listApplications` / `getApplicationById`
 - `listGrants`
 - `listAllActiveSessions`
-- `listAuditEvents`
+
+(The audit trail moved out: see `@/features/audit` for the real
+append-only `audit_log` reader.)
 
 ## Mutations
 
@@ -48,7 +50,8 @@ direct Drizzle writes for trivial deletes (consents, OAuth clients).
 
 ## Audit
 
-`listAuditEvents` is a derived view (banned users + impersonated sessions
-+ registered OAuth clients) until a dedicated `audit_log` table lands.
-That table is intentionally out of scope for this slice — when added, swap
-`list-audit.ts` for a single ordered scan and keep the page identical.
+Audit lives in its own slice: `src/features/audit`. The `audit_log` table
+is append-only; every admin mutation here appends one row via
+`recordAdminEvent()` (see `src/app/admin/_lib/audit.ts`) after the
+underlying action succeeds. The `/admin/audit` page reads from that table
+with filtering + pagination.

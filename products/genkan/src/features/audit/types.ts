@@ -37,7 +37,12 @@ export type AuditEvent =
   | {
       action: 'org.member_add'
       targetId: string
-      payload: { user_id: string; role: string }
+      // user_id is set when an actual `member` row was created; for
+      // invitations, we record `email` instead (the invitee may not yet
+      // exist as a user). Exactly one of the two is present.
+      payload:
+        | { user_id: string; role: string }
+        | { email: string; role: string }
     }
   | {
       action: 'org.member_remove'

@@ -286,19 +286,28 @@ import { Wordmark, Statement } from "@iedora/design-system";
     .house { padding: 40px 0 48px; }
     .header-top { grid-template-columns: 1fr; gap: 32px; align-items: start; }
     .header-front { gap: 40px; }
+    /* Hold three columns a bit longer with a tighter gap; stacking too
+       early makes the intro feel like a list of cards. */
+    .header-meta { gap: 28px; padding-top: 24px; }
   }
   @media (max-width: 760px) {
-    .header-meta { grid-template-columns: 1fr; gap: 22px; padding-top: 24px; }
+    .header-meta { grid-template-columns: 1fr 1fr; gap: 22px; }
+    /* "Now" sits below the two narrower columns so the live row gets full
+       width and the eye reaches the most current information last. */
+    .header-meta .col:nth-child(3) { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var(--ink-14); }
     .header-meta .col { gap: 4px; }
   }
   @media (max-width: 680px) {
     .wordmark-wrap .hint { display: none; }
     .lintel-close .lbl { display: none; }
     .lintel-close { padding: 6px 10px; }
-    .house { padding: 28px 0 36px; }
-    .header-front { gap: 28px; }
+    .house { padding: 24px 0 32px; }
+    .header-front { gap: 24px; }
+    .header-meta { grid-template-columns: 1fr; gap: 18px; }
+    .header-meta .col:nth-child(3) { grid-column: 1; padding-top: 0; border-top: 0; }
   }
   @media (max-width: 420px) {
     .lintel-close .kbd { display: none; }
+    .header-meta .v { font-size: 14.5px; }
   }
 </style>
