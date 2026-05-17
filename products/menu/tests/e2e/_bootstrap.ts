@@ -149,6 +149,34 @@ async function main(): Promise<void> {
           return send(res, 200, { id: rows[0]?.id ?? null })
         }
 
+        // Reset the testkit's identity DB between tests. Called by the
+        // `resetMenu` fixture's afterEach hook so each spec starts with
+        // a clean genkan as well as a clean menu. Wipes everything
+        // user-scoped (users, sessions, orgs, members, invitations,
+        // grants, refresh + access tokens) but KEEPS the oauth_client
+        // table — the menu client row is seeded once at boot via
+        // startTestGenkan({ clients: [...] }) and the testkit doesn't
+        // expose a re-seed API for it.
+        // Order matters for FKs: children first, parents last.
+        if (path === '/_test/reset' && req.method === 'POST') {
+          const tables = [
+            schema.oauthAccessToken,
+            schema.oauthRefreshToken,
+            schema.oauthConsent,
+            schema.verification,
+            schema.invitation,
+            schema.member,
+            schema.organization,
+            schema.session,
+            schema.account,
+            schema.user,
+          ]
+          for (const t of tables) {
+            await handle.db.delete(t).execute()
+          }
+          return send(res, 200, { ok: true })
+        }
+
         // ── Bearer-adapted endpoints ──────────────────────────────────────
         if (
           path === '/api/identity/organization/list' &&

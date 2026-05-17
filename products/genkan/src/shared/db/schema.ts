@@ -45,6 +45,13 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     activeOrganizationId: text("active_organization_id"),
     impersonatedBy: text("impersonated_by"),
+    /**
+     * Last successful password authentication for this session. Set on
+     * sign-in (via `databaseHooks.session.create.before`) and refreshed by
+     * the /reauth flow. Read by `requireFreshSession()` to gate destructive
+     * admin + profile operations.
+     */
+    lastPasswordAt: timestamp("last_password_at").defaultNow().notNull(),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );
@@ -271,6 +278,44 @@ export const rateLimit = pgTable("rate_limit", {
 });
 
 /**
+ * Append-only platform audit log. Every meaningful admin / identity action
+ * inserts one row here from inside its server action; the `/admin/audit`
+ * page reads it back with filtering + pagination.
+ *
+ * Distinct in audience from `webhook_subscription` deliveries: webhooks
+ * notify external products, this table is the compliance / review trail
+ * for human operators. Writes are NEVER swallowed — if the insert fails
+ * the originating action must fail too (see `features/audit/sender.ts`).
+ *
+ * `actorId` is `set null` on user delete so the trail survives a deleted
+ * admin account. The actor's role at the time of the event is snapshotted
+ * in `actorRole` for the same reason.
+ */
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: text("id").primaryKey(),
+    actorId: text("actor_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    actorRole: text("actor_role"),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    payload: jsonb("payload"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_log_actor_idx").on(table.actorId),
+    index("audit_log_target_idx").on(table.targetType, table.targetId),
+    index("audit_log_action_idx").on(table.action),
+    index("audit_log_occurred_idx").on(table.occurredAt),
+  ],
+);
+
+/**
  * Webhook subscriptions for the iedora identity bus. Genkan's webhooks
  * slice reads this table at delivery time and POSTs the signed envelope
  * to every enabled subscriber whose `events` allow-list covers the event
@@ -411,6 +456,13 @@ export const oauthConsentRelations = relations(oauthConsent, ({ one }) => ({
   }),
   user: one(user, {
     fields: [oauthConsent.userId],
+    references: [user.id],
+  }),
+}));
+
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+  actor: one(user, {
+    fields: [auditLog.actorId],
     references: [user.id],
   }),
 }));

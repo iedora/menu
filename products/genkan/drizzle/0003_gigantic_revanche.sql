@@ -1,0 +1,1 @@
+ALTER TABLE "session" ADD COLUMN "last_password_at" timestamp DEFAULT now() NOT NULL;

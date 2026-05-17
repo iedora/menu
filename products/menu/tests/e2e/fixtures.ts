@@ -11,8 +11,27 @@ import {
 } from './helpers/seed'
 import { signInAs, type SignedInUser } from './helpers/sign-in'
 import { truncateAll, testDb } from './helpers/db'
+import { getTestkitUrl } from './helpers/testkit'
 
 export { expect } from '@playwright/test'
+
+/**
+ * Wipes the testkit's identity DB (users, sessions, orgs, members,
+ * invitations, grants, access + refresh tokens). The pre-registered
+ * `oauth_client` row for menu is preserved — the testkit seeds it at
+ * boot and doesn't expose a re-seed API.
+ *
+ * Called from the `resetMenu` fixture's afterEach so each spec starts
+ * with both DBs clean.
+ */
+async function resetTestkit(): Promise<void> {
+  const res = await fetch(`${getTestkitUrl()}/_test/reset`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    throw new Error(`[testkit] /_test/reset returned ${res.status}`)
+  }
+}
 
 type Fixtures = {
   /**
@@ -99,18 +118,24 @@ export const test = base.extend<Fixtures>({
   ],
 
   resetMenu: async ({}, use, testInfo) => {
-    await use(() => truncateAll())
-    // afterEach: only the LAST test in a file might leave residue we care
-    // about; truncate here keeps the next spec deterministic. We swallow
-    // errors because Postgres might already be torn down on suite end.
+    await use(async () => {
+      await truncateAll()
+      await resetTestkit()
+    })
+    // afterEach: keep the next spec deterministic. We reset BOTH menu's
+    // Postgres AND the testkit's identity DB so a user/org/grant seeded
+    // by one spec doesn't bleed into the next. Errors are swallowed
+    // because the suite might already be tearing down by the time we
+    // get here on the last spec.
     try {
       await truncateAll()
+      await resetTestkit()
     } catch (err) {
       if (testInfo.status !== 'passed') {
         // Don't mask the real failure with a cleanup error.
         return
       }
-      console.warn('[fixtures] truncate cleanup failed:', err)
+      console.warn('[fixtures] cleanup failed:', err)
     }
   },
 

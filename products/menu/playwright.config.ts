@@ -16,6 +16,7 @@ const MENU_TEST_SECRET =
 export default defineConfig({
   testDir: './tests/e2e/specs',
   globalSetup: './tests/e2e/global-setup.ts',
+  globalTeardown: './tests/e2e/global-teardown.ts',
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,

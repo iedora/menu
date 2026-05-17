@@ -3,8 +3,12 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { eq } from 'drizzle-orm'
 import { requireAdmin } from '@/features/admin'
 import { auth } from '@/features/auth/adapters/better-auth-instance'
+import { db } from '@/shared/db/client'
+import { organization } from '@/shared/db/schema'
+import { recordAdminEvent } from '../_lib/audit'
 
 type Result = { ok: true } | { ok: false; error: string }
 
