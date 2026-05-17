@@ -27,12 +27,12 @@ test.describe('Uploads — item photos', () => {
 
     const sql = testDb()
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
     const [{ id: itemId }] = await sql<{ id: string }[]>`
-      INSERT INTO item (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
+      INSERT INTO "menu"."item" (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
       VALUES (gen_random_uuid()::text, ${catId}, ${org.restaurantId}, 'Risotto', 1450, 'EUR', true, 0, now())
       RETURNING id
     `
@@ -61,7 +61,7 @@ test.describe('Uploads — item photos', () => {
 
     // DB now carries the URL on the item row, scoped to this restaurant.
     const rows = await sql<{ imageUrl: string | null }[]>`
-      SELECT image_url AS "imageUrl" FROM item WHERE id = ${itemId}
+      SELECT image_url AS "imageUrl" FROM "menu"."item" WHERE id = ${itemId}
     `
     expect(rows[0]?.imageUrl).toMatch(
       new RegExp(`^http://localhost:4566/metamenu-test/r/${org.restaurantId}/items/${itemId}/`),
@@ -95,12 +95,12 @@ test.describe('Uploads — item photos', () => {
 
     const sql = testDb()
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
     await sql`
-      INSERT INTO item (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
+      INSERT INTO "menu"."item" (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
       VALUES (gen_random_uuid()::text, ${catId}, ${org.restaurantId}, 'Big Item', 100, 'EUR', true, 0, now())
     `
 

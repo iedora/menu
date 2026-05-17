@@ -1,0 +1,355 @@
+---
+/**
+ * iedora.com — the brand landing page.
+ *
+ * Composition: page-progress rail + corner mark + meta nav + editorial
+ * header (with the shoji contact form) + about (four scroll-pinned
+ * rooms) + works (one scroll-pinned showcase) + signature footer.
+ *
+ * Static build (Astro `output: 'static'`): all components SSR to plain
+ * markup; one inline init script wires up the scroll animations + the
+ * wordmark click → form open. With JS disabled, every section's copy
+ * is still readable (the v-track collapses thanks to the @media
+ * prefers-reduced-motion fallback).
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import HouseHeader from "../components/HouseHeader.astro";
+import HouseAbout from "../components/HouseAbout.astro";
+import HouseWorks from "../components/HouseWorks.astro";
+import HouseFooter from "../components/HouseFooter.astro";
+import { PageProgress, ScreenLabel } from "@iedora/design-system";
+---
+
+<BaseLayout>
+  <PageProgress />
+  <ScreenLabel id="cornerMark">01 Iedora Studio Hub</ScreenLabel>
+
+  <main data-screen-label="01 Iedora Studio Hub">
+    <div class="hub">
+      <nav class="ds-meta-strip" aria-label="House meta">
+        <div class="ds-meta-strip__left">
+          <span>MMXXVI</span>
+          <span>Oporto · Lisboa</span>
+        </div>
+        <div class="ds-meta-strip__center"></div>
+        <div class="ds-meta-strip__right">
+          <a href="#contact" id="navContact">Contact</a>
+        </div>
+      </nav>
+
+      <HouseHeader />
+    </div>
+
+    <HouseAbout />
+    <HouseWorks />
+
+    <div class="hub">
+      <HouseFooter />
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .hub {
+    position: relative;
+    z-index: 1;
+    width: min(1320px, 100%);
+    margin: 0 auto;
+    padding: 36px 56px;
+  }
+  @media (max-width: 1080px) {
+    .hub { padding: 28px 32px; }
+  }
+  @media (max-width: 680px) {
+    .hub { padding: 24px 20px; }
+  }
+  @media (max-width: 420px) {
+    .hub { padding: 20px 16px; }
+  }
+</style>
+
+<!--
+  All choreography lives here. Ported 1:1 from the legacy script:
+  - wordmark letter reveal + body.ds-loaded
+  - page-progress fill via --ds-pageprog-progress
+  - corner mark: shows after scrollY > 12vh; text follows the section
+    currently in view (data-screen-label on each section)
+  - shoji slide-open + close (wordmark / Esc / Back / nav)
+  - per-section scroll progress (--p on .ds-v-pin) driving:
+      • mission: line draw + door-knob / stamp fade
+      • slowly: timeline grow + mark lighting
+      • quietly: wave bar collapse
+      • work 01: QR tiles + analytics line + meta fade
+      • together: rooms fill room-by-room
+  - phrases crossfade keyed on the same --p
+  - scroll-hint hides after first scroll
+  Throttled by a single rAF.
+-->
+<script is:inline>
+  (() => {
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    // ── Wordmark letter reveal (legacy: wm.classList.add('reveal') + body.loaded)
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document
+          .querySelectorAll(".ds-wordmark")
+          .forEach((w) => w.classList.add("ds-wordmark--reveal"));
+        document.body.classList.add("ds-loaded");
+      }),
+    );
+
+    // ── Shoji slide-open
+    const houseHeader = document.getElementById("houseHeader");
+    const wordmark = document.getElementById("wordmark");
+    const lintelMark = document.getElementById("lintelMark");
+    const closeContact = document.getElementById("closeContact");
+    const contactHouse = document.getElementById("contactHouse");
+    const navContact = document.getElementById("navContact");
+    const shoji = document.getElementById("shoji");
+    const contactForm = document.getElementById("contactForm");
+
+    function openHouse() {
+      if (!houseHeader || houseHeader.classList.contains("open")) return;
+      houseHeader.classList.add("open");
+      if (contactHouse) contactHouse.setAttribute("aria-hidden", "false");
+      setTimeout(() => {
+        const first = contactForm?.querySelector("input, textarea");
+        if (first) first.focus({ preventScroll: true });
+      }, 550);
+    }
+    function closeHouse() {
+      if (!houseHeader || !houseHeader.classList.contains("open")) return;
+      houseHeader.classList.remove("open");
+      if (contactHouse) contactHouse.setAttribute("aria-hidden", "true");
+      if (shoji) shoji.classList.remove("ds-shoji--sent");
+    }
+    wordmark?.addEventListener("click", openHouse);
+    wordmark?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHouse();
+      }
+    });
+    lintelMark?.addEventListener("click", closeHouse);
+    lintelMark?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        closeHouse();
+      }
+    });
+    closeContact?.addEventListener("click", closeHouse);
+    navContact?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openHouse();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && houseHeader?.classList.contains("open"))
+        closeHouse();
+    });
+    contactForm?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      shoji?.classList.add("ds-shoji--sent");
+    });
+
+    // ── Page progress + corner mark
+    const pageFill = document.querySelector(".ds-pageprog__fill");
+    const cornerMark = document.getElementById("cornerMark");
+    const screenSections = Array.from(
+      document.querySelectorAll("[data-screen-label]"),
+    );
+
+    function updatePageProg() {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      if (pageFill)
+        pageFill.style.setProperty("--ds-pageprog-progress", p.toFixed(4));
+    }
+
+    function updateCornerMark() {
+      if (!cornerMark) return;
+      const showAfter = window.innerHeight * 0.12;
+      const shouldShow = window.scrollY > showAfter;
+      cornerMark.classList.toggle("ds-screen-label--on", shouldShow);
+      // pick the section closest-to-top that is still on-screen
+      let label = "";
+      const cutoff = window.innerHeight * 0.4;
+      for (const el of screenSections) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= cutoff && rect.bottom > cutoff) {
+          const v = el.getAttribute("data-screen-label");
+          if (v) label = v;
+        }
+      }
+      if (label) cornerMark.textContent = label;
+    }
+
+    // ── Per-section scroll progress + downstream animations
+    const values = Array.from(document.querySelectorAll(".ds-value"));
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const localRange = (p, start, end) => {
+      if (end <= start) return p >= start ? 1 : 0;
+      return clamp((p - start) / (end - start), 0, 1);
+    };
+
+    function setProgress(value, p) {
+      const pin = value.querySelector(".ds-v-pin");
+      if (pin) pin.style.setProperty("--p", p.toFixed(4));
+
+      // phrases crossfade
+      const phrasesBox = value.querySelector("[data-phrases]");
+      if (phrasesBox) {
+        const phrases = phrasesBox.querySelectorAll(".ds-phrase");
+        const N = phrases.length;
+        phrases.forEach((el, i) => {
+          const center = (i + 0.5) / N;
+          const halfSlot = 0.5 / N;
+          const norm = (p - center) / halfSlot;
+          let effectiveNorm = norm;
+          if (i === 0 && norm < 0) effectiveNorm = 0;
+          if (i === N - 1 && norm > 0) effectiveNorm = 0;
+          const ad = Math.abs(effectiveNorm);
+          let o;
+          if (ad <= 0.75) o = 1;
+          else if (ad <= 1.05) o = (1.05 - ad) / 0.30;
+          else o = 0;
+          el.style.opacity = o.toFixed(3);
+          let ty;
+          if ((i === 0 && norm < 0) || (i === N - 1 && norm > 0)) ty = 0;
+          else ty = clamp(norm, -1.2, 1.2) * -4;
+          el.style.transform = "translate3d(0," + ty.toFixed(1) + "px,0)";
+        });
+      }
+
+      // Mission: SVG stroke draw + fade
+      if (value.classList.contains("v-mission")) {
+        value
+          .querySelectorAll(".ds-house-svg__draw, .ds-house-svg__fade")
+          .forEach((el) => {
+            const len = parseFloat(el.dataset.len || "200");
+            const start = parseFloat(el.dataset.start || "0");
+            const end = parseFloat(el.dataset.end || "1");
+            const local = localRange(p, start, end);
+            el.style.setProperty("--len", len);
+            el.style.setProperty("--local", local.toFixed(4));
+          });
+      }
+
+      // Slowly: timeline grow + mark lighting
+      if (value.classList.contains("v-slowly")) {
+        const tl = value.querySelector(".ds-timeline");
+        if (tl) tl.style.setProperty("--p", p.toFixed(4));
+        value.querySelectorAll(".ds-timeline__mark").forEach((m) => {
+          const at = parseFloat(m.dataset.at || "0");
+          m.classList.toggle("ds-timeline__mark--on", p >= at);
+        });
+      }
+
+      // Quietly: wave bars collapse
+      if (value.classList.contains("v-quietly")) {
+        const ww = value.querySelector(".ds-wave");
+        if (ww) ww.style.setProperty("--p", p.toFixed(4));
+      }
+
+      // Work 01: QR cascade + analytics line + meta fade
+      if (value.classList.contains("w-meta")) {
+        const tiles = value.querySelectorAll(".qr-big i");
+        const qrEnd = 0.5;
+        const qrP = clamp(p / qrEnd, 0, 1);
+        tiles.forEach((t) => {
+          const order = parseInt(t.dataset.order || "0", 10);
+          const threshold = order / 12;
+          const lit = clamp((qrP - threshold) * 5, 0, 1);
+          t.style.setProperty("--lit", lit.toFixed(3));
+        });
+        const ana = value.querySelector(".analytics-big");
+        if (ana)
+          ana.style.setProperty(
+            "--p",
+            localRange(p, 0, 0.55).toFixed(4),
+          );
+        const anaLine = value.querySelector(".ana-line");
+        if (anaLine && !anaLine.dataset.len) {
+          try {
+            const len = Math.ceil(anaLine.getTotalLength());
+            anaLine.dataset.len = String(len);
+            anaLine.style.setProperty("--len", String(len));
+          } catch (e) {
+            /* getTotalLength can throw on detached nodes; harmless */
+          }
+        }
+        const meta = value.querySelector(".work-meta");
+        if (meta)
+          meta.style.setProperty(
+            "--meta",
+            localRange(p, 0.04, 0.55).toFixed(4),
+          );
+      }
+
+      // Together: rooms light sequentially
+      if (value.classList.contains("v-together")) {
+        const rooms = value.querySelectorAll(".ds-room");
+        const N = rooms.length;
+        rooms.forEach((room, i) => {
+          const start = i / N;
+          const end = (i + 0.6) / N;
+          const lit = localRange(p, start, end);
+          room.style.setProperty("--lit", lit.toFixed(4));
+          room.classList.toggle("ds-room--on", lit > 0.5);
+        });
+      }
+    }
+
+    // initial render — hidden / 0 if motion is allowed, fully drawn otherwise
+    values.forEach((v) => setProgress(v, reduceMotion ? 1 : 0));
+
+    function progressFor(value) {
+      const track = value.querySelector(".ds-v-track");
+      if (!track) return 0;
+      const rect = track.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const total = Math.max(1, rect.height - vh);
+      const scrolled = -rect.top;
+      return clamp(scrolled / total, 0, 1);
+    }
+
+    function updateAllValues() {
+      if (reduceMotion) return;
+      for (const v of values) setProgress(v, progressFor(v));
+    }
+
+    // scroll-hint: hides after the first scroll past 40px
+    const scrollHint = document.getElementById("scrollHint");
+    let firstScroll = true;
+    function maybeHideHint() {
+      if (firstScroll && scrollHint && window.scrollY > 40) {
+        scrollHint.classList.add("ds-scroll-hint--hide");
+        firstScroll = false;
+      }
+    }
+
+    let rafId = null;
+    function onScroll() {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updatePageProg();
+        updateAllValues();
+        updateCornerMark();
+        maybeHideHint();
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    // initial paint
+    updatePageProg();
+    updateAllValues();
+    updateCornerMark();
+  })();
+</script>

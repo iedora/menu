@@ -1,20 +1,20 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { cn } from "../lib/cn";
+import { Button } from "./button";
 
 type SendButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: ReactNode;
 };
 
-export function SendButton({
-  children = "Send",
-  className,
-  type = "submit",
-  ...rest
-}: SendButtonProps) {
+/**
+ * @deprecated Use `<Button variant="accent" arrow>` instead.
+ *
+ * Kept as a thin alias for transition code from before Iedora Manual § VI.1
+ * landed. New code should reach for `<Button>` directly.
+ */
+export function SendButton({ children = "Send", type, ...rest }: SendButtonProps) {
   return (
-    <button type={type} className={cn("ds-send-btn", className)} {...rest}>
-      <span>{children}</span>
-      <span className="ds-send-btn__arrow" aria-hidden="true">→</span>
-    </button>
+    <Button {...rest} type={type ?? "submit"} variant="accent" arrow>
+      {children}
+    </Button>
   );
 }

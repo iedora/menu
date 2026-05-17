@@ -52,7 +52,7 @@ test.describe('Monthly views meter', () => {
         async () => {
           const rows = await sql<{ total: number }[]>`
             SELECT COALESCE(SUM(count), 0)::int AS total
-            FROM daily_view
+            FROM "menu"."daily_view"
             WHERE restaurant_id = ${org.restaurantId} AND day = ${day}
           `
           return rows[0]?.total ?? 0
@@ -90,7 +90,7 @@ test.describe('Monthly views meter', () => {
         async () => {
           const rows = await sql<{ total: number }[]>`
             SELECT COALESCE(SUM(count), 0)::int AS total
-            FROM daily_view
+            FROM "menu"."daily_view"
             WHERE restaurant_id = ${org.restaurantId} AND day = ${day}
           `
           return rows[0]?.total ?? 0
@@ -124,7 +124,7 @@ test.describe('Monthly views meter', () => {
     const day = todayString()
     const rows = await sql<{ total: number }[]>`
       SELECT COALESCE(SUM(count), 0)::int AS total
-      FROM daily_view
+      FROM "menu"."daily_view"
       WHERE restaurant_id = ${org.restaurantId} AND day = ${day}
     `
     expect(rows[0]?.total ?? 0).toBe(0)
@@ -145,7 +145,7 @@ test.describe('Monthly views meter', () => {
     const day = todayString()
 
     await sql`
-      INSERT INTO daily_view (organization_id, restaurant_id, day, language, count)
+      INSERT INTO "menu"."daily_view" (organization_id, restaurant_id, day, language, count)
       VALUES (${org.id}, ${org.restaurantId}, ${day}, 'en', 200)
     `
     await page.goto('/dashboard')
@@ -155,7 +155,7 @@ test.describe('Monthly views meter', () => {
     await expect(page.getByTestId('views-upgrade-nudge')).toHaveCount(0)
 
     await sql`
-      UPDATE daily_view SET count = 850
+      UPDATE "menu"."daily_view" SET count = 850
       WHERE restaurant_id = ${org.restaurantId} AND day = ${day} AND language = 'en'
     `
     await page.reload()
@@ -180,7 +180,7 @@ test.describe('Monthly views meter', () => {
     )
 
     const sql = testDb()
-    await sql`UPDATE organization SET plan = 'casa' WHERE id = ${org.id}`
+    await sql`UPDATE "auth"."organization" SET plan = 'casa' WHERE id = ${org.id}`
 
     await page.goto('/dashboard')
     const meter = page.getByTestId('views-meter')

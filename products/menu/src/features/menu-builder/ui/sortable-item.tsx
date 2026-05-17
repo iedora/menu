@@ -4,17 +4,18 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/label'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog'
+  Field,
+  FieldInput,
+  FieldLabel,
+} from '@iedora/design-system'
 import { ImageUpload } from '@/features/upload/ui/image-upload'
 import { LocalizedFields } from '@/features/i18n/ui/localized-fields'
 import type { LanguageCode, LocalizedText } from '@/features/i18n'
@@ -108,36 +109,34 @@ export function SortableItem({
         ⋮⋮
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger
-          render={
-            <button className="flex flex-1 items-center justify-between gap-3 text-left">
-              <div className="flex min-w-0 items-center gap-3">
-                {item.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.imageUrl}
-                    alt=""
-                    data-testid={`item-thumb-${item.id}`}
-                    className="h-8 w-8 shrink-0 rounded object-cover"
-                  />
-                )}
-                <div className="min-w-0">
-                  <div className={item.available ? '' : 'text-muted-foreground line-through'}>
-                    {item.name}
-                  </div>
-                  {item.description && (
-                    <div className="truncate text-xs text-muted-foreground">
-                      {item.description}
-                    </div>
-                  )}
+        <DialogTrigger asChild>
+          <button className="flex flex-1 items-center justify-between gap-3 text-left">
+            <div className="flex min-w-0 items-center gap-3">
+              {item.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  data-testid={`item-thumb-${item.id}`}
+                  className="h-8 w-8 shrink-0 rounded object-cover"
+                />
+              )}
+              <div className="min-w-0">
+                <div className={item.available ? '' : 'text-muted-foreground line-through'}>
+                  {item.name}
                 </div>
+                {item.description && (
+                  <div className="truncate text-xs text-muted-foreground">
+                    {item.description}
+                  </div>
+                )}
               </div>
-              <div className="text-sm tabular-nums text-muted-foreground">
-                {formatPrice(item.priceCents, item.currency)}
-              </div>
-            </button>
-          }
-        />
+            </div>
+            <div className="text-sm tabular-nums text-muted-foreground">
+              {formatPrice(item.priceCents, item.currency)}
+            </div>
+          </button>
+        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit item</DialogTitle>
@@ -157,16 +156,16 @@ export function SortableItem({
               onDescriptionI18nChange={setDescriptionI18n}
             />
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor={`price-${item.id}`}>Price ({item.currency})</Label>
-                <Input
+              <Field>
+                <FieldLabel htmlFor={`price-${item.id}`}>Price ({item.currency})</FieldLabel>
+                <FieldInput
                   id={`price-${item.id}`}
                   inputMode="decimal"
                   value={priceText}
                   onChange={(e) => setPriceText(e.target.value)}
                   required
                 />
-              </div>
+              </Field>
               <div className="flex items-end gap-2">
                 <input
                   id={`avail-${item.id}`}
@@ -175,11 +174,11 @@ export function SortableItem({
                   onChange={(e) => setAvailable(e.target.checked)}
                   className="h-4 w-4"
                 />
-                <Label htmlFor={`avail-${item.id}`}>Available</Label>
+                <FieldLabel htmlFor={`avail-${item.id}`}>Available</FieldLabel>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Photo</Label>
+            <Field>
+              <FieldLabel>Photo</FieldLabel>
               <ImageUpload
                 target={{ kind: 'item-photo', restaurantId, itemId: item.id }}
                 currentUrl={imageUrl}
@@ -189,7 +188,7 @@ export function SortableItem({
                   router.refresh()
                 }}
               />
-            </div>
+            </Field>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <DialogFooter className="justify-between sm:justify-between">
               <Button
@@ -206,7 +205,7 @@ export function SortableItem({
               >
                 Delete
               </Button>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" variant="solid" disabled={pending}>
                 {pending ? 'Saving…' : 'Save'}
               </Button>
             </DialogFooter>

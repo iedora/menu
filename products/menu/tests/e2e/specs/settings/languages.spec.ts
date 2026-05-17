@@ -33,7 +33,7 @@ test.describe('Settings — languages section', () => {
     >`
       SELECT default_language AS "defaultLanguage",
              supported_languages AS "supportedLanguages"
-      FROM restaurant
+      FROM "menu"."restaurant"
       WHERE id = ${org.restaurantId}
     `
     expect(rows[0]?.defaultLanguage).toBe('en')
@@ -65,7 +65,7 @@ test.describe('Settings — languages section', () => {
     >`
       SELECT default_language AS "defaultLanguage",
              supported_languages AS "supportedLanguages"
-      FROM restaurant
+      FROM "menu"."restaurant"
       WHERE id = ${org.restaurantId}
     `
     expect(rows[0]?.defaultLanguage).toBe('pt')

@@ -5,6 +5,7 @@
   "workspaces": [
     "packages/*",
     "products/genkan",
+    "products/house",
     "products/menu"
   ]
 }

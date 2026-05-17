@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import {
+  Fraunces,
   Geist,
   Geist_Mono,
   Inter,
+  JetBrains_Mono,
   Lora,
   Playfair_Display,
   Space_Grotesk,
@@ -20,6 +22,21 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Iedora editorial fonts re-pointed to design-system tokens (--serif / --mono)
+// below so design-system primitives render in Fraunces / JetBrains Mono
+// without pulling Google Fonts CSS at runtime.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  axes: ["opsz"],
+  subsets: ["latin"],
+  display: "swap",
+});
+const jbMono = JetBrains_Mono({
+  variable: "--font-jbmono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 // Theme fonts — exposed as CSS variables so the public menu page can switch
@@ -52,7 +69,13 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${playfair.variable} ${lora.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${playfair.variable} ${lora.variable} ${spaceGrotesk.variable} ${fraunces.variable} ${jbMono.variable} h-full antialiased`}
+      style={{
+        ['--serif' as string]:
+          "var(--font-fraunces), 'Times New Roman', serif",
+        ['--mono' as string]:
+          'var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace',
+      }}
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>

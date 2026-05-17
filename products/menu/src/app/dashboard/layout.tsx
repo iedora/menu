@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { headers } from 'next/headers'
+import { Wordmark } from '@iedora/design-system'
 import { auth } from '@/features/auth/adapters/better-auth-instance'
 import { getEffectiveOrganizationId } from '@/features/auth'
 import { getOrganizationPlan, planHas } from '@/features/plans'
@@ -28,52 +29,65 @@ export default async function DashboardLayout({
     : null
   const showAnalyticsLink = plan ? planHas(plan, 'analytics') : false
 
+  const navLinkClass =
+    "font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)] no-underline transition-colors hover:text-[var(--ink)]"
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+    <div className="flex min-h-screen flex-col bg-[var(--paper)]">
+      {/* Top MetaStrip — quiet brand context, locale + plan slot */}
+      <div className="border-b border-[var(--ink-14)]">
+        <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-3 px-6 py-3 text-[10.5px] uppercase tracking-[0.18em] font-[family-name:var(--mono)] text-[var(--ink-55)]">
+          <div className="flex items-center gap-3">
+            <span>MMXXVI</span>
+            <span aria-hidden="true">·</span>
+            <span>iedora · menu</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <UserLocaleSwitcher />
+          </div>
+        </div>
+      </div>
+
+      {/* Wordmark + nav */}
+      <header className="border-b border-[var(--ink-14)]">
+        <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-6 px-6 py-6">
           <Link
             href="/dashboard"
-            className="inline-flex shrink-0 items-baseline gap-2 text-foreground no-underline"
+            className="inline-flex shrink-0 items-baseline no-underline"
             aria-label="Menu home"
           >
-            <span
-              aria-hidden="true"
-              className="translate-y-[2px] font-serif text-[22px] italic leading-none text-brand"
-            >
-              ⁋
-            </span>
-            <span className="text-[15px] font-semibold tracking-tight">
-              Meta <em className="font-serif italic font-medium">Menu</em>
-            </span>
+            <Wordmark
+              word="menu"
+              variant="inline"
+              className="ds-wordmark--reveal"
+            />
           </Link>
-          <div className="flex min-w-0 items-center gap-2 text-sm sm:gap-4">
-            <UserLocaleSwitcher />
+          <nav className="flex min-w-0 items-center gap-6">
             {showAnalyticsLink && (
               <Link
                 href="/dashboard/analytics"
                 data-testid="nav-analytics"
-                className="text-muted-foreground hover:underline"
+                className={navLinkClass}
               >
                 Analytics
               </Link>
             )}
-            <Link
-              href="/dashboard/billing"
-              className="text-muted-foreground hover:underline"
-            >
+            <Link href="/dashboard/billing" className={navLinkClass}>
               Billing
             </Link>
             {session?.user && (
-              <span className="hidden truncate text-muted-foreground sm:inline">
+              <span
+                className="hidden truncate font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)] sm:inline"
+                title={session.user.email}
+              >
                 {session.user.email}
               </span>
             )}
             <LogoutButton />
-          </div>
+          </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-[1320px] flex-1 px-6 py-12">
         {children}
       </main>
     </div>

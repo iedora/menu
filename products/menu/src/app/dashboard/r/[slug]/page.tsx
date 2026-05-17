@@ -2,13 +2,7 @@ import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireRestaurantBySlug } from '@/features/auth'
 import { loadRestaurantAdminMenus } from '@/features/menu-publishing'
-import { Button } from '@/shared/ui/button'
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/card'
+import { Button, Card, CardDesc, CardTitle } from '@iedora/design-system'
 import {
   EditorialList,
   formatEditedAt,
@@ -65,24 +59,17 @@ export default async function RestaurantPage({
           <span className="font-semibold">{r.name}</span>
         </h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/dashboard/r/${slug}/theme`} />}
-          >
+          <Button as="a" href={`/dashboard/r/${slug}/theme`}>
             {t('settings')}
           </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/dashboard/r/${slug}/qr`} />}
-          >
+          <Button as="a" href={`/dashboard/r/${slug}/qr`}>
             {t('qrCode')}
           </Button>
           <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/r/${r.slug}`} target="_blank" rel="noreferrer" />}
+            as="a"
+            href={`/r/${r.slug}`}
+            target="_blank"
+            rel="noreferrer"
           >
             {t('viewPublicMenu')}
           </Button>
@@ -103,10 +90,8 @@ export default async function RestaurantPage({
         rows={rows}
         emptyState={
           <Card>
-            <CardHeader>
-              <CardTitle>{t('noMenus')}</CardTitle>
-              <CardDescription>{t('noMenusHint')}</CardDescription>
-            </CardHeader>
+            <CardTitle>{t('noMenus')}</CardTitle>
+            <CardDesc>{t('noMenusHint')}</CardDesc>
           </Card>
         }
       />

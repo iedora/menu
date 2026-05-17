@@ -75,12 +75,12 @@ export async function apiCreateAndActivateOrg(
 
   const sql = testDb()
   const [{ id: restaurantId }] = await sql<{ id: string }[]>`
-    INSERT INTO restaurant (id, organization_id, name, slug)
+    INSERT INTO "menu"."restaurant" (id, organization_id, name, slug)
     VALUES (gen_random_uuid()::text, ${org.id}, ${name}, ${slug})
     RETURNING id
   `
   const [{ id: menuId }] = await sql<{ id: string }[]>`
-    INSERT INTO menu (id, restaurant_id, name, position, updated_at)
+    INSERT INTO "menu"."menu" (id, restaurant_id, name, position, updated_at)
     VALUES (gen_random_uuid()::text, ${restaurantId}, 'Main menu', 0, now())
     RETURNING id
   `

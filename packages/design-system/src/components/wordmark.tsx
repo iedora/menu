@@ -7,6 +7,19 @@ type WordmarkProps = {
   ariaLabel?: string;
 };
 
+/**
+ * Iedora wordmark. Each glyph (and the final cinnabar dot) is its own
+ * `<span class="ds-wordmark__letter">` so consumers can stagger a
+ * letter-by-letter reveal animation. Toggle the `ds-wordmark--reveal`
+ * class on the parent to play it — Astro / Next layouts typically do
+ * this in a small init script after first paint:
+ *
+ *     document.querySelectorAll('.ds-wordmark').forEach(w => {
+ *       w.classList.add('ds-wordmark--reveal');
+ *     });
+ *
+ * The `d` glyph is intentionally bolder; the dot is cinnabar.
+ */
 export function Wordmark({
   word = "iedora",
   variant = "display",
@@ -27,13 +40,23 @@ export function Wordmark({
       {letters.map((ch, i) => (
         <span
           key={`${ch}-${i}`}
-          className={ch === "d" ? "ds-wordmark__d" : undefined}
+          className={cn(
+            "ds-wordmark__letter",
+            ch === "d" && "ds-wordmark__d",
+          )}
+          style={{ ["--ds-wordmark-letter-i" as string]: String(i) }}
           aria-hidden="true"
         >
           {ch}
         </span>
       ))}
-      <span className="ds-wordmark__dot" aria-hidden="true">.</span>
+      <span
+        className="ds-wordmark__letter ds-wordmark__dot"
+        style={{ ["--ds-wordmark-letter-i" as string]: String(letters.length) }}
+        aria-hidden="true"
+      >
+        .
+      </span>
     </span>
   );
 }

@@ -1,1 +1,0 @@
-ALTER TABLE "restaurant" DROP COLUMN "published";

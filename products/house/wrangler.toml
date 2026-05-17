@@ -1,0 +1,48 @@
+# House — iedora.com. Assets-only Worker; no JS code.
+#
+# This is the Workers Static Assets pattern that replaced Cloudflare Pages
+# (Pages was deprecated April 2025; Workers Static Assets reached feature
+# parity for static sites in early 2026). Wrangler reads this file, uploads
+# everything in ./dist, and binds the worker to the apex iedora.com domain.
+#
+# How this plugs into the repo:
+#   1. `bun run build` (from products/house/) → ./dist/
+#   2. Tofu mints / rotates the narrow workload token (see infra/tofu/iedora.tf)
+#   3. `wrangler deploy` reads this file and uploads ./dist + creates the
+#      iedora.com custom domain + TLS cert under the workload token.
+#
+# Manual deploy from products/house/:
+#   bun run build && bunx wrangler@latest deploy
+#
+# One-command deploy from repo root:
+#   just house::deploy
+
+name = "iedora-com"
+# Bump this when adopting a newer Workers runtime; keeps existing deploys
+# pinned to a known runtime semantics. Format is YYYY-MM-DD.
+compatibility_date = "2026-05-15"
+
+# Close the *.workers.dev leak. With this off, iedora.com is the ONLY URL
+# that serves the worker; there's nothing to redirect from. (The Pages-era
+# Bulk Redirect that bounced *.pages.dev → iedora.com is therefore gone.)
+workers_dev = false
+
+# Static assets. No `main` / no JS module — Cloudflare's built-in asset
+# handler serves files directly. Astro's static build output drops into
+# ./dist; that's what we upload.
+[assets]
+directory = "./dist"
+# "404-page": if a URL doesn't match a file, serve dist/404.html (Astro
+# emits it automatically when a 404.astro page exists). Falls back to a
+# generic 404 if absent.
+not_found_handling = "404-page"
+# Add a trailing slash to extensionless URLs, matching Astro's default.
+html_handling = "auto-trailing-slash"
+
+# Bind the apex domain to this worker. `custom_domain = true` tells
+# Cloudflare to create the proxied DNS record + provision the TLS cert
+# automatically — no separate DNS-in-Tofu needed. Requires the iedora.com
+# zone to already exist in the same account.
+[[routes]]
+pattern = "iedora.com"
+custom_domain = true

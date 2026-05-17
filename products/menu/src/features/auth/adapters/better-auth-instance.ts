@@ -5,6 +5,7 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { db } from '@/shared/db/client'
 import * as schema from '@/shared/db/schema'
 import { env } from '@/shared/env'
+import { GENKAN_URL } from '@/shared/brand'
 
 // Generic over the driver — accepts both postgres-js (prod) and PGLite (tests).
 type AuthDb = PgDatabase<PgQueryResultHKT, typeof schema>
@@ -33,6 +34,12 @@ export const BA_MODELS = {
  * Factory. Production uses the singleton at the bottom; tests construct
  * their own instance pointed at a PGLite db to exercise the real adapter
  * wiring (e.g. catch "model X not found in schema object" before deploy).
+ *
+ * Genkan (auth.iedora.com) is the canonical sign-in surface for the
+ * iedora ecosystem; menu reads the session cookie Genkan issues. Both
+ * apps share BETTER_AUTH_SECRET and the same Postgres `session` table —
+ * what makes the session valid here is identical to what makes it valid
+ * in Genkan.
  */
 export function makeAuth(database: AuthDb) {
   return betterAuth({
@@ -44,7 +51,10 @@ export function makeAuth(database: AuthDb) {
       provider: 'pg',
       schema: BA_MODELS,
     }),
-    trustedOrigins: [env.BETTER_AUTH_URL],
+    // Trust menu's own origin AND Genkan — sign-out requests from menu
+    // POST through to menu's /api/auth, and Genkan needs to be able to
+    // POST cross-origin during the dev-mode sign-in flow.
+    trustedOrigins: [env.BETTER_AUTH_URL, GENKAN_URL],
     emailAndPassword: {
       enabled: true,
     },
@@ -60,6 +70,17 @@ export function makeAuth(database: AuthDb) {
     // upstream of the tunnel. ipv6Subnet: 64 mitigates CVE-2026-45364 (attackers
     // walking a /64 to evade per-IP throttles).
     advanced: {
+      // Share the auth cookie across every iedora.com subdomain so a session
+      // issued by Genkan at auth.iedora.com is recognised at menu.iedora.com
+      // (and any future product.iedora.com). MUST match Genkan's setting
+      // exactly. Local dev leaves COOKIE_DOMAIN blank so the cookie stays
+      // host-only on localhost.
+      crossSubDomainCookies: env.COOKIE_DOMAIN
+        ? {
+            enabled: true,
+            domain: env.COOKIE_DOMAIN,
+          }
+        : undefined,
       ipAddress: {
         ipAddressHeaders: ['cf-connecting-ip'],
         ipv6Subnet: 64,

@@ -48,14 +48,14 @@ test.describe('Casa analytics page (/dashboard/analytics)', () => {
       uniqueSlug('tasca'),
     )
     const sql = testDb()
-    await sql`UPDATE organization SET plan = 'casa' WHERE id = ${org.id}`
+    await sql`UPDATE "auth"."organization" SET plan = 'casa' WHERE id = ${org.id}`
     await sql`
-      UPDATE restaurant
+      UPDATE "menu"."restaurant"
       SET supported_languages = '["en","pt","es","fr"]'::jsonb
       WHERE id = ${org.restaurantId}
     `
 
-    await sql`DELETE FROM menu WHERE restaurant_id = ${org.restaurantId}`
+    await sql`DELETE FROM "menu"."menu" WHERE restaurant_id = ${org.restaurantId}`
     const lunch = await seedMenu(org.restaurantId, 'Lunch', { active: true })
     const winter = await seedMenu(org.restaurantId, 'Winter', {
       active: false,
@@ -75,7 +75,7 @@ test.describe('Casa analytics page (/dashboard/analytics)', () => {
     )
 
     await sql`
-      INSERT INTO daily_view (organization_id, restaurant_id, day, language, count)
+      INSERT INTO "menu"."daily_view" (organization_id, restaurant_id, day, language, count)
       VALUES
         (${org.id}, ${org.restaurantId}, ${dayOffset(0)}, 'pt', 142),
         (${org.id}, ${org.restaurantId}, ${dayOffset(-1)}, 'pt', 230),
@@ -120,10 +120,10 @@ test.describe('Casa analytics page (/dashboard/analytics)', () => {
       uniqueSlug('slide'),
     )
     const sql = testDb()
-    await sql`UPDATE organization SET plan = 'casa' WHERE id = ${org.id}`
+    await sql`UPDATE "auth"."organization" SET plan = 'casa' WHERE id = ${org.id}`
 
     await sql`
-      INSERT INTO daily_view (organization_id, restaurant_id, day, language, count)
+      INSERT INTO "menu"."daily_view" (organization_id, restaurant_id, day, language, count)
       VALUES
         (${org.id}, ${org.restaurantId}, ${dayOffset(0)}, 'pt', 5),
         (${org.id}, ${org.restaurantId}, ${dayOffset(-3)}, 'pt', 10),
@@ -160,10 +160,10 @@ test.describe('Casa analytics page (/dashboard/analytics)', () => {
       uniqueSlug('chart'),
     )
     const sql = testDb()
-    await sql`UPDATE organization SET plan = 'casa' WHERE id = ${org.id}`
+    await sql`UPDATE "auth"."organization" SET plan = 'casa' WHERE id = ${org.id}`
 
     await sql`
-      INSERT INTO daily_view (organization_id, restaurant_id, day, language, count)
+      INSERT INTO "menu"."daily_view" (organization_id, restaurant_id, day, language, count)
       VALUES
         (${org.id}, ${org.restaurantId}, ${dayOffset(0)}, 'pt', 50),
         (${org.id}, ${org.restaurantId}, ${dayOffset(-3)}, 'pt', 200),
@@ -194,7 +194,7 @@ test.describe('Casa analytics page (/dashboard/analytics)', () => {
       uniqueSlug('empty-an'),
     )
     const sql = testDb()
-    await sql`UPDATE organization SET plan = 'casa' WHERE id = ${org.id}`
+    await sql`UPDATE "auth"."organization" SET plan = 'casa' WHERE id = ${org.id}`
 
     await page.goto('/dashboard/analytics')
     const block = page.getByTestId('analytics-block')

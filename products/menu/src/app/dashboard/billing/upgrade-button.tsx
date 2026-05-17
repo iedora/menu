@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/shared/ui/button'
+import { Button } from '@iedora/design-system'
 import { setOrganizationPlan } from '@/features/plans/actions'
 import type { PlanCode } from '@/features/plans'
 
@@ -20,7 +20,7 @@ export function UpgradeButton({
 
   if (current) {
     return (
-      <Button variant="outline" disabled className="w-full">
+      <Button disabled className="w-full">
         Current plan
       </Button>
     )
@@ -28,6 +28,7 @@ export function UpgradeButton({
 
   return (
     <Button
+      variant="solid"
       className="w-full"
       disabled={pending}
       onClick={() =>

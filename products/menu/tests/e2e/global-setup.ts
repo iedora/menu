@@ -23,13 +23,14 @@ async function ensureTestDatabase() {
 async function truncateAll() {
   const sql = postgres(TEST_URL, { max: 1 })
   try {
-    // Order matters because of FKs; CASCADE handles it.
+    // Order matters because of FKs; CASCADE handles it. Auth tables live in
+    // schema `auth` (owned by Genkan); menu domain tables live in `menu`.
     await sql`
       TRUNCATE TABLE
-        "view_seen", "daily_view", "invoice",
-        "item", "category", "menu", "restaurant",
-        "invitation", "member", "organization",
-        "session", "account", "verification", "user"
+        "menu"."view_seen", "menu"."daily_view", "menu"."invoice",
+        "menu"."item", "menu"."category", "menu"."menu", "menu"."restaurant",
+        "auth"."invitation", "auth"."member", "auth"."organization",
+        "auth"."session", "auth"."account", "auth"."verification", "auth"."user"
       RESTART IDENTITY CASCADE
     `
   } finally {

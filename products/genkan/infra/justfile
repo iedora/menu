@@ -1,0 +1,78 @@
+# Genkan product (auth.iedora.com) — infra entry point.
+#
+# Layout: one Tofu root (tofu/ — Cloudflare tunnel + DNS), one Kamal config
+# (kamal/) for the app, one Dockerfile, and a Bitwarden Secrets Manager hookup
+# (shared with menu) via `bin/with-secrets`.
+#
+# Genkan has NO postgres / backups / R2 of its own. The auth.* schema lives in
+# menu's Postgres on the shared kamal Docker network — see kamal/config/deploy.yml.
+#
+# `just` (no args) lists every recipe.
+
+set dotenv-load := true
+
+# Kamal is a Ruby gem. On macOS with brew-Ruby the binary lands outside PATH;
+# probe the usual places. Same dance as products/menu/infra/justfile.
+kamal-bin := `
+  for d in /opt/homebrew/lib/ruby/gems/*/bin /usr/local/lib/ruby/gems/*/bin "$HOME"/.gem/ruby/*/bin "$HOME"/.rbenv/versions/*/bin; do
+    [ -d "$d" ] && { printf '%s:' "$d"; exit 0; }
+  done
+`
+
+tofu := "bin/with-secrets tofu -chdir=tofu"
+
+_default:
+    @just --list --unsorted
+
+# Build + push + deploy genkan — idempotent. Tofu reconciles CF resources;
+# Kamal deploys the app. They meet at kamal/.kamal/secrets (which reads
+# `tofu output`).
+#
+# A 1-second SSH probe checks whether the kamal-proxy is already running on
+# the box. If yes → `kamal deploy` (skips bootstrap, ~10s faster). If no →
+# `kamal setup` (idempotent: docker-install + accessory-boot + deploy).
+deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{tofu}} init -upgrade -input=false >/dev/null
+    {{tofu}} apply -auto-approve
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes "root@${ONPREM_HOST}" \
+         'docker ps --quiet --filter name=kamal-proxy' 2>/dev/null | grep -q .; then
+      KAMAL_CMD=deploy
+    else
+      KAMAL_CMD=setup
+    fi
+    KAMAL_CMD="$KAMAL_CMD" bin/with-secrets bash -c \
+      'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal "$KAMAL_CMD"'
+
+# Tear down genkan's Cloudflare resources (does NOT touch the box, the
+# postgres accessory belongs to menu).
+destroy:
+    {{tofu}} destroy -auto-approve
+
+# Tail app logs.
+logs:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal app logs -f'
+
+# Bash inside the app container.
+console:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal app exec --interactive --reuse bash'
+
+# Roll back to the previous version.
+rollback:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal rollback'
+
+# Rotate one shared BWS secret. Usage: just rotate-secret BETTER_AUTH_SECRET.
+# WARNING: BETTER_AUTH_SECRET rotation invalidates every session on every
+# product (menu + genkan) — coordinate.
+rotate-secret key:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SECRET_ID=$(bws secret list "$BWS_PROJECT_ID" -o json | jq -r '.[] | select(.key=="{{key}}") | .id')
+    [ -n "$SECRET_ID" ] || { echo "No BWS secret named {{key}} in project"; exit 1; }
+    printf "New value for {{key}} (no echo): "
+    stty -echo; read -r NEW; stty echo; printf "\n"
+    [ -n "$NEW" ] || { echo "Empty value, aborting"; exit 1; }
+    bws secret edit "$SECRET_ID" --value "$NEW" -o none
+    echo "✓ {{key}} rotated in BWS"
+    echo "→ redeploy menu AND genkan to pick up the new value"

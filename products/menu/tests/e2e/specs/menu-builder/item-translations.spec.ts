@@ -21,17 +21,17 @@ test.describe('Menu builder — item translations', () => {
 
     const sql = testDb()
     await sql`
-      UPDATE restaurant
+      UPDATE "menu"."restaurant"
       SET supported_languages = '["en","pt"]'::jsonb
       WHERE id = ${org.restaurantId}
     `
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
     const [{ id: itemId }] = await sql<{ id: string }[]>`
-      INSERT INTO item (id, category_id, restaurant_id, name, description, price_cents, currency, available, position, updated_at)
+      INSERT INTO "menu"."item" (id, category_id, restaurant_id, name, description, price_cents, currency, available, position, updated_at)
       VALUES (gen_random_uuid()::text, ${catId}, ${org.restaurantId}, 'Risotto', 'With mushrooms', 1450, 'EUR', true, 0, now())
       RETURNING id
     `
@@ -60,7 +60,7 @@ test.describe('Menu builder — item translations', () => {
       descriptionI18n: Record<string, string> | null
     }[]>`
       SELECT name_i18n AS "nameI18n", description_i18n AS "descriptionI18n"
-      FROM item WHERE id = ${itemId}
+      FROM "menu"."item" WHERE id = ${itemId}
     `
     expect(rows[0]?.nameI18n).toEqual({ pt: 'Risoto' })
     expect(rows[0]?.descriptionI18n).toEqual({ pt: 'Com cogumelos' })
@@ -79,12 +79,12 @@ test.describe('Menu builder — item translations', () => {
 
     const sql = testDb()
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
     await sql`
-      INSERT INTO item (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
+      INSERT INTO "menu"."item" (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
       VALUES (gen_random_uuid()::text, ${catId}, ${org.restaurantId}, 'Solo Item', 100, 'EUR', true, 0, now())
     `
 

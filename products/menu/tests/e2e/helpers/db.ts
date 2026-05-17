@@ -13,12 +13,14 @@ export function testDb() {
 
 export async function truncateAll() {
   const sql = testDb()
+  // Auth tables live in schema `auth` (owned by Genkan); menu domain tables
+  // live in `menu`. CASCADE walks FKs across both schemas.
   await sql`
     TRUNCATE TABLE
-      "view_seen", "daily_view", "invoice",
-      "item", "category", "menu", "restaurant",
-      "invitation", "member", "organization",
-      "session", "account", "verification", "user"
+      "menu"."view_seen", "menu"."daily_view", "menu"."invoice",
+      "menu"."item", "menu"."category", "menu"."menu", "menu"."restaurant",
+      "auth"."invitation", "auth"."member", "auth"."organization",
+      "auth"."session", "auth"."account", "auth"."verification", "auth"."user"
     RESTART IDENTITY CASCADE
   `
 }
@@ -38,7 +40,7 @@ export async function seedRestaurant(
 ): Promise<{ restaurantId: string }> {
   const sql = testDb()
   const [{ id }] = await sql<{ id: string }[]>`
-    INSERT INTO restaurant (id, organization_id, name, slug, updated_at)
+    INSERT INTO "menu"."restaurant" (id, organization_id, name, slug, updated_at)
     VALUES (
       gen_random_uuid()::text,
       ${organizationId},
@@ -62,7 +64,7 @@ export async function seedMenu(
 ): Promise<{ menuId: string }> {
   const sql = testDb()
   const [{ id }] = await sql<{ id: string }[]>`
-    INSERT INTO menu (id, restaurant_id, name, active, position, updated_at)
+    INSERT INTO "menu"."menu" (id, restaurant_id, name, active, position, updated_at)
     VALUES (
       gen_random_uuid()::text,
       ${restaurantId},
@@ -90,7 +92,7 @@ export async function seedCategoryWithItems(
 ): Promise<{ categoryId: string; itemIds: string[] }> {
   const sql = testDb()
   const [{ id: categoryId }] = await sql<{ id: string }[]>`
-    INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+    INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
     VALUES (
       gen_random_uuid()::text,
       ${menuId},
@@ -105,7 +107,7 @@ export async function seedCategoryWithItems(
   const itemIds: string[] = []
   for (let i = 0; i < itemNames.length; i++) {
     const [{ id }] = await sql<{ id: string }[]>`
-      INSERT INTO item (
+      INSERT INTO "menu"."item" (
         id, category_id, restaurant_id, name,
         price_cents, currency, position, updated_at
       )

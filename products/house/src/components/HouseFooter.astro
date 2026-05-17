@@ -1,0 +1,74 @@
+---
+/**
+ * Signature footer — matches the legacy three-column layout: an italic
+ * "Built in Iedora." mark on the left, the year MMXXVI centered, and a
+ * trio of index links on the right (Index · Colophon · Press). All mono
+ * tracking, paired with the cinnabar dot in the wordmark.
+ */
+---
+
+<footer class="signature" id="contact">
+  <div class="left">
+    <span class="built">Built in Iedora<span class="dot">.</span></span>
+  </div>
+  <div class="center">
+    <span>MMXXVI</span>
+  </div>
+  <div class="right">
+    <span>Index</span>
+    <span>Colophon</span>
+    <span>Press</span>
+  </div>
+</footer>
+
+<style>
+  .signature {
+    padding: 22px 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: baseline;
+    gap: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-55);
+    border-top: 1px solid var(--ink-14);
+    margin-top: 36px;
+  }
+  .signature .built {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 15px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+  }
+  .signature .built .dot { color: var(--cinnabar); }
+  .signature .right {
+    justify-self: end;
+    display: flex;
+    gap: 24px;
+  }
+  .signature .center {
+    justify-self: center;
+    color: var(--ink-40);
+  }
+
+  @media (max-width: 760px) {
+    .signature {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      text-align: center;
+      gap: 10px;
+      padding: 28px 0 24px;
+    }
+    .signature .right {
+      justify-self: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+    }
+  }
+</style>

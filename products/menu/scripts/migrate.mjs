@@ -26,7 +26,14 @@ try {
   await sql`SELECT pg_advisory_lock(${LOCK_KEY})`
 
   console.log('Applying migrations from ./drizzle ...')
-  await migrate(db, { migrationsFolder: './drizzle' })
+  // Per-product tracker — see drizzle.config.ts. Without this, menu and genkan
+  // would write into the same `drizzle.__drizzle_migrations` and shadow each
+  // other (the migrator only applies entries newer than max(created_at)).
+  await migrate(db, {
+    migrationsFolder: './drizzle',
+    migrationsTable: '__drizzle_migrations',
+    migrationsSchema: 'menu',
+  })
   console.log('Migrations applied successfully.')
 } catch (err) {
   console.error('Migration failed:', err)

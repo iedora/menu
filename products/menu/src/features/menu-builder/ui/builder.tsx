@@ -17,8 +17,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
+import { Button, Field, FieldInput } from '@iedora/design-system'
 import type { LanguageCode } from '@/features/i18n'
 import { createCategory, reorderCategories } from '@/features/menu-builder/actions'
 import { SortableCategory } from './sortable-category'
@@ -128,13 +127,19 @@ export function MenuBuilder({
         onSubmit={onAddCategory}
         className="flex items-center gap-2 rounded-lg border border-dashed p-3"
       >
-        <Input
-          value={newCategoryName}
-          onChange={(e) => setNewCategoryName(e.target.value)}
-          placeholder="New category name (e.g. Starters)"
-          maxLength={80}
-        />
-        <Button type="submit" disabled={pending || newCategoryName.trim().length === 0}>
+        <Field className="flex-1">
+          <FieldInput
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="New category name (e.g. Starters)"
+            maxLength={80}
+          />
+        </Field>
+        <Button
+          type="submit"
+          variant="solid"
+          disabled={pending || newCategoryName.trim().length === 0}
+        >
           Add category
         </Button>
       </form>

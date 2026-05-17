@@ -1,9 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/label'
-import { Textarea } from '@/shared/ui/textarea'
+import {
+  Field,
+  FieldInput,
+  FieldLabel,
+  FieldTextarea,
+} from '@iedora/design-system'
 import { LANGUAGE_META } from '../registry'
 import type { LanguageCode, LocalizedText } from '../types'
 
@@ -118,9 +121,9 @@ export function LocalizedFields({
             })}
         </div>
       )}
-      <div className="space-y-2">
-        <Label htmlFor={`${id}-name`}>{nameLabel}</Label>
-        <Input
+      <Field>
+        <FieldLabel htmlFor={`${id}-name`}>{nameLabel}</FieldLabel>
+        <FieldInput
           id={`${id}-name`}
           data-testid={`${id}-name-${activeLang}`}
           value={currentName}
@@ -131,11 +134,11 @@ export function LocalizedFields({
             isDefaultTab ? undefined : `Translation for ${activeLang}`
           }
         />
-      </div>
+      </Field>
       {showDescription && onDescriptionChange && (
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-desc`}>{descriptionLabel}</Label>
-          <Textarea
+        <Field>
+          <FieldLabel htmlFor={`${id}-desc`}>{descriptionLabel}</FieldLabel>
+          <FieldTextarea
             id={`${id}-desc`}
             data-testid={`${id}-description-${activeLang}`}
             value={currentDescription}
@@ -143,7 +146,7 @@ export function LocalizedFields({
             rows={descriptionRows}
             maxLength={descriptionMaxLength}
           />
-        </div>
+        </Field>
       )}
     </>
   )

@@ -1,12 +1,14 @@
-# House — iedora.com root brand site.
+# House — iedora.com root brand site (Astro on Cloudflare Workers Static Assets).
 #
-# Layout: one Tofu root (tofu/ — Cloudflare Pages project + apex DNS + narrow
-# pages-deploy token), one .env with shared BWS access, one `bin/with-secrets`
-# that injects the BWS env + TF_VAR_* aliases for `tofu apply`.
+# Layout: one Tofu root (tofu/ — workload deploy token only; everything else
+# the worker needs is created by wrangler on deploy), one .env with shared
+# BWS access, one `bin/with-secrets` that injects the BWS env + TF_VAR_*
+# aliases for `tofu apply`.
 #
-# Content lives one level up at ../index.html (and anything else dropped in
-# products/house/). `just deploy` runs tofu apply + wrangler upload in one
-# go, with wrangler running under the narrow workload token (not bootstrap).
+# Deployable content comes from `astro build` → `products/house/dist/`. The
+# build runs first, then Tofu mints / refreshes the narrow workload token,
+# then wrangler reads ../wrangler.toml and uploads dist + binds iedora.com
+# + provisions the TLS cert in one shot.
 #
 # `just` (no args) lists every recipe.
 
@@ -18,32 +20,54 @@ tofu := "bin/with-secrets tofu -chdir=tofu"
 _default:
     @just --list --unsorted
 
-# Pattern (community-canonical for terraform+CLI-tool): two tools, sequenced.
-# Tofu reconciles CF resources; wrangler pushes content. Wrangler runs under
-# the narrow Tofu-managed pages_deploy token (not the bootstrap CF token).
+# Build the Astro site, refresh the workload token, then upload via wrangler.
 #
-# Token rotation: edit BWS / `tofu apply -replace=cloudflare_api_token.X` →
-# next `just deploy` picks up the regenerated value (both tools re-read BWS).
-
-# Provision Pages project + apex DNS, then upload products/house/site/.
+# Three sequenced steps, one command:
+#   1. `bun run build`        → ../dist/ (static HTML + _astro chunks)
+#   2. `tofu apply`           → narrow Workers Scripts + DNS workload token
+#   3. `wrangler deploy`      → uploads ../dist + creates the iedora.com
+#                               custom-domain DNS record + TLS cert.
+#                               Reads ../wrangler.toml (workers_dev=false +
+#                               assets.directory = ./dist + routes).
 #
-# Why `site/` as a subdir: `wrangler pages deploy` uploads everything in
-# the directory it's pointed at, with a 25 MiB per-file ceiling and no
-# `.gitignore`/`.assetsignore` support (the assetsignore feature is for
-# Workers Static Assets, not Pages). If we pointed wrangler at the product
-# root, it would try to upload `infra/.terraform/` (178 MiB Tofu provider).
-# Sibling `site/` keeps deployables and deploy-machinery cleanly separated.
+# Wrangler reads CLOUDFLARE_API_TOKEN from env; we pipe the tofu output
+# straight in. The bootstrap token never reaches wrangler.
+#
+# Token rotation: `tofu apply -replace=cloudflare_api_token.workers_deploy`
+# (or just delete it via the dashboard, then `tofu apply`). The next
+# `just deploy` reads the regenerated value automatically.
+#
+# Why we `cd ..` before wrangler: wrangler.toml lives at the product root
+# next to package.json, alongside dist/. Running wrangler from the product
+# root keeps relative paths in wrangler.toml correct.
 deploy:
     #!/usr/bin/env bash
     set -euo pipefail
+    (cd .. && bun run build)
     {{tofu}} init -upgrade -input=false >/dev/null
     {{tofu}} apply -auto-approve
-    PROJECT=$({{tofu}} output -raw root_pages_project_name)
-    DEPLOY_TOKEN=$({{tofu}} output -raw pages_deploy_token)
+    DEPLOY_TOKEN=$({{tofu}} output -raw workers_deploy_token)
+    cd ..
     CLOUDFLARE_API_TOKEN="$DEPLOY_TOKEN" \
-      bunx wrangler@latest pages deploy ../site \
-        --project-name="$PROJECT" --branch=main --commit-dirty=true
+      bunx wrangler@latest deploy
 
-# Tear down the iedora.com Pages project + apex DNS.
+# Build the static site without deploying — fast local sanity check before
+# `just deploy`. Equivalent to `cd .. && bun run build` from products/house/.
+build:
+    cd .. && bun run build
+
+# Preview the built dist/ locally on http://localhost:3002.
+preview:
+    cd .. && bun run preview
+
+# Tear down: deletes the worker (and its custom domain + DNS record) via
+# wrangler, then revokes the workload token via tofu. Both steps are idempotent.
 destroy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DEPLOY_TOKEN=$({{tofu}} output -raw workers_deploy_token 2>/dev/null || true)
+    if [ -n "$DEPLOY_TOKEN" ]; then
+      (cd .. && CLOUDFLARE_API_TOKEN="$DEPLOY_TOKEN" \
+        bunx wrangler@latest delete --name iedora-com) || true
+    fi
     {{tofu}} destroy -auto-approve

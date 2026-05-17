@@ -3,11 +3,14 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/shared/ui/button'
-import { Label } from '@/shared/ui/label'
-import { Input } from '@/shared/ui/input'
-import { Textarea } from '@/shared/ui/textarea'
-import { Separator } from '@/shared/ui/separator'
+import {
+  Button,
+  Field,
+  FieldInput,
+  FieldLabel,
+  FieldTextarea,
+  Separator,
+} from '@iedora/design-system'
 import { ImageUpload } from '@/features/upload/ui/image-upload'
 import { LocalizedFields } from '@/features/i18n/ui/localized-fields'
 import { MenuRenderer } from '@/features/menu-publishing/rsc/menu-renderer'
@@ -259,6 +262,7 @@ function LanguagesSection({
       <div className="flex items-center gap-3 pt-1">
         <Button
           type="submit"
+          variant="solid"
           disabled={!dirty || pending}
           data-testid="languages-save"
         >
@@ -346,9 +350,9 @@ function IdentitySection({
         <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="identity-name">{t('name')}</Label>
-        <Input
+      <Field>
+        <FieldLabel htmlFor="identity-name">{t('name')}</FieldLabel>
+        <FieldInput
           id="identity-name"
           data-testid="identity-name"
           value={value.name}
@@ -356,7 +360,7 @@ function IdentitySection({
           maxLength={120}
           required
         />
-      </div>
+      </Field>
 
       {supportedLanguages.length > 1 ? (
         <LocalizedFields
@@ -377,9 +381,9 @@ function IdentitySection({
           descriptionLabel={t('description')}
         />
       ) : (
-        <div className="space-y-2">
-          <Label htmlFor="identity-description">{t('description')}</Label>
-          <Textarea
+        <Field>
+          <FieldLabel htmlFor="identity-description">{t('description')}</FieldLabel>
+          <FieldTextarea
             id="identity-description"
             data-testid="identity-description"
             value={value.description ?? ''}
@@ -388,11 +392,11 @@ function IdentitySection({
             rows={3}
             placeholder={t('descriptionPlaceholder')}
           />
-        </div>
+        </Field>
       )}
 
-      <div className="space-y-2">
-        <Label>{t('logo')}</Label>
+      <Field>
+        <FieldLabel>{t('logo')}</FieldLabel>
         <ImageUpload
           target={{ kind: 'restaurant-logo', restaurantId }}
           currentUrl={value.logoUrl}
@@ -402,10 +406,10 @@ function IdentitySection({
             onSaved()
           }}
         />
-      </div>
+      </Field>
 
-      <div className="space-y-2">
-        <Label>{t('banner')}</Label>
+      <Field>
+        <FieldLabel>{t('banner')}</FieldLabel>
         <ImageUpload
           target={{ kind: 'restaurant-banner', restaurantId }}
           currentUrl={value.bannerUrl}
@@ -415,11 +419,12 @@ function IdentitySection({
             onSaved()
           }}
         />
-      </div>
+      </Field>
 
       <div className="flex items-center gap-3 pt-1">
         <Button
           type="submit"
+          variant="solid"
           disabled={!dirty || !nameValid || pending}
           data-testid="identity-save"
         >
@@ -525,8 +530,8 @@ function ThemeSection({
         </div>
       </fieldset>
 
-      <div className="space-y-2">
-        <Label htmlFor="theme-font">{t('font')}</Label>
+      <Field>
+        <FieldLabel htmlFor="theme-font">{t('font')}</FieldLabel>
         <select
           id="theme-font"
           data-testid="theme-font"
@@ -540,7 +545,7 @@ function ThemeSection({
             </option>
           ))}
         </select>
-      </div>
+      </Field>
 
       <ColorField
         id="theme-primary"
@@ -560,7 +565,12 @@ function ThemeSection({
       />
 
       <div className="flex items-center gap-3 pt-1">
-        <Button type="submit" disabled={!canSave} data-testid="theme-save">
+        <Button
+          type="submit"
+          variant="solid"
+          disabled={!canSave}
+          data-testid="theme-save"
+        >
           {pending ? tc('saving') : t('save')}
         </Button>
         <Button
@@ -600,8 +610,8 @@ function ColorField({
   onChange: (v: string) => void
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+    <Field error={!valid}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <div className="flex items-center gap-2">
         <input
           id={id}
@@ -611,15 +621,15 @@ function ColorField({
           className="h-9 w-12 cursor-pointer rounded-md border border-input bg-transparent p-1"
           aria-label={`${label} picker`}
         />
-        <Input
+        <FieldInput
           data-testid={`${id}-hex`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
-          className={'font-mono ' + (valid ? '' : 'border-destructive')}
+          className="font-mono"
         />
       </div>
       <p className="text-xs text-muted-foreground">{hint}</p>
-    </div>
+    </Field>
   )
 }

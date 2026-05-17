@@ -1,16 +1,30 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * Menu inherits its full palette from @iedora/design-system tokens.css
+ * (imported above this file in src/app/layout.tsx). Every Tailwind utility
+ * (bg-background, text-foreground, border-border, …) is remapped below so
+ * any utility-style code in this app picks up the paper / ink / cinnabar
+ * editorial language. The actual primitives (Button, Card, Dialog, Field,
+ * Separator, …) all come from @iedora/design-system now — shadcn was
+ * dropped in favor of a Radix-backed iedora system.
+ *
+ *   --paper / --paper-1 / --paper-2     (backgrounds)
+ *   --ink / --ink-04 ... --ink-95       (text & hairlines)
+ *   --cinnabar / --cinnabar-1 / --2     (accent — single brand color)
+ *   --serif (Fraunces) / --mono (JBMono)
+ *
+ * No dark theme — iedora is a paper brand by convention.
+ */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --font-serif: var(--font-lora);
+  --font-mono: var(--mono);
+  --font-heading: var(--serif);
+  --font-serif: var(--serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -42,90 +56,66 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
 }
 
 :root {
-  /* Menu printed-carta palette — paper, ink, terracotta. */
-  --background: #f6f1e7;
-  --foreground: #1a1a17;
-  --card: #fbf8f1;
-  --card-foreground: #1a1a17;
-  --popover: #fbf8f1;
-  --popover-foreground: #1a1a17;
-  --primary: #1a1a17;
-  --primary-foreground: #f6f1e7;
-  --secondary: #efe9db;
-  --secondary-foreground: #1a1a17;
-  --muted: #efe9db;
-  --muted-foreground: #7a756b;
-  /* shadcn convention: --accent is for hover tints / focus rings.
-     Kept as a soft paper-2 so cards, dropdowns, and outline buttons
-     hover into a quiet ink-on-paper highlight, not a brand splash.
-     Brand terracotta is its own --brand token below. */
-  --accent: #ebe3cf;
-  --accent-foreground: #1a1a17;
-  --brand: #8a3a2a;
-  --brand-foreground: #ffffff;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #d9d2c1;
-  --input: #d9d2c1;
-  --ring: #8a3a2a;
-  --chart-1: #8a3a2a;
+  /* Surfaces — paper hierarchy from iedora tokens. Cards sit on the same
+     paper as the body and are separated by hairline rules, the editorial
+     way. Popovers shift one step warmer (--paper-2) to feel raised. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-2);
+  --popover-foreground: var(--ink);
+
+  /* Primary action = ink-on-paper (deep, quiet). Reserve cinnabar for
+     destinations and emphasis, not for every "Save" button. */
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-55);
+  --accent: var(--paper-2);
+  --accent-foreground: var(--ink);
+
+  /* Brand = cinnabar terracotta — used for the wordmark dot, terminal dots,
+     destination buttons, live indicators. Not for every button. */
+  --brand: var(--cinnabar);
+  --brand-foreground: var(--paper);
+
+  --destructive: #9c2418;
+  --border: var(--ink-14);
+  --input: var(--ink-14);
+  --ring: var(--cinnabar);
+
+  /* Charts — paper-friendly tones, cinnabar leading */
+  --chart-1: var(--cinnabar);
   --chart-2: #3d5a3a;
   --chart-3: #9c6b2f;
   --chart-4: #2a3a52;
-  --chart-5: #7a756b;
-  /* Square corners — printed-menu vocabulary. */
-  --radius: 0;
-  --sidebar: #efe9db;
-  --sidebar-foreground: #1a1a17;
-  --sidebar-primary: #1a1a17;
-  --sidebar-primary-foreground: #f6f1e7;
-  --sidebar-accent: #f6f1e7;
-  --sidebar-accent-foreground: #1a1a17;
-  --sidebar-border: #d9d2c1;
-  --sidebar-ring: #8a3a2a;
-}
+  --chart-5: var(--ink-55);
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Square corners — editorial vocabulary, no rounded chrome */
+  --radius: 0;
+
+  --sidebar: var(--paper-2);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--paper);
+  --sidebar-accent: var(--paper);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--ink-14);
+  --sidebar-ring: var(--cinnabar);
 }
 
 @layer base {
@@ -134,8 +124,57 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
   }
+
+  /* Editorial heading defaults — Fraunces with optical-size axis,
+     ink, balanced wrapping. Any <h1>…<h4> not explicitly overridden
+     inherits the iedora typographic system. */
+  h1, h2, h3, h4 {
+    font-family: var(--serif);
+    font-variation-settings: "opsz" 144;
+    font-weight: 300;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  /* Editorial italics — Fraunces italic carries emphasis in headings. */
+  h1 em, h2 em, h3 em, h4 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ink);
+  }
+
+  /* Cinnabar terminal-dot helper — wrap a "." in <span class="dot"> to
+     get the iedora period that closes a wordmark or statement. */
+  .dot {
+    color: var(--cinnabar);
+    font-style: normal;
+  }
+}
+
+/* Editorial section eyebrow — JBMono uppercase, ink-55, kerned wide.
+ * Use as: <span class="eyebrow">/ 01 SECTION</span>
+ */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+  display: inline-block;
+}
+
+/* Hairline rule — single 1px ink-14 line; the iedora separator. */
+.hairline {
+  height: 1px;
+  background: var(--ink-14);
+  border: 0;
+  margin: 0;
 }

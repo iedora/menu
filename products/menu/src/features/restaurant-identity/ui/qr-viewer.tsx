@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/shared/ui/button'
+import { Button } from '@iedora/design-system'
 
 // Render size in CSS pixels for the on-screen preview. PNG export uses a
 // higher pixel multiplier so prints stay sharp.
@@ -105,7 +105,6 @@ export function QrViewer({
       <div className="flex flex-wrap items-center justify-center gap-2 print:hidden">
         <Button
           type="button"
-          variant="outline"
           onClick={downloadSvg}
           disabled={!svgMarkup}
           data-testid="qr-download-svg"
@@ -114,14 +113,18 @@ export function QrViewer({
         </Button>
         <Button
           type="button"
-          variant="outline"
           onClick={downloadPng}
           disabled={!svgMarkup}
           data-testid="qr-download-png"
         >
           {t('downloadPng')}
         </Button>
-        <Button type="button" onClick={printQr} data-testid="qr-print">
+        <Button
+          type="button"
+          variant="solid"
+          onClick={printQr}
+          data-testid="qr-print"
+        >
           {t('print')}
         </Button>
       </div>

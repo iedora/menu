@@ -1,15 +1,13 @@
 variable "cloudflare_api_token" {
   description = <<-EOT
-    Cloudflare API token. Permissions for this root:
-      - Account · Cloudflare Pages · Edit
-      - Zone · DNS · Edit (scoped to var.zone_name)
+    Bootstrap Cloudflare API token. Permissions for this root:
+      - Account · Workers Scripts · Edit       (to mint the workload token)
       - Account · Account Settings · Read
-      - Account · Account Filter Lists · Edit       (for Bulk Redirect list)
-      - Account · Account Rulesets · Edit            (for Bulk Redirect dispatch)
+      - Zone · DNS · Edit                       (to mint the workload token)
+      - User · API Tokens · Edit                (to create/replace the workload token itself)
     Provide via TF_VAR_cloudflare_api_token (set by bin/with-secrets from BWS).
     The same BWS token can serve every product's Tofu root if granted every
-    permission any of them require (one bootstrap, many workload tokens;
-    see docs/secrets.md "Token tiers").
+    permission any of them require (one bootstrap, many workload tokens).
   EOT
   type        = string
   sensitive   = true
@@ -36,19 +34,13 @@ variable "account_id" {
   }
 }
 
-variable "zone_name" {
-  description = "Cloudflare zone (apex hostname) the root site is served from. TF_VAR_zone_name. Default `iedora.com`."
-  type        = string
-  default     = "iedora.com"
-
-  validation {
-    condition     = can(regex("^[a-z0-9.-]+\\.[a-z]{2,}$", var.zone_name))
-    error_message = "zone_name must be a valid apex FQDN."
-  }
-}
-
-variable "root_pages_project_name" {
-  description = "Cloudflare Pages project name. Lowercase, kebab-case. Shown in the Cloudflare dashboard and used by `wrangler pages deploy --project-name=...`."
+variable "worker_name" {
+  description = <<-EOT
+    Cloudflare Worker name for the house site. Lowercase, kebab-case. Must
+    match `name = "..."` in products/house/wrangler.toml — the workload
+    token's name uses this as its prefix, and a mismatch only affects
+    cosmetics in the dashboard, not the deploy.
+  EOT
   type        = string
   default     = "iedora-com"
 }

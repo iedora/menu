@@ -21,12 +21,12 @@ test.describe('Menu builder — category translations', () => {
 
     const sql = testDb()
     await sql`
-      UPDATE restaurant
+      UPDATE "menu"."restaurant"
       SET supported_languages = '["en","pt"]'::jsonb
       WHERE id = ${org.restaurantId}
     `
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
@@ -49,7 +49,7 @@ test.describe('Menu builder — category translations', () => {
       descriptionI18n: Record<string, string> | null
     }[]>`
       SELECT name_i18n AS "nameI18n", description_i18n AS "descriptionI18n"
-      FROM category WHERE id = ${catId}
+      FROM "menu"."category" WHERE id = ${catId}
     `
     expect(rows[0]?.nameI18n).toEqual({ pt: 'Pratos principais' })
     expect(rows[0]?.descriptionI18n).toEqual({ pt: 'Os nossos pratos principais' })
@@ -67,7 +67,7 @@ test.describe('Menu builder — category translations', () => {
     )
     const sql = testDb()
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Solo', 0, now())
       RETURNING id
     `

@@ -19,9 +19,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,7 +28,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog'
+  Field,
+  FieldInput,
+} from '@iedora/design-system'
 import type { LanguageCode } from '@/features/i18n'
 import {
   createItem,
@@ -155,7 +156,7 @@ export function SortableCategory({
           ⋮⋮
         </button>
         {editingName ? (
-          <Input
+          <FieldInput
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -193,13 +194,11 @@ export function SortableCategory({
           />
         )}
         <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-          <DialogTrigger
-            render={
-              <Button variant="ghost" size="sm" aria-label={`Delete ${category.name}`}>
-                Delete
-              </Button>
-            }
-          />
+          <DialogTrigger asChild>
+            <Button variant="ghost" aria-label={`Delete ${category.name}`}>
+              Delete
+            </Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete {category.name}?</DialogTitle>
@@ -208,11 +207,10 @@ export function SortableCategory({
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </Button>
+              <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
+              {/* destructive → accent (closest iedora visual for a danger action) */}
               <Button
-                variant="destructive"
+                variant="accent"
                 disabled={pending}
                 onClick={() =>
                   startTransition(async () => {
@@ -260,22 +258,24 @@ export function SortableCategory({
       </DndContext>
 
       <form onSubmit={onAddItem} className="flex items-center gap-2 border-t p-3">
-        <Input
-          placeholder="Item name"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          maxLength={120}
-        />
-        <Input
-          placeholder="0.00"
-          inputMode="decimal"
-          value={newItemPrice}
-          onChange={(e) => setNewItemPrice(e.target.value)}
-          className="w-24"
-        />
+        <Field className="flex-1">
+          <FieldInput
+            placeholder="Item name"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            maxLength={120}
+          />
+        </Field>
+        <Field className="w-24">
+          <FieldInput
+            placeholder="0.00"
+            inputMode="decimal"
+            value={newItemPrice}
+            onChange={(e) => setNewItemPrice(e.target.value)}
+          />
+        </Field>
         <Button
           type="submit"
-          variant="outline"
           disabled={
             pending ||
             newItemName.trim().length === 0 ||

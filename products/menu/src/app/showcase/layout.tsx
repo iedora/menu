@@ -31,8 +31,8 @@ export default function ShowcaseLayout({
         // Re-point design-system font vars at the next/font-loaded families
         // so the showcase renders with proper Fraunces + JetBrains Mono
         // without dragging Google Fonts CSS into the rest of the app.
-        ["--ds-serif" as string]: "var(--font-fraunces), 'Times New Roman', serif",
-        ["--ds-mono" as string]: "var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace",
+        ["--serif" as string]: "var(--font-fraunces), 'Times New Roman', serif",
+        ["--mono" as string]: "var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace",
       }}
     >
       {children}

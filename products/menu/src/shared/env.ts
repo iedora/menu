@@ -23,8 +23,20 @@ const serverSchema = z.object({
 
   // Auth ----------------------------------------------------------------
   // Better Auth signs sessions with this; must be ≥32 chars of entropy.
+  // MUST match the value in Genkan (auth.iedora.com) so sessions issued
+  // by Genkan are readable here — both apps share the same secret + DB.
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
+
+  // Domain attribute on the auth session cookie. In production both menu
+  // and Genkan set this to ".iedora.com" so the cookie travels across
+  // every iedora subdomain. Leave blank in local dev (the browser refuses
+  // Domain= on localhost) — the cookie stays host-only.
+  //
+  // The Genkan service URL itself is derived from NODE_ENV in
+  // `@/shared/brand` (works in both server + client components) — it's
+  // a topology fact, not a per-deploy secret.
+  COOKIE_DOMAIN: z.string().optional(),
 
   // Optional knob consumed by lib/auth.ts. Tests set it to disable the
   // in-memory rate limiter so the E2E suite can create users in a loop.

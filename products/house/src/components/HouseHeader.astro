@@ -1,0 +1,304 @@
+---
+/**
+ * Editorial header — both the "intro" front (wordmark + statement + meta
+ * columns) and the contact "house" (shoji form) live in the same grid cell
+ * so the page below never shifts when the form slides open. Host JS toggles
+ * `.open` on the <header> when the wordmark is clicked.
+ */
+import { Wordmark, Statement } from "@iedora/design-system";
+---
+
+<header class="house" id="houseHeader">
+  <div class="header-front">
+    <div class="header-top">
+      <h1
+        class="wordmark-wrap"
+        id="wordmark"
+        role="button"
+        tabindex="0"
+        aria-label="Iedora — click to open contact"
+      >
+        <Wordmark variant="display" />
+        <span class="hint" aria-hidden="true">Open the house</span>
+      </h1>
+      <Statement>
+        A quiet house for digital craftsmanship. A roof over independent <em>works</em>, made slowly, kept carefully.
+      </Statement>
+    </div>
+
+    <div class="header-meta">
+      <div class="col">
+        <span class="k">Practice</span>
+        <span class="v">Interfaces, made patient</span>
+        <span class="v">Tools, for the desk</span>
+        <span class="v">Infrastructure, kept quiet</span>
+      </div>
+      <div class="col">
+        <span class="k">Studio</span>
+        <span class="v">Founded MMXXIV</span>
+        <span class="v">Two craftspeople, independent</span>
+        <span class="v">Lisbon &middot; remote</span>
+      </div>
+      <div class="col">
+        <span class="k">Now</span>
+        <span class="v"><strong>Building</strong> menu, in public</span>
+        <span class="v"><strong>Tending</strong> works in the open</span>
+        <span class="v live">Open for one commission &mdash; spring &rsquo;26</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact house: slides open when the wordmark is clicked. -->
+  <div class="contact-house" id="contactHouse" aria-hidden="true">
+    <div class="ds-lintel">
+      <span
+        class="lintel-mark"
+        id="lintelMark"
+        role="button"
+        tabindex="0"
+        aria-label="Close contact"
+      >
+        <Wordmark variant="inline" />
+      </span>
+      <span class="ds-lintel__rule" aria-hidden="true"></span>
+      <button type="button" class="lintel-close" id="closeContact">
+        <svg class="arrow-icon" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M10 4 L6 8 L10 12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="lbl">Back</span>
+        <span class="kbd">Esc</span>
+      </button>
+    </div>
+
+    <div class="ds-shoji" id="shoji">
+      <div class="ds-shoji__inner">
+        <form class="ds-pane-grid" id="contactForm" autocomplete="off" novalidate>
+          <label class="ds-pane">
+            <span class="ds-pane__label">Name</span>
+            <input class="ds-input" type="text" name="name" placeholder="—" required />
+          </label>
+          <label class="ds-pane">
+            <span class="ds-pane__label">From</span>
+            <input class="ds-input" type="email" name="email" placeholder="you@—" required />
+          </label>
+          <label class="ds-pane ds-pane--full">
+            <span class="ds-pane__label">Message</span>
+            <textarea class="ds-textarea" name="message" rows="3" placeholder="Take your time. We read everything." required></textarea>
+          </label>
+          <div class="ds-pane ds-pane--full shoji-send">
+            <button type="submit" class="ds-btn ds-btn--solid">
+              <span>Send</span>
+              <span class="ds-btn__arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="ds-shoji__receipt" aria-live="polite">
+        <div class="ds-shoji__receipt-inner">
+          <div class="ds-shoji__seal" aria-hidden="true">i</div>
+          <h4 class="ds-shoji__title">Received, gently.</h4>
+          <p class="ds-shoji__body">Your message is inside the house. We will read it when the morning is quiet, and answer in kind.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<style>
+  /* Both children stack in the same cell so swapping intro ⇄ form keeps
+     the total header height stable. The page below never shifts. */
+  .house {
+    position: relative;
+    padding: 56px 0 64px;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .header-front {
+    grid-row: 1;
+    grid-column: 1;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 56px;
+    min-height: 0;
+    transition: opacity var(--d-3) var(--ease);
+  }
+  .house.open .header-front {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .header-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 64px;
+  }
+  .wordmark-wrap {
+    margin: 0;
+    display: inline-flex;
+    align-items: end;
+    cursor: pointer;
+    user-select: none;
+  }
+  .wordmark-wrap .hint {
+    align-self: end;
+    margin-left: 18px;
+    padding-bottom: 22px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+    opacity: 0;
+    transition: opacity var(--d-2) var(--ease);
+    pointer-events: none;
+  }
+  .wordmark-wrap .hint::before {
+    content: "";
+    display: inline-block;
+    width: 16px;
+    height: 1px;
+    background: var(--ink-40);
+    transform: translateY(-3px);
+    margin-right: 8px;
+  }
+  body.ds-loaded .wordmark-wrap:hover .hint { opacity: 1; }
+
+  .header-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+    padding-top: 28px;
+    border-top: 1px solid var(--ink-14);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity var(--d-5) 1.05s var(--ease), transform var(--d-5) 1.05s var(--ease);
+  }
+  body.ds-loaded .header-meta { opacity: 1; transform: translateY(0); }
+  .header-meta .col { display: flex; flex-direction: column; gap: 6px; }
+  .header-meta .k {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+    margin-bottom: 8px;
+  }
+  .header-meta .v {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--ink-70);
+  }
+  .header-meta .v strong { font-weight: 500; color: var(--ink); }
+  .header-meta .v.live {
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-meta .v.live::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cinnabar);
+    animation: ds-pulse 2.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .header-meta .v.live::before { animation: none; }
+  }
+
+  /* Contact pane — same cell as the front, fades in on .open */
+  .contact-house {
+    position: relative;
+    grid-row: 1;
+    grid-column: 1;
+    align-self: stretch;
+    width: 100%;
+    opacity: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: opacity var(--d-3) var(--ease);
+  }
+  .house.open .contact-house {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .lintel-mark {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: baseline;
+  }
+  .lintel-close {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px 7px 10px;
+    background: var(--paper);
+    border: 1.25px solid var(--ink);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background var(--d-2) var(--ease), color var(--d-2) var(--ease), transform var(--d-2) var(--ease);
+  }
+  .lintel-close:hover {
+    background: var(--ink);
+    color: var(--paper);
+    transform: translateX(-3px);
+  }
+  .lintel-close .arrow-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+    transition: transform var(--d-2) var(--ease);
+  }
+  .lintel-close:hover .arrow-icon { transform: translateX(-3px); }
+  .lintel-close .kbd {
+    font-size: 9px;
+    padding: 3px 6px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    opacity: 0.5;
+    letter-spacing: 0.1em;
+  }
+  .lintel-close:hover .kbd { opacity: 0.85; }
+
+  /* Send button cell — right-aligned, no borders on the parent pane */
+  .shoji-send {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 14px;
+    padding-bottom: 0;
+    border-bottom: 0;
+    border-right: 0;
+  }
+
+  @media (max-width: 1080px) {
+    .house { padding: 40px 0 48px; }
+    .header-top { grid-template-columns: 1fr; gap: 32px; align-items: start; }
+    .header-front { gap: 40px; }
+  }
+  @media (max-width: 760px) {
+    .header-meta { grid-template-columns: 1fr; gap: 22px; padding-top: 24px; }
+    .header-meta .col { gap: 4px; }
+  }
+  @media (max-width: 680px) {
+    .wordmark-wrap .hint { display: none; }
+    .lintel-close .lbl { display: none; }
+    .lintel-close { padding: 6px 10px; }
+    .house { padding: 28px 0 36px; }
+    .header-front { gap: 28px; }
+  }
+  @media (max-width: 420px) {
+    .lintel-close .kbd { display: none; }
+  }
+</style>

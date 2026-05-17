@@ -21,7 +21,7 @@ test.describe('Public menu — wrapper lang attribute', () => {
     )
     const sql = testDb()
     await sql`
-      UPDATE restaurant
+      UPDATE "menu"."restaurant"
       SET supported_languages = '["en","pt"]'::jsonb
       WHERE id = ${org.restaurantId}
     `

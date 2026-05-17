@@ -1,0 +1,97 @@
+# Genkan (auth.iedora.com) — Kamal 2 deploy onto the same homelab box menu
+# uses. No DB accessory of its own: genkan reads the `auth.*` schema in
+# menu's Postgres over the shared kamal Docker network.
+
+<%
+  public_hostname = ENV.fetch("PUBLIC_HOSTNAME")
+  # Cookie domain = the apex zone (everything after the first dot).
+  # auth.iedora.com → .iedora.com
+  cookie_domain = ".#{public_hostname.split('.', 2)[1]}"
+  # The trusted origin pattern matches menu's hostname under the same zone.
+  menu_origin = "https://menu.#{public_hostname.split('.', 2)[1]}"
+%>
+
+service: genkan
+
+image: <%= ENV.fetch("GHCR_USER") %>/genkan
+
+servers:
+  web:
+    hosts:
+      - <%= ENV.fetch("ONPREM_HOST") %>
+    # Run Drizzle migrations (auth.* schema) before starting the server.
+    # Same lock pattern as menu — scripts/migrate.mjs holds a pg_advisory_lock
+    # so concurrent boots (genkan + menu running their own migrations) don't
+    # collide.
+    cmd: sh -c "node scripts/migrate.mjs && node server.js"
+    # Join the meta-menu app network so genkan can reach
+    # `meta-menu-postgres:5432` by container name. The network is created
+    # by Kamal when menu is first deployed; this directive is no-op if it
+    # already exists.
+    options:
+      network: kamal
+
+proxy:
+  ssl: false                              # Cloudflare Tunnel terminates TLS
+  host: <%= public_hostname %>
+  app_port: 3000
+  forward_headers: true                   # cloudflared sets X-Forwarded-*
+  healthcheck:
+    path: /up
+    interval: 1
+    timeout: 5
+  buffering:
+    requests: true
+    responses: true
+
+registry:
+  server: ghcr.io
+  username: <%= ENV.fetch("GHCR_USER") %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: root
+
+# Remote-only builder: SSH to the box and build there natively (amd64).
+builder:
+  arch: amd64
+  remote: ssh://root@<%= ENV.fetch("ONPREM_HOST") %>
+  local: false
+  # Kamal runs from infra/kamal/; the app's Dockerfile lives in infra/.
+  # Build context is the repo root.
+  context: ../..
+  dockerfile: ../Dockerfile
+
+env:
+  clear:
+    NEXT_TELEMETRY_DISABLED: "1"
+    BETTER_AUTH_URL: https://<%= public_hostname %>
+    # Cross-subdomain SSO: cookies scoped to `.iedora.com` so menu picks up
+    # the session genkan issues without a separate sign-in.
+    COOKIE_DOMAIN: <%= cookie_domain %>
+    # Comma-separated list of every product origin allowed to sign-in
+    # against this Genkan instance. Add a new product here when it joins.
+    TRUSTED_ORIGINS: <%= menu_origin %>,https://<%= public_hostname %>
+    # Where to land users when sign-in completes without a ?return_to.
+    DEFAULT_RETURN_TO: <%= menu_origin %>/dashboard
+  secret:
+    - BETTER_AUTH_SECRET
+    - DATABASE_URL
+
+aliases:
+  console: app exec --interactive --reuse bash
+  logs: app logs -f
+  migrate: app exec --reuse "node scripts/migrate.mjs"
+
+# Cloudflare Tunnel — outbound only, terminates TLS at the edge.
+# Tunnel ingress (set via tofu apply):
+#   PUBLIC_HOSTNAME  → http://kamal-proxy
+accessories:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.5.0@sha256:59bab8d3aceec09bf6bdb07d6beca0225ca5cd7ab79436a87ea97978fe1dc4f9
+    host: <%= ENV.fetch("ONPREM_HOST") %>
+    cmd: tunnel --no-autoupdate run
+    env:
+      secret:
+        - TUNNEL_TOKEN

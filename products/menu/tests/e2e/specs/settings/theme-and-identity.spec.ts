@@ -23,12 +23,12 @@ test.describe('Settings — theme editor', () => {
     // Seed a category + item so the preview and public page have content.
     const sql = testDb()
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
     await sql`
-      INSERT INTO item (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
+      INSERT INTO "menu"."item" (id, category_id, restaurant_id, name, price_cents, currency, available, position, updated_at)
       VALUES (gen_random_uuid()::text, ${catId}, ${org.restaurantId}, 'Risotto', 1450, 'EUR', true, 0, now())
     `
 

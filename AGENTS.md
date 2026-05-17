@@ -208,15 +208,24 @@ products/menu/             menu product root
       .kamal/secrets       shell-evaluated references: TUNNEL_TOKEN from tofu, KAMAL_REGISTRY_PASSWORD from `gh auth token`, rest from infra/.env
     backup/                self-built Postgres-backup image (Dockerfile + bash); built via `just menu::build-backup`
 
-products/house/            iedora.com root brand site
-  index.html               single-file editorial landing — ships to Cloudflare Pages
+products/house/            iedora.com root brand site (Astro on Workers Static Assets)
   README.md                what it is + how to deploy
-  .assetsignore            wrangler exclude list (keeps README + infra/ out of the public bundle)
+  astro.config.mjs         static output → dist/, React integration, port 3002
+  package.json             astro + @astrojs/react + workspace dep on @iedora/design-system
+  tsconfig.json            extends astro/tsconfigs/strict
+  wrangler.toml            Worker config — name + assets dir + apex custom_domain route, workers_dev=false
+  src/
+    pages/index.astro      home page (composes HouseHeader / HouseWorks / HouseFooter)
+    layouts/BaseLayout.astro html shell, Google Fonts
+    components/            HouseHeader, HouseWorks, HouseFooter
+    styles/global.css      imports @iedora/design-system/styles.css
+  dist/                    build output — what wrangler uploads (gitignored)
+  site-legacy/             pre-Astro static HTML, kept for A/B comparison
   infra/
-    justfile               provision Pages project + apex DNS + upload static content
+    justfile               build → tofu apply (workload token only) → wrangler deploy
     .env.example           shared BWS access + Cloudflare account id (3 keys)
     bin/with-secrets       lighter wrapper — no PUBLIC_HOSTNAME / ONPREM_HOST / GHCR_USER
-    tofu/                  Cloudflare Pages project + apex DNS + narrow pages_deploy token
+    tofu/                  ONE resource — narrow workers_deploy token (Workers Scripts: Write + DNS: Write). Worker + DNS + cert created by wrangler.
 
 justfile                   repo-root forwarder: `just menu::X` → products/menu/infra/, `just house::X` → products/house/infra/
 .github/workflows/
@@ -252,7 +261,7 @@ Deploy commands go through `just` at the repo root, namespaced per product:
 - `just menu::build-backup` — rebuild the backup accessory image (only needed when bumping the Postgres major).
 - `just menu::rotate-secret <KEY>` — rotate one BWS secret (prompts new value, edits BWS, reminds to redeploy). For sub-tokens (R2, tunnel): `cd products/menu/infra && bin/with-secrets tofu -chdir=tofu apply -replace=<resource>`. See `docs/secrets.md`.
 - `just menu::destroy` — `tofu destroy` for menu: removes Cloudflare tunnel + DNS (does not touch the box).
-- `just house::deploy` / `house::destroy` — manage the iedora.com root site (Cloudflare Pages project + apex DNS + content upload).
+- `just house::deploy` / `house::destroy` — manage iedora.com (Astro build → workload-token refresh → `wrangler deploy` uploading dist/ + apex `custom_domain` route). `just house::build` / `house::preview` for local-only checks.
 - `just menu` / `just house` — list each product's recipes.
 - `just` — list both modules.
 

@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/shared/ui/button'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -11,9 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog'
-import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/label'
+  Field,
+  FieldInput,
+  FieldLabel,
+} from '@iedora/design-system'
 import { createMenu } from '@/features/menu-builder/actions'
 
 export function CreateMenuDialog({ slug }: { slug: string }) {
@@ -39,8 +40,10 @@ export function CreateMenuDialog({ slug }: { slug: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>{t('newMenu')}</Button>} />
-      <DialogContent>
+      <DialogTrigger asChild>
+        <Button variant="solid">{t('newMenu')}</Button>
+      </DialogTrigger>
+      <DialogContent eyebrow="Menu · New">
         <DialogHeader>
           <DialogTitle>{t('newMenu')}</DialogTitle>
           <DialogDescription>
@@ -48,13 +51,19 @@ export function CreateMenuDialog({ slug }: { slug: string }) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="menu-name">Name</Label>
-            <Input id="menu-name" name="name" required maxLength={80} autoFocus />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Field error={Boolean(error)}>
+            <FieldLabel htmlFor="menu-name">Name</FieldLabel>
+            <FieldInput
+              id="menu-name"
+              name="name"
+              required
+              maxLength={80}
+              autoFocus
+            />
+          </Field>
+          {error && <p className="text-sm text-[var(--cinnabar)]">{error}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" variant="solid" disabled={pending}>
               {pending ? tc('saving') : tc('save')}
             </Button>
           </DialogFooter>

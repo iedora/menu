@@ -1,103 +1,110 @@
-# House (iedora.com) — its own root module with its own state.
+# House (iedora.com) — Tofu root for the Workers Static Assets deploy.
 #
-# Owns:
-#   - The Cloudflare Pages project that serves the iedora.com root page
-#   - A proxied CNAME at the apex pointing the zone at that project
-#   - A narrow `pages_deploy` API token that wrangler uses for uploads
+# Owns ONE thing: a narrow Cloudflare API token that wrangler uses to push
+# the worker + assets at `iedora.com`. Everything else — the worker itself,
+# the DNS record at the apex, the TLS cert — is created by `wrangler deploy`
+# reading products/house/wrangler.toml (workers_dev=false + custom_domain
+# route). Cloudflare absorbed all of those concerns into the Worker.
 #
-# Static content lives in a sibling `site/` subdirectory (../../site/) and
-# is uploaded by:
-#     just deploy        (from products/house/infra/)
-# which wraps `wrangler pages deploy ../site`. The subdir exists so wrangler
-# only uploads HTML/CSS, NOT the infra/ tree (which contains the Tofu
-# provider binary — 178 MiB, well over Pages's 25 MiB per-file limit; Pages
-# has no .gitignore/.assetsignore support for the `pages deploy` command).
-# Tofu only manages the project shell + DNS + the deploy token.
+# What this DOESN'T need to manage (vs. the previous Pages-era setup):
+#   - cloudflare_pages_project          (Pages gone)
+#   - cloudflare_pages_domain           (Pages gone)
+#   - cloudflare_dns_record (apex)      (wrangler creates it via custom_domain)
+#   - account-level Bulk Redirect       (workers_dev=false closes the leak)
 #
-# This root needs `Account · Cloudflare Pages · Edit` on
-# var.cloudflare_api_token beyond what the menu product requires.
-#
-# KNOWN LIMITATION: Cloudflare Pages doesn't let you disable public access
-# to the `iedora-com.pages.dev` URL. CF's official position:
-# "It is not possible to completely disable the project.pages.dev subdomain"
-# (https://developers.cloudflare.com/pages/platform/known-issues/).
-#
-# Workaround in this codebase: `redirect.tf` declares an account-level Bulk
-# Redirect that 301's iedora-com.pages.dev/* → iedora.com/* (and the preview
-# hash URLs too, via `include_subdomains`). Defense-in-depth — anyone who
-# discovers the pages.dev URL gets bounced to the canonical domain.
+# Migration note: if you previously ran the Pages-era version of this root,
+# run `just house::destroy` on the OLD files FIRST to clear those resources
+# from state, then pull these new files and `just house::deploy` for a clean
+# Workers setup. State is encrypted so a stale state file won't accidentally
+# leak old tokens.
 
-data "cloudflare_zone" "this" {
-  filter = {
-    name = var.zone_name
-  }
-}
-
-# ── Cloudflare Pages project for the root brand site ─────────────────────────
-
-resource "cloudflare_pages_project" "iedora_root" {
-  account_id        = var.account_id
-  name              = var.root_pages_project_name
-  production_branch = "main"
-}
-
-# Bind the apex hostname to the Pages project. This only creates the
-# Pages-side binding; the DNS record below is what actually routes traffic.
-resource "cloudflare_pages_domain" "iedora_root_apex" {
-  account_id   = var.account_id
-  project_name = cloudflare_pages_project.iedora_root.name
-  name         = var.zone_name
-}
-
-# Apex CNAME → <project>.pages.dev. Cloudflare flattens CNAME-at-apex when
-# proxied=true, so this serves the bare iedora.com directly.
-resource "cloudflare_dns_record" "iedora_root_apex" {
-  zone_id = data.cloudflare_zone.this.id
-  name    = var.zone_name
-  type    = "CNAME"
-  content = cloudflare_pages_project.iedora_root.subdomain
-  ttl     = 1 # auto (required when proxied)
-  proxied = true
-}
-
-# ── Workload token for wrangler ───────────────────────────────────────────────
+# ── Workload token for wrangler ──────────────────────────────────────────────
 #
-# The bootstrap token in BWS (CLOUDFLARE_API_TOKEN) is what Tofu authenticates
-# with to provision everything in this root — it has to be admin-ish, because
-# Tofu can't provision its own credential (chicken/egg). That token never
-# leaves the parent shell of `just tofu-apply`.
+# The bootstrap token in BWS (TF_VAR_cloudflare_api_token) is what Tofu uses
+# to provision this resource — it's admin-ish, because Tofu can't provision
+# its own credential (chicken/egg). It never leaves the parent shell.
 #
-# For `wrangler pages deploy` we mint a narrower, Tofu-managed token: Pages
-# Write only (no Tunnel, R2, DNS, or token-edit reach). If it leaks, the worst
-# someone can do is push a different `index.html` to the Pages project. Same
-# pattern as `cloudflare_api_token.assets_r2` / `.backups_r2` in the menu
-# product (../../menu/infra/tofu/menu.tf).
+# For `wrangler deploy` we mint a narrower token with just what an asset
+# deploy actually needs:
+#   - Account · Workers Scripts · Edit   (write the worker + upload assets)
+#   - Zone · DNS · Edit                  (for the auto-created custom domain)
 #
-# Rotation: `tofu -chdir=tofu apply -replace=cloudflare_api_token.pages_deploy`
-# (from products/house/infra/) regenerates the token value — wrangler picks
-# the new one up on next deploy because the justfile reads it from
-# `tofu output` every run.
+# Rotation: `tofu apply -replace=cloudflare_api_token.workers_deploy`
+# regenerates the token value; wrangler picks the new one up on the next
+# deploy because the justfile reads it from `tofu output` every run.
+#
+# Permission group IDs are hardcoded (the v5 Cloudflare provider dropped
+# the `cloudflare_api_token_permission_groups` data source in favor of
+# stable hardcoded IDs). If Cloudflare ever rotates one, look up the new
+# value with:
+#
+#   curl -s -H "Authorization: Bearer $BOOTSTRAP_TOKEN" \
+#     https://api.cloudflare.com/client/v4/user/tokens/permission_groups \
+#     | jq '.result[] | select(.name | test("Workers Scripts Write|Workers Routes Write|DNS Write"))'
+
 locals {
-  # "Pages Write" account-level permission group. Stable, looked up once:
-  #   curl -H "Authorization: Bearer $TOKEN" \
-  #     https://api.cloudflare.com/client/v4/user/tokens/permission_groups
-  permission_group_pages_write = "8d28297797f24fb8a0c332fe0866ec89"
+  # Account-scope: upload + manage the worker script + its assets.
+  permission_group_workers_scripts_write = "e086da7e2179491d91ee5f35b3ca210a"
+  # Zone-scope: bind / unbind the worker route at iedora.com. Wrangler GETs
+  # /zones/{id}/workers/routes during every deploy to check what's already
+  # bound; without this it 403s before the route is created.
+  permission_group_workers_routes_write = "28f4b596e7d643029c524985477ae49a"
+  # Zone-scope: edit DNS records (the proxied AAAA at the apex that
+  # `custom_domain = true` triggers Cloudflare to create).
+  permission_group_dns_write = "4755a26eedb94da69e1066d98aa820be"
+
+  zone_resources = jsonencode({
+    "com.cloudflare.api.account.${var.account_id}" = {
+      "com.cloudflare.api.account.zone.*" = "*"
+    }
+  })
 }
 
-resource "cloudflare_api_token" "pages_deploy" {
-  name = "${var.root_pages_project_name}-pages-deploy"
+resource "cloudflare_api_token" "workers_deploy" {
+  name = "${var.worker_name}-workers-deploy"
 
-  policies = [{
-    effect = "allow"
-    permission_groups = [
-      { id = local.permission_group_pages_write }
-    ]
-    # Cloudflare's Pages permission is account-scoped — there isn't a stable
-    # public URN to scope further down to a single project. Narrowing by
-    # *category* (Pages only, no R2/Tunnel/DNS) is still a meaningful blast
-    # radius reduction vs. handing wrangler the bootstrap token.
-    resources = jsonencode({
-      "com.cloudflare.api.account.${var.account_id}" = "*"
-    })
-  }]
+  # KNOWN BUG: the cloudflare/cloudflare v5 provider returns api_token
+  # `policies` (and the `permission_groups` inside each policy) in a
+  # non-deterministic order, so every apply trips "Provider produced
+  # inconsistent result after apply" even with no real change.
+  # Splitting one permission_group per policy isn't enough — the order
+  # of the policies themselves drifts too. Workaround: ignore drift on
+  # `policies` after first create. Auditing the token's actual perms
+  # is a dashboard concern from then on.
+  #
+  # Reference: github.com/cloudflare/terraform-provider-cloudflare#5849
+  # (or similar — track upstream for a fix that lets us drop the lifecycle).
+  lifecycle {
+    ignore_changes = [policies]
+  }
+
+  policies = [
+    {
+      effect = "allow"
+      permission_groups = [
+        { id = local.permission_group_workers_scripts_write }
+      ]
+      resources = jsonencode({
+        "com.cloudflare.api.account.${var.account_id}" = "*"
+      })
+    },
+    {
+      effect = "allow"
+      permission_groups = [
+        { id = local.permission_group_workers_routes_write }
+      ]
+      # All zones in the account — wrangler only touches the zone matching
+      # the route in wrangler.toml. Tighten by replacing the wildcard with
+      # "com.cloudflare.api.account.zone.<zone_id>" if you'd rather scope
+      # this token to a single zone (requires a data "cloudflare_zone").
+      resources = local.zone_resources
+    },
+    {
+      effect = "allow"
+      permission_groups = [
+        { id = local.permission_group_dns_write }
+      ]
+      resources = local.zone_resources
+    },
+  ]
 }

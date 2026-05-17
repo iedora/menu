@@ -63,7 +63,7 @@ test.describe('Billing page', () => {
     // render exactly the years that have rows.
     const sql = testDb()
     await sql`
-      INSERT INTO invoice (id, organization_id, plan, period_start, period_end, amount_cents, currency, status, issued_at, paid_at)
+      INSERT INTO "menu"."invoice" (id, organization_id, plan, period_start, period_end, amount_cents, currency, status, issued_at, paid_at)
       VALUES
         (gen_random_uuid()::text, ${org.id}, 'casa', '2025-01-01', '2025-01-31', 1500, 'EUR', 'paid', '2025-02-01 10:00', '2025-02-01 10:00'),
         (gen_random_uuid()::text, ${org.id}, 'casa', '2025-06-01', '2025-06-30', 1500, 'EUR', 'paid', '2025-07-01 10:00', '2025-07-01 10:00'),

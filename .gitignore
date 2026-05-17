@@ -81,3 +81,7 @@ playwright/.auth/
 *.sql.gz
 *.bak
 .playwright-mcp/
+
+# Ad-hoc screenshots from Playwright/dev sessions land in the repo root.
+# Tests put intentional screenshots under tests/e2e/screenshots/ instead.
+/*.png

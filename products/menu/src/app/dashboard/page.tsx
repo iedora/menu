@@ -4,12 +4,7 @@ import { requireActiveOrganization } from '@/features/auth'
 import { listRestaurantsWithCounts } from '@/features/dashboard-home'
 import { getOrganizationMonthlyViews } from '@/features/metrics'
 import { canAddRestaurant, getOrganizationPlan } from '@/features/plans'
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/card'
+import { Card, CardDesc, CardTitle } from '@iedora/design-system'
 import {
   EditorialList,
   formatEditedAt,
@@ -137,10 +132,8 @@ export default async function DashboardPage() {
         rows={rows}
         emptyState={
           <Card>
-            <CardHeader>
-              <CardTitle>{t('noRestaurants')}</CardTitle>
-              <CardDescription>{t('noRestaurantsHint')}</CardDescription>
-            </CardHeader>
+            <CardTitle>{t('noRestaurants')}</CardTitle>
+            <CardDesc>{t('noRestaurantsHint')}</CardDesc>
           </Card>
         }
       />

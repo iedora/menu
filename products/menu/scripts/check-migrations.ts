@@ -25,17 +25,19 @@ async function main() {
   })
 
   try {
+    // Per-product tracker — see drizzle.config.ts. Menu's lives in
+    // `menu.__drizzle_migrations` so it doesn't shadow genkan's tracker.
     const tableRows = await sql<{ exists: boolean }[]>`
       SELECT EXISTS (
         SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'drizzle' AND table_name = '__drizzle_migrations'
+        WHERE table_schema = 'menu' AND table_name = '__drizzle_migrations'
       ) AS exists
     `
     const hasTable = tableRows[0]?.exists ?? false
 
     const applied = hasTable
       ? await sql<{ created_at: string }[]>`
-          SELECT created_at FROM drizzle.__drizzle_migrations
+          SELECT created_at FROM menu.__drizzle_migrations
         `
       : []
     const appliedSet = new Set(applied.map((a) => String(a.created_at)))

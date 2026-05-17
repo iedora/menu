@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Button } from '@/shared/ui/button'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog'
+} from '@iedora/design-system'
 import { deleteMenu } from '@/features/menu-builder/actions'
 
 export function DeleteMenuButton({
@@ -27,13 +27,11 @@ export function DeleteMenuButton({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button variant="ghost" size="sm" aria-label={`Delete ${menuName}`}>
-            ⋯
-          </Button>
-        }
-      />
+      <DialogTrigger asChild>
+        <Button variant="ghost" aria-label={`Delete ${menuName}`}>
+          ⋯
+        </Button>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete {menuName}?</DialogTitle>
@@ -42,11 +40,10 @@ export function DeleteMenuButton({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          {/* destructive → accent (closest iedora visual for a danger action) */}
           <Button
-            variant="destructive"
+            variant="accent"
             disabled={pending}
             onClick={() =>
               startTransition(async () => {

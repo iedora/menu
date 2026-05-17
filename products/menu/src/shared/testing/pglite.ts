@@ -22,11 +22,21 @@ export interface TestDb {
  *
  * The fixture matches the production wiring: `casing: 'snake_case'` mirrors
  * `drizzle.config.ts` so column names resolve identically.
+ *
+ * The migration runner emits `CREATE SCHEMA IF NOT EXISTS auth/menu` itself,
+ * but PGLite occasionally lags behind real Postgres on `CREATE SCHEMA` inside
+ * the migrator's transaction wrapping — so we proactively ensure the two
+ * schemas exist before applying any SQL. Belt-and-braces, cheap.
  */
 export async function makeTestDb(): Promise<TestDb> {
   const client = new PGlite()
   const db = drizzle(client, { schema, casing: 'snake_case' })
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER })
+  await client.exec(`CREATE SCHEMA IF NOT EXISTS "auth"; CREATE SCHEMA IF NOT EXISTS "menu";`)
+  await migrate(db, {
+    migrationsFolder: MIGRATIONS_FOLDER,
+    migrationsTable: '__drizzle_migrations',
+    migrationsSchema: 'menu',
+  })
   return {
     client,
     db,

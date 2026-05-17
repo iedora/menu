@@ -1,0 +1,25 @@
+{
+  "name": "house",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --port 3002",
+    "build": "astro build",
+    "preview": "astro preview --port 3002",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@astrojs/react": "^5.0.5",
+    "@iedora/design-system": "workspace:*",
+    "astro": "^6.3.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}

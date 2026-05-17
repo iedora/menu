@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { Button } from '@/shared/ui/button'
+import { Button } from '@iedora/design-system'
 import { commitAsset, clearAsset, requestUploadUrl } from '@/features/upload/actions'
 import { TARGET_CONSTRAINTS } from '@/features/upload/targets'
 import type { AssetTarget } from '@/features/upload/types'
@@ -123,8 +123,6 @@ export function ImageUpload({
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={() => inputRef.current?.click()}
               disabled={pending}
               data-testid={`upload-${target.kind}-pick`}
@@ -135,7 +133,6 @@ export function ImageUpload({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
                 onClick={onRemove}
                 disabled={pending}
                 data-testid={`upload-${target.kind}-remove`}

@@ -64,7 +64,7 @@ test.describe('Restaurant dashboard — menu list', () => {
     // one category and one dish, to lock the singular branch of both ICU
     // plurals in the same test.
     const sql = testDb()
-    await sql`DELETE FROM menu WHERE restaurant_id = ${org.restaurantId}`
+    await sql`DELETE FROM "menu"."menu" WHERE restaurant_id = ${org.restaurantId}`
     const { menuId } = await seedMenu(org.restaurantId, 'Tasting')
     await seedCategoryWithItems(menuId, org.restaurantId, 'Today', ['Soup'])
 

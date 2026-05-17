@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { APP_HOSTNAME, BRAND_NAME, BRAND_URL, CONTACT_EMAIL } from "@/shared/brand";
+import { APP_HOSTNAME, BRAND_NAME, BRAND_URL, CONTACT_EMAIL, GENKAN_URL } from "@/shared/brand";
 import "./landing.css";
 
 type LangCode = "en" | "pt" | "es" | "fr";
@@ -420,8 +420,8 @@ function Nav({ c, lang, setLang }: { c: Copy; lang: LangCode; setLang: (l: LangC
         </ul>
         <div className="nav-right">
           <LangSwitcher lang={lang} setLang={setLang} />
-          <Link href="/login" className="nav-link">{c.nav.signin}</Link>
-          <Link href="/signup" className="nav-cta">{c.nav.cta}</Link>
+          <Link href={`${GENKAN_URL}/login`} className="nav-link">{c.nav.signin}</Link>
+          <Link href={`${GENKAN_URL}/signup`} className="nav-cta">{c.nav.cta}</Link>
         </div>
       </div>
       <ScrollProgress />
@@ -545,7 +545,7 @@ function Hero({ c, menu, highlightId }: { c: Copy; menu: DemoMenu; highlightId: 
             <h1>{c.hero.headline.roman}</h1>
             <p className="tagline">{c.hero.headline.tagline}</p>
             <div className="hero-ctas">
-              <Link className="btn btn-primary" href="/signup">{c.hero.ctaPrimary}</Link>
+              <Link className="btn btn-primary" href={`${GENKAN_URL}/signup`}>{c.hero.ctaPrimary}</Link>
             </div>
             <div className="meta-line">
               {c.hero.meta.map((m, i) => (
@@ -638,7 +638,7 @@ function Pricing({ c }: { c: Copy }) {
               {c.pricing.free.feats.map((f, i) => <li key={i}>{f}</li>)}
             </ul>
             <div className="menu-card-foot">
-              <Link className="btn btn-ghost" href="/signup">{c.pricing.free.cta}</Link>
+              <Link className="btn btn-ghost" href={`${GENKAN_URL}/signup`}>{c.pricing.free.cta}</Link>
             </div>
           </article>
 
@@ -655,7 +655,7 @@ function Pricing({ c }: { c: Copy }) {
               {c.pricing.pro.feats.map((f, i) => <li key={i}>{f}</li>)}
             </ul>
             <div className="menu-card-foot">
-              <Link className="btn btn-primary" href="/signup">{c.pricing.pro.cta}</Link>
+              <Link className="btn btn-primary" href={`${GENKAN_URL}/signup`}>{c.pricing.pro.cta}</Link>
             </div>
           </article>
         </div>
@@ -674,7 +674,7 @@ function Closing({ c }: { c: Copy }) {
           <h2>{c.closing.h}</h2>
           <p>{c.closing.p}</p>
           <div className="hero-ctas" style={{ justifyContent: "center" }}>
-            <Link className="btn btn-primary" href="/signup">{c.closing.ctaPrimary}</Link>
+            <Link className="btn btn-primary" href={`${GENKAN_URL}/signup`}>{c.closing.ctaPrimary}</Link>
             <Link className="btn btn-ghost" href={`mailto:${CONTACT_EMAIL}`}>{c.closing.ctaGhost}</Link>
           </div>
         </div>

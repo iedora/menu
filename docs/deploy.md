@@ -227,7 +227,7 @@ Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothi
 
 ## Updating the Cloudflare tunnel (adding routes, etc.)
 
-`products/menu/infra/tofu/menu.tf` defines ingress + DNS for the menu app. Edit it (e.g. add a third ingress rule for a new accessory), then `just menu::deploy` — `tofu apply` (against `tofu/menu/`) runs first and pushes the change. DNS + ingress propagate in seconds. The brand-level iedora.com Pages site is a separate root (`products/house/infra/tofu/`) with its own state and own deploy recipe (`just house::deploy`).
+`products/menu/infra/tofu/menu.tf` defines ingress + DNS for the menu app. Edit it (e.g. add a third ingress rule for a new accessory), then `just menu::deploy` — `tofu apply` (against `tofu/menu/`) runs first and pushes the change. DNS + ingress propagate in seconds. The brand-level iedora.com site (Astro on Workers Static Assets) is a separate root (`products/house/infra/tofu/`) with its own state and own deploy recipe (`just house::deploy`).
 
 ---
 
@@ -238,8 +238,8 @@ Each product owns its own Tofu root under `products/<name>/infra/tofu/` with its
 **The benefits paid for by that duplication:**
 
 1. **Blast radius.** `tofu apply` in `products/house/infra/tofu/` literally cannot plan a change against the menu tunnel — the state isn't there. A typo in house resources can't accidentally destroy R2 buckets.
-2. **Lifecycles.** The menu app changes weekly; the house site changes maybe once a quarter. Splitting state means routine menu deploys don't even read the Pages config, and a stuck Pages-domain provisioning doesn't block `just menu::deploy`.
-3. **Secrets surface.** The narrow `pages_deploy` token (see `docs/secrets.md` — Token tiers) lives only in the house state. wrangler reads it via `tofu -chdir=tofu output`, never seeing the menu tunnel or R2 keys.
+2. **Lifecycles.** The menu app changes weekly; the house site changes maybe once a quarter. Splitting state means routine menu deploys don't even read the house config, and a stuck Workers-custom-domain provisioning doesn't block `just menu::deploy`.
+3. **Secrets surface.** The narrow `workers_deploy` token (see `docs/secrets.md` — Token tiers) lives only in the house state. wrangler reads it via `tofu -chdir=tofu output`, never seeing the menu tunnel or R2 keys.
 4. **Adding a 3rd product is mechanical** — `mkdir products/<name>/`, copy the shape of `products/house/infra/` as a starting point, append `mod <name> 'products/<name>/infra'` to the root `justfile`. No edits to existing products.
 
 **The cost.** ~30 lines duplicated per root: `versions.tf` (provider + encryption), `variables.tf` for the credentials each root happens to need (api_token, account_id, state_passphrase), and a `data.cloudflare_zone "this"` lookup. The Terraform monorepo articles ([Spacelift](https://spacelift.io/blog/terraform-monorepo), [Cloud Posse, Scalr]) all call this out as the trade-off the pattern asks for; the alternative (one root, multiple `.tf` files, shared state) puts everything inside one blast radius.
@@ -266,7 +266,7 @@ products/menu/infra/.env.example                  infra template — copy to pro
 products/menu/infra/kamal/config/deploy.yml                    Kamal config — app + 3 accessories (postgres, cloudflared, backups)
 products/menu/infra/kamal/.kamal/secrets           shell-evaluated references; committed, no values
 products/menu/infra/tofu/                    menu.iedora.com — Cloudflare tunnel + DNS + R2 (encrypted state)
-products/house/infra/tofu/              iedora.com root — Cloudflare Pages project + apex DNS (encrypted state)
+products/house/infra/tofu/              iedora.com root — narrow workers_deploy token (worker itself + DNS + cert created by `wrangler deploy`) (encrypted state)
 justfile + products/menu/infra/justfile            entry point (root forwards into infra/, where recipes live)
 products/menu/infra/Dockerfile                     multi-stage build for the Next app (Bun install, Node build, standalone)
 scripts/migrate.mjs                  Drizzle migrator with pg_advisory_lock

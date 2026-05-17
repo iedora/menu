@@ -1,0 +1,20 @@
+/*
+ * Genkan: the auth host. Style chrome is delegated to @iedora/design-system;
+ * this file is the bare minimum to set the paper background everywhere.
+ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--paper, #EFE8DA);
+  color: var(--ink, #1A1815);
+  font-family: var(--serif, "Fraunces", "Times New Roman", serif);
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+a { color: inherit; }

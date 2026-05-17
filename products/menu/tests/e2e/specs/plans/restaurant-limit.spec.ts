@@ -58,7 +58,7 @@ test.describe('Plans — restaurant limit', () => {
     // Flip to Casa via DB — the upgrade page does the same write through the
     // placeholder action; the spec stays focused on the gate behaviour.
     const sql = testDb()
-    await sql`UPDATE organization SET plan = 'casa' WHERE id = ${org.id}`
+    await sql`UPDATE "auth"."organization" SET plan = 'casa' WHERE id = ${org.id}`
 
     await page.goto('/dashboard')
     await expect(page.getByTestId('upgrade-cta')).toHaveCount(0)
@@ -81,7 +81,7 @@ test.describe('Plans — restaurant limit', () => {
 
     // DB confirms both rows share the org id from the first onboarding.
     const counts = await sql<{ n: number }[]>`
-      SELECT COUNT(*)::int AS n FROM restaurant WHERE organization_id = ${org.id}
+      SELECT COUNT(*)::int AS n FROM "menu"."restaurant" WHERE organization_id = ${org.id}
     `
     expect(counts[0].n).toBe(2)
   })

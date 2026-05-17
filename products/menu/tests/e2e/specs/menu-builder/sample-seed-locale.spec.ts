@@ -28,7 +28,7 @@ test.describe('Menu builder — sample seed honors defaultLanguage', () => {
     // Switch the restaurant to PT default + EN supported BEFORE seeding.
     const sql = testDb()
     await sql`
-      UPDATE restaurant
+      UPDATE "menu"."restaurant"
       SET default_language = 'pt',
           supported_languages = '["pt","en"]'::jsonb
       WHERE id = ${org.restaurantId}
@@ -46,7 +46,7 @@ test.describe('Menu builder — sample seed honors defaultLanguage', () => {
       nameI18n: Record<string, string> | null
     }[]>`
       SELECT name, name_i18n AS "nameI18n"
-      FROM category
+      FROM "menu"."category"
       WHERE restaurant_id = ${org.restaurantId}
       ORDER BY position
     `
@@ -60,7 +60,7 @@ test.describe('Menu builder — sample seed honors defaultLanguage', () => {
       nameI18n: Record<string, string> | null
     }[]>`
       SELECT name, name_i18n AS "nameI18n"
-      FROM item
+      FROM "menu"."item"
       WHERE restaurant_id = ${org.restaurantId}
       ORDER BY name
     `
@@ -75,7 +75,7 @@ test.describe('Menu builder — sample seed honors defaultLanguage', () => {
       nameI18n: Record<string, string> | null
     }[]>`
       SELECT name, name_i18n AS "nameI18n"
-      FROM menu
+      FROM "menu"."menu"
       WHERE restaurant_id = ${org.restaurantId}
         AND name <> 'Main menu'
     `

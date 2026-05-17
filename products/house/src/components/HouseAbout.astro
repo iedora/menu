@@ -1,0 +1,263 @@
+---
+/**
+ * About: four full-viewport scroll-pinned editorial rooms.
+ *
+ * Each room is a `.ds-value` with a tall `.ds-v-track` and a sticky `.ds-v-pin`.
+ * The inline init script on the page writes `--p` (0..1) onto every pin every
+ * scroll frame, and the per-room CSS / per-element data-* attributes pick that
+ * up to drive the animations (line draw, timeline grow, wave collapse, rooms
+ * fill, phrases crossfade).
+ *
+ * Markup mirrors the legacy 1:1 so the choreography ports without surprises.
+ */
+import {
+  ScrollHint,
+  HouseSvg,
+  Timeline,
+  Wave,
+  RoomsGrid,
+  VisuallyHidden,
+} from "@iedora/design-system";
+
+const timelineMarks = [
+  { label: "Begin",  left: 0.05, at: 0.08 },
+  { label: "Build",  left: 0.27, at: 0.28 },
+  { label: "Tend",   left: 0.50, at: 0.52 },
+  { label: "Refine", left: 0.73, at: 0.75 },
+  { label: "Keep",   left: 0.95, at: 0.94 },
+];
+---
+
+<section class="about" id="about" data-screen-label="About">
+  <VisuallyHidden as="div" id="about-title">House philosophy</VisuallyHidden>
+
+  <ScrollHint id="scrollHint">Scroll to enter</ScrollHint>
+
+  <!-- 01 Mission ───────────────────────────────────────────── -->
+  <div class="ds-value v-mission" data-value="0" data-name="Mission">
+    <div class="ds-v-track">
+      <div class="ds-v-pin">
+        <div class="ds-v-head">
+          <span class="ds-v-head__num">/ 01</span>
+          <span class="ds-v-head__name">Mission</span>
+          <span class="ds-v-head__rule" aria-hidden="true"></span>
+          <span class="ds-v-head__right">The roof, first.</span>
+        </div>
+        <div class="ds-v-stage v-mission__stage">
+          <div>
+            <h2 class="ds-v-title v-mission__title">
+              We build software<br />
+              the way <span class="ds-v-title__em">a house</span><br />
+              is built<span class="ds-v-title__dot">.</span>
+            </h2>
+            <div class="ds-phrases" data-phrases>
+              <p class="ds-phrase">First, the <span class="ds-phrase__em">foundation</span>. Infrastructure, services, the quiet machinery that keeps a work running.</p>
+              <p class="ds-phrase">Then the <span class="ds-phrase__em">frame</span>. Our own code, our own conventions, our own opinions about how software should feel.</p>
+              <p class="ds-phrase">Then the <span class="ds-phrase__em">tools</span>. AI as a collaborator at the desk, never a feature on the page.</p>
+              <p class="ds-phrase">Then the <span class="ds-phrase__em">rooms</span>. Interfaces patient enough to be used for years.</p>
+              <p class="ds-phrase">And then, the longest part. Maintenance, support, refinement, the work that comes after the work.</p>
+            </div>
+          </div>
+          <div><HouseSvg /></div>
+        </div>
+        <div class="ds-v-foot">
+          <span>Drawing</span>
+          <div class="ds-v-foot__bar" aria-hidden="true">
+            <div class="ds-v-foot__bar-fill"></div>
+            <div class="ds-v-foot__bar-pin"></div>
+          </div>
+          <span>01 / 04</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 Slowly ───────────────────────────────────────────── -->
+  <div class="ds-value v-slowly" data-value="1" data-name="Slowly">
+    <div class="ds-v-track">
+      <div class="ds-v-pin">
+        <div class="ds-v-head">
+          <span class="ds-v-head__num">/ 02</span>
+          <span class="ds-v-head__name">Practice</span>
+          <span class="ds-v-head__rule" aria-hidden="true"></span>
+          <span class="ds-v-head__right">Fewer features. Longer horizons.</span>
+        </div>
+        <div class="ds-v-stage v-slowly__stage">
+          <h2 class="ds-v-title v-slowly__title">
+            <span class="ds-v-title__em">Slowly</span><span class="ds-v-title__dot">.</span>
+          </h2>
+          <Timeline marks={timelineMarks} />
+          <div class="ds-phrases ds-phrases--center" data-phrases>
+            <p class="ds-phrase">We measure in <span class="ds-phrase__em">years</span>, not in quarters, because some things only become true with time.</p>
+            <p class="ds-phrase">Our roadmap is short on purpose, the horizon long, because the craft deserves it.</p>
+            <p class="ds-phrase">Most of the day is spent <span class="ds-phrase__em">listening</span>. To the people, to the product, to whatever wants to be quieter.</p>
+            <p class="ds-phrase">A work earns its place not by launching, but by being <span class="ds-phrase__em">kept</span>, patiently, for many seasons.</p>
+            <p class="ds-phrase">Nothing here is ever finished, only tended, the way a garden is.</p>
+          </div>
+        </div>
+        <div class="ds-v-foot">
+          <span>Practice</span>
+          <div class="ds-v-foot__bar" aria-hidden="true">
+            <div class="ds-v-foot__bar-fill"></div>
+            <div class="ds-v-foot__bar-pin"></div>
+          </div>
+          <span>02 / 04</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 Quietly ───────────────────────────────────────────── -->
+  <div class="ds-value v-quietly" data-value="2" data-name="Quietly">
+    <div class="ds-v-track">
+      <div class="ds-v-pin">
+        <div class="ds-v-head">
+          <span class="ds-v-head__num">/ 03</span>
+          <span class="ds-v-head__name">Voice</span>
+          <span class="ds-v-head__rule" aria-hidden="true"></span>
+          <span class="ds-v-head__right">Plain language. No urgency.</span>
+        </div>
+        <div class="ds-v-stage v-quietly__stage">
+          <Wave />
+          <h2 class="ds-v-title v-quietly__title">
+            <span class="ds-v-title__em">Quietly</span><span class="ds-v-title__dot">.</span>
+          </h2>
+          <div class="ds-phrases ds-phrases--center" data-phrases>
+            <p class="ds-phrase">We write in <span class="ds-phrase__em">plain sentences</span>, because the people reading them have other things on their minds.</p>
+            <p class="ds-phrase">No exclamations, no countdowns, no manufactured urgency. The design is honest about what it is.</p>
+            <p class="ds-phrase">A good interface gets out of the way, so the person and the task can meet without us in the middle.</p>
+            <p class="ds-phrase"><span class="ds-phrase__em">Silence is a feature</span>. Every word, every notification, every motion has to earn its noise.</p>
+            <p class="ds-phrase">If a thing has to shout to be noticed, we made the wrong one, or we made it wrong.</p>
+          </div>
+        </div>
+        <div class="ds-v-foot">
+          <span>Volume</span>
+          <div class="ds-v-foot__bar" aria-hidden="true">
+            <div class="ds-v-foot__bar-fill"></div>
+            <div class="ds-v-foot__bar-pin"></div>
+          </div>
+          <span>03 / 04</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 Together ───────────────────────────────────────────── -->
+  <div class="ds-value v-together" data-value="3" data-name="Together">
+    <div class="ds-v-track">
+      <div class="ds-v-pin">
+        <div class="ds-v-head">
+          <span class="ds-v-head__num">/ 04</span>
+          <span class="ds-v-head__name">House</span>
+          <span class="ds-v-head__rule" aria-hidden="true"></span>
+          <span class="ds-v-head__right">Room by room, year by year.</span>
+        </div>
+        <div class="ds-v-stage v-together__stage">
+          <div>
+            <h2 class="ds-v-title v-together__title">
+              <span class="ds-v-title__em">Together</span><span class="ds-v-title__dot">.</span>
+            </h2>
+            <div class="ds-phrases" data-phrases>
+              <p class="ds-phrase">We keep <span class="ds-phrase__em">one house</span>, so anything made here feels at home beside everything else.</p>
+              <p class="ds-phrase">Every work shares a typography, a palette, a restraint, a patience.</p>
+              <p class="ds-phrase">Each product is its own room, and at the same time, part of a larger plan.</p>
+              <p class="ds-phrase">New rooms are added slowly, and only when there is something worth placing inside.</p>
+              <p class="ds-phrase">First we <span class="ds-phrase__em">build</span>, then we <span class="ds-phrase__em">tend</span>, for as long as there are people who care to come in.</p>
+            </div>
+          </div>
+          <RoomsGrid />
+        </div>
+        <div class="ds-v-foot">
+          <span>Rooms occupied</span>
+          <div class="ds-v-foot__bar" aria-hidden="true">
+            <div class="ds-v-foot__bar-fill"></div>
+            <div class="ds-v-foot__bar-pin"></div>
+          </div>
+          <span>04 / 04</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .about {
+    position: relative;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+
+  /* 01 Mission — two-column: copy on the left, house on the right. */
+  .v-mission__stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .v-mission__title {
+    font-size: clamp(40px, min(7.8vw, 11vh), 120px);
+  }
+
+  /* 02 Slowly — centered title, timeline, then a centered phrases stack. */
+  .v-slowly__stage {
+    display: grid;
+    grid-template-rows: auto auto auto;
+    place-items: center;
+    gap: 32px;
+  }
+  .v-slowly__title {
+    font-size: clamp(64px, min(14vw, 18vh), 200px);
+    text-align: center;
+  }
+
+  /* 03 Quietly — wave above the title above the phrases. */
+  .v-quietly__stage {
+    display: grid;
+    place-items: center;
+    gap: 36px;
+    position: relative;
+  }
+  .v-quietly__title {
+    font-size: clamp(64px, min(14vw, 18vh), 200px);
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* 04 Together — copy + grid. */
+  .v-together__stage {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .v-together__title {
+    font-size: clamp(48px, min(9.6vw, 13vh), 140px);
+  }
+
+  @media (max-width: 1080px) {
+    .v-mission__stage,
+    .v-together__stage { grid-template-columns: 1fr; gap: 32px; }
+  }
+  @media (max-width: 760px) {
+    .ds-v-track { height: 240vh; }
+    .ds-phrases { min-height: 9em; }
+  }
+  @media (max-width: 680px) {
+    .ds-v-pin { padding-top: 28px; padding-bottom: 28px; gap: 12px; }
+    .v-mission__title { font-size: clamp(34px, 9vw, 56px); }
+    .v-slowly__title,
+    .v-quietly__title { font-size: clamp(44px, 14vw, 80px); }
+    .v-together__title { font-size: clamp(36px, 10vw, 64px); }
+    .v-mission__title br { display: none; }
+    .v-mission__stage,
+    .v-together__stage { gap: 24px; }
+  }
+  @media (max-width: 420px) {
+    .v-mission__title { font-size: clamp(30px, 9vw, 44px); }
+    .v-slowly__title,
+    .v-quietly__title { font-size: clamp(40px, 14vw, 64px); }
+    .v-together__title { font-size: clamp(32px, 10vw, 52px); }
+  }
+</style>

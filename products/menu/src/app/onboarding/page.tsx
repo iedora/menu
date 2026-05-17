@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { Wordmark } from '@iedora/design-system'
 import { auth } from '@/features/auth/adapters/better-auth-instance'
 import { OnboardingForm } from './onboarding-form'
 
@@ -15,25 +16,44 @@ export default async function OnboardingPage() {
   // `+ new restaurant` link points here for that second case.
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <Link
-        href="/"
-        className="mb-6 inline-flex items-baseline gap-2 text-foreground no-underline"
-        aria-label="Menu home"
-      >
-        <span
-          aria-hidden="true"
-          className="translate-y-[2px] font-serif text-[22px] italic leading-none text-brand"
-        >
-          ⁋
-        </span>
-        <span className="text-[15px] font-semibold tracking-tight">
-          Meta <em className="font-serif italic font-medium">Menu</em>
-        </span>
-      </Link>
-      <div className="w-full max-w-md">
-        <OnboardingForm />
+    <div className="flex min-h-screen flex-col bg-[var(--paper)]">
+      <div className="mx-auto w-full max-w-[1100px] px-14 pt-9">
+        <div className="flex items-center justify-between font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+          <div className="flex items-center gap-3">
+            <span>MMXXVI</span>
+            <span aria-hidden="true">·</span>
+            <span>Menu · Onboarding</span>
+          </div>
+          <Link href="/dashboard" className="no-underline">
+            Dashboard
+          </Link>
+        </div>
       </div>
+
+      <main className="flex flex-1 items-center justify-center px-6 py-16">
+        <div className="w-full max-w-[560px]">
+          <div className="mb-12 flex flex-col items-center gap-2 text-center">
+            <Link
+              href="/"
+              className="inline-flex items-baseline no-underline"
+              aria-label="Menu home"
+            >
+              <Wordmark
+                word="menu"
+                variant="display"
+                className="ds-wordmark--reveal"
+              />
+            </Link>
+            <span
+              className="text-[17px] italic text-[var(--ink-70)]"
+              style={{ fontFamily: 'var(--serif)' }}
+            >
+              name the room
+            </span>
+          </div>
+          <OnboardingForm />
+        </div>
+      </main>
     </div>
   )
 }

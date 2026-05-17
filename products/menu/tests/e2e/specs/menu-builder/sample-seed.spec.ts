@@ -51,9 +51,9 @@ test.describe('Menu builder — sample seed', () => {
       { menus: number; categories: number; items: number }[]
     >`
       SELECT
-        (SELECT COUNT(*)::int FROM menu WHERE restaurant_id = ${org.restaurantId}) AS menus,
-        (SELECT COUNT(*)::int FROM category WHERE restaurant_id = ${org.restaurantId}) AS categories,
-        (SELECT COUNT(*)::int FROM item WHERE restaurant_id = ${org.restaurantId}) AS items
+        (SELECT COUNT(*)::int FROM "menu"."menu" WHERE restaurant_id = ${org.restaurantId}) AS menus,
+        (SELECT COUNT(*)::int FROM "menu"."category" WHERE restaurant_id = ${org.restaurantId}) AS categories,
+        (SELECT COUNT(*)::int FROM "menu"."item" WHERE restaurant_id = ${org.restaurantId}) AS items
     `
     expect(counts[0]).toEqual({ menus: 2, categories: 3, items: 8 })
   })

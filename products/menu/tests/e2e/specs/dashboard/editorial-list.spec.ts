@@ -41,7 +41,7 @@ test.describe('Dashboard — editorial list', () => {
     // apiCreateAndActivateOrg auto-inserts a "Main menu" — drop it so the
     // restaurant has zero menus and zero dishes.
     const sql = testDb()
-    await sql`DELETE FROM menu WHERE restaurant_id = ${org.restaurantId}`
+    await sql`DELETE FROM "menu"."menu" WHERE restaurant_id = ${org.restaurantId}`
 
     await page.goto('/dashboard')
 
@@ -66,7 +66,7 @@ test.describe('Dashboard — editorial list', () => {
 
     // Clear the auto-created "Main menu" and seed one menu with three items.
     const sql = testDb()
-    await sql`DELETE FROM menu WHERE restaurant_id = ${org.restaurantId}`
+    await sql`DELETE FROM "menu"."menu" WHERE restaurant_id = ${org.restaurantId}`
     const { menuId } = await seedMenu(org.restaurantId, 'Lunch')
     await seedCategoryWithItems(menuId, org.restaurantId, 'Starters', [
       'Bread',

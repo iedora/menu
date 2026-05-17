@@ -46,7 +46,7 @@ test.describe('Uploads — restaurant logo', () => {
 
     // DB column is now populated and points at MinIO.
     const rows = await sql<{ logoUrl: string | null }[]>`
-      SELECT logo_url AS "logoUrl" FROM restaurant WHERE id = ${org.restaurantId}
+      SELECT logo_url AS "logoUrl" FROM "menu"."restaurant" WHERE id = ${org.restaurantId}
     `
     expect(rows[0]?.logoUrl).toMatch(
       new RegExp(`^http://localhost:4566/metamenu-test/r/${org.restaurantId}/logo-`),
@@ -126,7 +126,7 @@ test.describe('Uploads — restaurant logo', () => {
     // DB column cleared.
     const sql = testDb()
     const rows = await sql<{ logoUrl: string | null }[]>`
-      SELECT logo_url AS "logoUrl" FROM restaurant WHERE id = ${org.restaurantId}
+      SELECT logo_url AS "logoUrl" FROM "menu"."restaurant" WHERE id = ${org.restaurantId}
     `
     expect(rows[0]?.logoUrl).toBeNull()
 

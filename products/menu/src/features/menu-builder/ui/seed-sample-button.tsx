@@ -3,7 +3,7 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/shared/ui/button'
+import { Button } from '@iedora/design-system'
 import { seedSampleMenu } from '@/features/menu-builder/actions'
 
 export function SeedSampleButton({ slug }: { slug: string }) {
@@ -24,7 +24,6 @@ export function SeedSampleButton({ slug }: { slug: string }) {
   return (
     <Button
       type="button"
-      variant="outline"
       onClick={onClick}
       disabled={pending}
       data-testid="seed-sample-menu"

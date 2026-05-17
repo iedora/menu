@@ -114,12 +114,14 @@ function makeGatewayFor(
 }
 
 describe('verifySession', () => {
-  it('redirects to /login when there is no session', async () => {
+  it("redirects to Genkan's /login when there is no session", async () => {
     const gw: AuthGateway = {
       getSession: async () => null,
     } as unknown as AuthGateway
 
-    await expect(verifySession(gw)).rejects.toThrow('__REDIRECT__:/login')
+    // Genkan is the SSO entryway — every unauthenticated request bounces to
+    // its /login. Dev uses :3001, prod uses https://auth.iedora.com.
+    await expect(verifySession(gw)).rejects.toThrow(/__REDIRECT__:.*\/login$/)
   })
 
   it('returns the session when present', async () => {

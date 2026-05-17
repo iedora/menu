@@ -23,7 +23,7 @@ test.describe('Public menu — i18n rendering', () => {
     const sql = testDb()
     // Multi-language restaurant: default EN, supports PT too.
     await sql`
-      UPDATE restaurant
+      UPDATE "menu"."restaurant"
       SET default_language = 'en',
           supported_languages = '["en","pt"]'::jsonb
       WHERE id = ${org.restaurantId}
@@ -31,12 +31,12 @@ test.describe('Public menu — i18n rendering', () => {
 
     // Seed two items: one fully translated, one only in default.
     const [{ id: catId }] = await sql<{ id: string }[]>`
-      INSERT INTO category (id, menu_id, restaurant_id, name, position, updated_at)
+      INSERT INTO "menu"."category" (id, menu_id, restaurant_id, name, position, updated_at)
       VALUES (gen_random_uuid()::text, ${org.menuId}, ${org.restaurantId}, 'Mains', 0, now())
       RETURNING id
     `
     await sql`
-      INSERT INTO item (id, category_id, restaurant_id, name, name_i18n, description, description_i18n, price_cents, currency, available, position, updated_at)
+      INSERT INTO "menu"."item" (id, category_id, restaurant_id, name, name_i18n, description, description_i18n, price_cents, currency, available, position, updated_at)
       VALUES
         (
           gen_random_uuid()::text, ${catId}, ${org.restaurantId},

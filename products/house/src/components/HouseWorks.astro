@@ -1,0 +1,192 @@
+---
+/**
+ * Works — scroll-pinned showcase. Currently one entry (menu); the
+ * `.works-scroll` wrapper is full-bleed so future works can stack
+ * without changing the outer layout. Each work is its own `.ds-value`
+ * with a tall track + sticky pin, exactly like the About rooms.
+ *
+ * Work 01 (menu): QR matrix on the left, deterministic hand-drawn
+ * analytics chart on the right, meta text fades in alongside.
+ */
+
+// Build a 7×7 QR-like grid deterministically. Three corner finders
+// are explicit; the rest is sin-based noise so the markup is stable
+// across SSR runs. Each tile carries a diagonal `data-order` (r+c)
+// so the host JS can light them top-left to bottom-right with scroll.
+const cells = Array.from({ length: 49 }, (_, i) => {
+  const r = Math.floor(i / 7);
+  const c = i % 7;
+  const finderTL = r < 3 && c < 3 && (r === 0 || c === 0 || r === 2 || c === 2 || (r === 1 && c === 1));
+  const finderTR = r < 3 && c > 3 && (r === 0 || c === 6 || r === 2 || c === 4 || (r === 1 && c === 5));
+  const finderBL = r > 3 && c < 3 && (r === 6 || c === 0 || r === 4 || c === 2 || (r === 5 && c === 1));
+  const noise = (Math.sin(i * 13.91 + r * 2.7 + c * 4.3) * 0.5 + 0.5) > 0.5;
+  return {
+    lit: finderTL || finderTR || finderBL || noise,
+    order: r + c,
+  };
+});
+---
+
+<section class="works-scroll" id="works" data-screen-label="Works">
+  <div class="ds-value work w-meta" data-work="0">
+    <div class="ds-v-track">
+      <div class="ds-v-pin">
+        <div class="ds-v-head">
+          <span class="ds-v-head__num">/ 01</span>
+          <span class="ds-v-head__name">Works</span>
+          <span class="ds-v-head__rule" aria-hidden="true"></span>
+          <span class="ds-v-head__right"><span class="ds-v-head__live-dot" aria-hidden="true"></span>In service</span>
+        </div>
+
+        <div class="ds-v-stage work-stage">
+          <div class="work-visual">
+            <div class="qr-big" aria-hidden="true">
+              {cells.map((cell) => (
+                <i
+                  class={cell.lit ? undefined : "off"}
+                  data-order={cell.order}
+                ></i>
+              ))}
+            </div>
+            <div class="analytics-big" aria-hidden="true">
+              <svg viewBox="0 0 400 120" preserveAspectRatio="none">
+                <line x1="0" y1="119" x2="400" y2="119" stroke="rgba(26,24,21,0.18)" stroke-width="0.6" />
+                <line x1="0" y1="80"  x2="400" y2="80"  stroke="rgba(26,24,21,0.10)" stroke-width="0.5" stroke-dasharray="2 3" />
+                <line x1="0" y1="40"  x2="400" y2="40"  stroke="rgba(26,24,21,0.10)" stroke-width="0.5" stroke-dasharray="2 3" />
+                <path class="ana-area" d="M0,96 L40,84 L80,92 L120,60 L160,68 L200,44 L240,56 L280,28 L320,40 L360,20 L400,32 L400,120 L0,120 Z" />
+                <path class="ana-line" d="M0,96 L40,84 L80,92 L120,60 L160,68 L200,44 L240,56 L280,28 L320,40 L360,20 L400,32" />
+                <circle class="ana-dot" cx="400" cy="32" r="3" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="work-meta">
+            <div class="work-num">Work № 01</div>
+            <h2 class="work-title">menu<span class="dot">.</span></h2>
+            <p class="work-desc">A QR menu system for restaurants, with quiet, deep analytics for the people who run them.</p>
+            <div class="work-tags">QR · Menu · Analytics</div>
+            <a class="work-url" href="https://menu.iedora.com" target="_blank" rel="noopener">
+              <span>menu.iedora.com</span><span class="arrow" aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="ds-v-foot">
+          <span>Work 01 / 01</span>
+          <div class="ds-v-foot__bar" aria-hidden="true">
+            <div class="ds-v-foot__bar-fill"></div>
+            <div class="ds-v-foot__bar-pin"></div>
+          </div>
+          <span>menu</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .works-scroll {
+    position: relative;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+  .work .ds-v-track { height: 220vh; }
+
+  .work-stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .work-visual {
+    display: grid;
+    place-items: center;
+    max-height: 64vh;
+  }
+  .work-meta {
+    --meta: 0;
+    max-width: 480px;
+  }
+  .work-meta > * {
+    --delay: 0;
+    --t: clamp(0, calc((var(--meta) - var(--delay)) * 4), 1);
+    opacity: var(--t);
+    transform: translateY(calc((1 - var(--t)) * 14px));
+    transition: none;
+  }
+  .work-num   { --delay: 0.00; font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-55); margin-bottom: 18px; }
+  .work-title { --delay: 0.06; margin: 0; font-family: var(--serif); font-weight: 300; font-variation-settings: "opsz" 144; font-size: clamp(56px, min(9vw, 13vh), 132px); line-height: 0.94; letter-spacing: -0.035em; color: var(--ink); }
+  .work-title .dot { color: var(--cinnabar); }
+  .work-desc  { --delay: 0.16; margin: 22px 0 18px; font-family: var(--serif); font-weight: 400; font-size: 17px; line-height: 1.55; color: var(--ink-70); max-width: 38ch; text-wrap: pretty; }
+  .work-tags  { --delay: 0.26; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-55); margin-bottom: 24px; }
+  .work-url   { --delay: 0.34; font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--ink-22); padding-bottom: 4px; display: inline-flex; align-items: center; gap: 10px; transition: border-color var(--d-3) var(--ease); }
+  .work-url:hover { border-color: var(--ink); }
+  .work-url .arrow { color: var(--cinnabar); transition: transform var(--d-3) var(--ease); }
+  .work-url:hover .arrow { transform: translate(2px, -2px); }
+
+  /* QR matrix — 7×7 tiles, lit by --lit (host JS), scale with --lit. */
+  .qr-big {
+    width: clamp(220px, 36vh, 320px);
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(7, 1fr);
+    gap: 4px;
+    padding: 18px;
+    background: var(--paper);
+    border: 1px solid var(--ink-22);
+  }
+  .qr-big i {
+    background: var(--ink);
+    opacity: var(--lit, 0);
+    transform: scale(calc(0.5 + var(--lit, 0) * 0.5));
+    transform-origin: center;
+    transition: none;
+  }
+  .qr-big i.off { background: transparent; }
+
+  /* Analytics chart — line draws with --p, area + dot fade in. */
+  .analytics-big {
+    width: clamp(220px, 36vh, 360px);
+    height: clamp(70px, 12vh, 110px);
+    margin-top: 24px;
+  }
+  .analytics-big svg { width: 100%; height: 100%; display: block; }
+  .analytics-big .ana-area { fill: rgba(184, 58, 38, 0.10); opacity: var(--p, 0); }
+  .analytics-big .ana-line {
+    fill: none;
+    stroke: var(--cinnabar);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-dasharray: var(--len, 600);
+    stroke-dashoffset: calc(var(--len, 600) * (1 - var(--p, 0)));
+  }
+  .analytics-big .ana-dot { fill: var(--cinnabar); opacity: var(--p, 0); }
+
+  @media (max-width: 1080px) {
+    .work-stage { grid-template-columns: 1fr; gap: 32px; }
+    .work .ds-v-track { height: 200vh; }
+    .work-meta { margin: 0 auto; }
+  }
+  @media (max-width: 760px) {
+    .work .ds-v-track { height: 180vh; }
+  }
+  @media (max-width: 680px) {
+    .work-title { font-size: clamp(40px, 12vw, 64px); }
+    .work-desc { font-size: 15.5px; }
+    .qr-big { width: clamp(180px, 60vw, 240px); padding: 12px; gap: 3px; }
+    .analytics-big { width: clamp(180px, 60vw, 280px); margin-top: 16px; }
+  }
+  @media (max-width: 420px) {
+    .work-title { font-size: clamp(36px, 12vw, 52px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .work-meta { --meta: 1; }
+    .qr-big i { opacity: 1 !important; transform: scale(1) !important; }
+    .analytics-big .ana-line { stroke-dashoffset: 0 !important; }
+    .analytics-big .ana-area,
+    .analytics-big .ana-dot { opacity: 1 !important; }
+  }
+</style>

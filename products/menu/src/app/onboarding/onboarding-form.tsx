@@ -2,17 +2,16 @@
 
 import { useActionState, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/shared/ui/button'
 import {
+  Button,
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
+  CardDesc,
+  CardFoot,
   CardTitle,
-} from '@/shared/ui/card'
-import { Input } from '@/shared/ui/input'
-import { Label } from '@/shared/ui/label'
+  Field,
+  FieldInput,
+  FieldLabel,
+} from '@iedora/design-system'
 import { APP_HOSTNAME } from '@/shared/brand'
 import { completeOnboarding, type OnboardingFormState } from './actions'
 
@@ -38,18 +37,16 @@ export function OnboardingForm() {
 
   return (
     <Card>
-      <CardHeader>
-        <span className="font-serif text-[13px] italic text-muted-foreground">
-          {t('eyebrow')}
-        </span>
-        <CardTitle as="h1">{t('title')}</CardTitle>
-        <CardDescription>{t('subtitle')}</CardDescription>
-      </CardHeader>
+      <span className="font-serif text-[13px] italic text-muted-foreground">
+        {t('eyebrow')}
+      </span>
+      <CardTitle as="h2">{t('title')}</CardTitle>
+      <CardDesc>{t('subtitle')}</CardDesc>
       <form action={action}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="restaurantName">{t('restaurantName')}</Label>
-            <Input
+        <div className="space-y-4">
+          <Field error={Boolean(state?.fieldErrors?.restaurantName)}>
+            <FieldLabel htmlFor="restaurantName">{t('restaurantName')}</FieldLabel>
+            <FieldInput
               id="restaurantName"
               name="restaurantName"
               type="text"
@@ -66,12 +63,12 @@ export function OnboardingForm() {
             {state?.fieldErrors?.restaurantName && (
               <p className="text-sm text-destructive">{state.fieldErrors.restaurantName}</p>
             )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="slug">{t('slug')}</Label>
-            <div className="flex items-center gap-1 rounded-md border px-3 focus-within:ring-1 focus-within:ring-ring">
+          </Field>
+          <Field error={Boolean(state?.fieldErrors?.slug)}>
+            <FieldLabel htmlFor="slug">{t('slug')}</FieldLabel>
+            <div className="flex items-center gap-1">
               <span className="text-sm text-muted-foreground">{APP_HOSTNAME}/r/</span>
-              <Input
+              <FieldInput
                 id="slug"
                 name="slug"
                 type="text"
@@ -83,24 +80,23 @@ export function OnboardingForm() {
                   setSlugTouched(true)
                   setSlug(e.target.value.toLowerCase())
                 }}
-                className="border-0 px-0 shadow-none focus-visible:ring-0"
               />
             </div>
             {state?.fieldErrors?.slug && (
               <p className="text-sm text-destructive">{state.fieldErrors.slug}</p>
             )}
-          </div>
+          </Field>
           {state?.error && (
             <p className="text-sm text-destructive" role="alert">
               {state.error}
             </p>
           )}
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full" disabled={pending}>
+        </div>
+        <CardFoot>
+          <Button type="submit" variant="solid" className="w-full" disabled={pending}>
             {pending ? t('creating') : t('create')}
           </Button>
-        </CardFooter>
+        </CardFoot>
       </form>
     </Card>
   )
