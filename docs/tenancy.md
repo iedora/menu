@@ -131,7 +131,74 @@ UPDATE genkan.organization SET type='shared' WHERE type IS NULL;
 
 Like Migration A, this is purely additive.
 
-### Migration C — Pattern 2 → Pattern 3 (one org per restaurant)
+### Migration C — Pattern 2 → multi-level hierarchy (group · brand · restaurant)
+
+**When**: a customer like LVMH walks in. Multiple brands (Gucci, Versace) each owning multiple menus; some staff scoped to a single menu, some to a single brand, some across the whole group; cross-cutting roll-up billing.
+
+**Data shape**:
+
+```
+genkan.organization
+  ├ LVMH       parent_id: NULL          (the group)
+  ├ Gucci      parent_id: LVMH          (a brand)
+  └ Versace    parent_id: LVMH          (a brand)
+
+genkan.member (user, organization, role)
+  Sofia       → LVMH    owner             ← cross-brand admin
+  Manel       → Gucci   member            ← all Gucci menus
+  Manel       → Versace member            ← + scoped via restaurant_member to one menu
+  Carlos      → Gucci   member            ← scoped via restaurant_member
+
+menu.restaurant.organizationId  → Gucci or Versace  (never the group)
+menu.restaurant_member          → Migration A's table
+```
+
+**Schema additions** (cumulative on top of Migration A):
+
+- `genkan.organization.parent_id` — nullable `text`, references `organization.id`. Drizzle migration adds the column; backfill null on existing rows. Better Auth ignores unknown columns; expose via `additionalFields` for type-safety.
+- Nothing else. `restaurant_member` from Migration A is already enough for per-restaurant scoping.
+
+**DAL guard for "can user U access restaurant R?"** (read top-to-bottom, first match wins):
+
+1. User has a row in `restaurant_member` for R → use that role.
+2. User has a row in `restaurant_member` for some other restaurant in R's org → no access (scoped membership rule).
+3. User is `member|admin|owner` of R's organization → use that role.
+4. User is `admin|owner` of any ancestor organization of R's org (walk `parent_id` chain) → use that role.
+5. Otherwise → no access.
+
+**Worked examples on the LVMH data above**:
+
+| Question | Path | Outcome |
+|---|---|---|
+| Can Carlos see Menu C of Gucci? | Rule 1 matches `(Carlos, Menu C)` | ✅ as cook |
+| Can Carlos see Menu A of Gucci? | Rule 1: no. Rule 2: yes — Carlos has a scoped row in Gucci. | ❌ |
+| Can Manel see Menu A of Gucci? | Rule 1: no. Rule 2: no (no Manel rows in Gucci). Rule 3: yes — Manel is org-level member of Gucci. | ✅ |
+| Can Manel see Menu E of Versace? | Rule 1: no. Rule 2: yes — Manel has a scoped row in Versace. | ❌ |
+| Can Sofia see Menu C of Gucci? | Rule 1: no. Rule 2: no. Rule 3: no. Rule 4: yes — Sofia owns LVMH; Gucci.parent_id = LVMH. | ✅ |
+
+**OIDC claim**: extend `getAdditionalUserInfoClaim` to include the org chain so consumers (menu, .NET API) get the hierarchy in the JWT:
+```json
+"organizations": [
+  { "id": "...Gucci", "name": "Gucci", "role": "member", "parent_id": "...LVMH" },
+  { "id": "...LVMH",  "name": "LVMH",  "role": "owner",  "parent_id": null }
+]
+```
+
+**Billing roll-up**: when the plan is on the parent org (`LVMH.plan = "casa-group"`), child orgs (`Gucci.plan = "inherited"`) defer to the parent. Cheap: a use-case `getEffectivePlan(orgId)` walks `parent_id` looking for the first non-inherited plan.
+
+**Reversibility**: `parent_id` is nullable + ignored by Better Auth's core. Drop the column, drop the rule-4 branch in the DAL, hierarchy disappears without touching anyone's existing data.
+
+**What does NOT change**:
+- Pattern 2's restaurant ownership (`restaurant.organizationId` still points at the BRAND, never the group)
+- OAuth client scopes / authorize flow
+- Existing members, existing orgs without a `parent_id` continue to work
+- Migration A's `restaurant_member` table — used as-is for the leaf-scoped case
+
+**Cost**: ~2 hours of work end-to-end (column + DAL extension + UI exposes the chain in the org switcher). No data migration on existing tenants since `parent_id` defaults to null.
+
+This is the right call if LVMH-style customers arrive. The current model gracefully extends into it; we don't need to design it now.
+
+### Migration D — Pattern 2 → Pattern 3 (one org per restaurant)
 
 **When**: never. We don't anticipate this. Documented for completeness so we remember we chose against it.
 
