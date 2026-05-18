@@ -197,8 +197,11 @@ jobs:
           ruby-version: '3.3'
 
       - name: Install Kamal
-        # Pin Kamal to match the laptop-side gem. Bumps are deliberate.
-        run: gem install kamal -v 2.5.3 --no-document
+        # Pin to match the laptop-side gem. Bumps are deliberate. Older Kamal
+        # (2.5.x) handled `.kamal/secrets` env-var expansion differently and
+        # passed literal `$BWS_PROJECT_ID` to bws — caused a runtime failure
+        # in CI even though local 2.11+ handled it correctly. Keep CI ≥ 2.11.
+        run: gem install kamal -v 2.11.0 --no-document
 
       - name: Kamal deploy
         working-directory: products/${{ inputs.product }}/infra/kamal
