@@ -5,7 +5,7 @@
  * so the page below never shifts when the form slides open. Host JS toggles
  * `.open` on the <header> when the wordmark is clicked.
  */
-import { Wordmark, Statement } from "@iedora/design-system";
+import { Wordmark, KeyMark, Statement } from "@iedora/design-system";
 ---
 
 <header class="house" id="houseHeader">
@@ -18,6 +18,7 @@ import { Wordmark, Statement } from "@iedora/design-system";
         tabindex="0"
         aria-label="Iedora — click to open contact"
       >
+        <KeyMark className="wordmark-key" ariaLabel="iedora — identity" />
         <Wordmark variant="display" />
         <span class="hint" aria-hidden="true">Open the house</span>
       </h1>
@@ -140,6 +141,28 @@ import { Wordmark, Statement } from "@iedora/design-system";
     align-items: end;
     cursor: pointer;
     user-select: none;
+  }
+  /* The key sits to the LEFT of "iedora.", riding slightly above the
+     baseline so its quarter-turn motion happens cleanly in the gap
+     between the wordmark and the header-meta strip below. */
+  .wordmark-wrap .wordmark-key {
+    --ds-key-mark-size: 40px;
+    margin-right: 18px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 760px) {
+    .wordmark-wrap .wordmark-key {
+      --ds-key-mark-size: 30px;
+      margin-right: 12px;
+      margin-bottom: 12px;
+    }
+  }
+  @media (max-width: 420px) {
+    .wordmark-wrap .wordmark-key {
+      --ds-key-mark-size: 24px;
+      margin-right: 10px;
+      margin-bottom: 9px;
+    }
   }
   .wordmark-wrap .hint {
     align-self: end;

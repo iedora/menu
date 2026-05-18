@@ -17,14 +17,13 @@ import HouseHeader from "../components/HouseHeader.astro";
 import HouseAbout from "../components/HouseAbout.astro";
 import HouseWorks from "../components/HouseWorks.astro";
 import HouseFooter from "../components/HouseFooter.astro";
-import { PageProgress, ScreenLabel } from "@iedora/design-system";
+import { PageProgress } from "@iedora/design-system";
 ---
 
 <BaseLayout>
   <PageProgress />
-  <ScreenLabel id="cornerMark">01 Iedora Studio Hub</ScreenLabel>
 
-  <main data-screen-label="01 Iedora Studio Hub">
+  <main>
     <div class="ds-shell hub">
       <nav class="ds-meta-strip" aria-label="House meta">
         <div class="ds-meta-strip__left">
@@ -63,8 +62,6 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
   All choreography lives here. Ported 1:1 from the legacy script:
   - wordmark letter reveal + body.ds-loaded
   - page-progress fill via --ds-pageprog-progress
-  - corner mark: shows after scrollY > 12vh; text follows the section
-    currently in view (data-screen-label on each section)
   - shoji slide-open + close (wordmark / Esc / Back / nav)
   - per-section scroll progress (--p on .ds-v-pin) driving:
       • mission: line draw + door-knob / stamp fade
@@ -146,12 +143,8 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
       shoji?.classList.add("ds-shoji--sent");
     });
 
-    // ── Page progress + corner mark
+    // ── Page progress
     const pageFill = document.querySelector(".ds-pageprog__fill");
-    const cornerMark = document.getElementById("cornerMark");
-    const screenSections = Array.from(
-      document.querySelectorAll("[data-screen-label]"),
-    );
 
     function updatePageProg() {
       const doc = document.documentElement;
@@ -159,24 +152,6 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
       const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
       if (pageFill)
         pageFill.style.setProperty("--ds-pageprog-progress", p.toFixed(4));
-    }
-
-    function updateCornerMark() {
-      if (!cornerMark) return;
-      const showAfter = window.innerHeight * 0.12;
-      const shouldShow = window.scrollY > showAfter;
-      cornerMark.classList.toggle("ds-screen-label--on", shouldShow);
-      // pick the section closest-to-top that is still on-screen
-      let label = "";
-      const cutoff = window.innerHeight * 0.4;
-      for (const el of screenSections) {
-        const rect = el.getBoundingClientRect();
-        if (rect.top <= cutoff && rect.bottom > cutoff) {
-          const v = el.getAttribute("data-screen-label");
-          if (v) label = v;
-        }
-      }
-      if (label) cornerMark.textContent = label;
     }
 
     // ── Per-section scroll progress + downstream animations
@@ -346,7 +321,6 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
         rafId = null;
         updatePageProg();
         updateAllValues();
-        updateCornerMark();
         maybeHideHint();
       });
     }
@@ -356,6 +330,5 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
     // initial paint
     updatePageProg();
     updateAllValues();
-    updateCornerMark();
   })();
 </script>

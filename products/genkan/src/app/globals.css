@@ -64,6 +64,15 @@ a { color: inherit; }
   line-height: var(--lh-tight);
 }
 
+/* Key glyph beside the auth wordmark — scaled to roughly half the
+ * wordmark's cap-height so it reads as a serif companion mark, not a
+ * stamp competing with the typography. The rest pose is horizontal;
+ * the keyframe pivots from the bow on a slow idle. */
+.ds-auth-key {
+  --ds-key-mark-size: clamp(28px, 9vw, 48px);
+  margin-bottom: clamp(8px, 2.5vw, 14px);
+}
+
 /* Inline mono link used as the secondary action in auth foots and
  * elsewhere — same idiom as the eyebrow label but as a link. */
 .ds-auth-link {

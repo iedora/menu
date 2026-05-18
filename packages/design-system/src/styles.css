@@ -91,6 +91,42 @@
   }
 }
 
+/* ── key mark ───────────────────────────────────────────────
+ * Skeleton-key glyph that turns a quiet quarter on idle. Reads as
+ * "identity, attended" — used on the brand surfaces (iedora.com
+ * intro, genkan auth) to anchor the security/IdaaS posture.
+ *
+ * Size scales off `--ds-key-mark-size` (default 28px wide; the SVG
+ * is 2:1, so height = size / 2). Color follows `currentColor` from
+ * the parent — wrap in cinnabar-coloured context to stamp it red.
+ *
+ *   <KeyMark className="my-key" />
+ *   .my-key { color: var(--cinnabar); --ds-key-mark-size: 36px; }
+ *
+ * The animation pivots from the bow (left side) so the bit swings
+ * down like a key turning in a lock, with a 1.2s rest on each end.
+ * Honors prefers-reduced-motion (pauses at rest horizontal).
+ */
+.ds-key-mark {
+  width: var(--ds-key-mark-size, 28px);
+  height: calc(var(--ds-key-mark-size, 28px) / 2);
+  display: inline-block;
+  vertical-align: middle;
+  overflow: visible;
+  color: var(--cinnabar);
+  transform-box: fill-box;
+  transform-origin: 20.83% 50%;
+  animation: ds-key-mark-turn 5.6s ease-in-out infinite;
+}
+@keyframes ds-key-mark-turn {
+  0%, 35% { transform: rotate(0deg); }
+  50%, 85% { transform: rotate(90deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-key-mark { animation: none; }
+}
+
 /* ── page progress bar ──────────────────────────────────────
  * Hairline cinnabar fill across the top, driven by scroll position.
  * Consumers update `--ds-pageprog-progress` (0–1) from a scroll
@@ -876,29 +912,6 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Screen label — corner mark that fades in after the page is
- * scrolled past the first viewport. The host toggles `.ds-screen-label--on`
- * (e.g. when scrollY > 0.12 * vh).
- * ───────────────────────────────────────────────────────────── */
-
-.ds-screen-label {
-  position: fixed;
-  top: 22px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: var(--t-xs);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  opacity: 0;
-  transition: opacity var(--d-3) var(--ease);
-  pointer-events: none;
-}
-.ds-screen-label--on { opacity: 1; }
-
-/* ─────────────────────────────────────────────────────────────
  * Scroll-pinned section — tall track + sticky pin.
  *
  *   <div class="ds-value">
@@ -1198,15 +1211,28 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
+  overflow: hidden;
 }
 .ds-wave__bar {
   width: 3px;
+  flex: 0 0 auto;
   background: var(--ink);
   height: calc(var(--h, 0.5) * 80px * (1 - var(--p, 0) * 0.92) + 2px);
   transition: height 0.12s linear;
   opacity: calc(1 - var(--p, 0) * 0.35);
 }
 .ds-wave__bar--accent { background: var(--cinnabar); }
+/* 96 bars × (3px + 4px gap) = 668px — wider than every mobile viewport.
+ * Tighten both the bar width and the gap at the two narrow breakpoints
+ * so the full waveform reads on every phone instead of overflowing. */
+@media (max-width: 760px) {
+  .ds-wave { gap: 2px; }
+  .ds-wave__bar { width: 2px; }
+}
+@media (max-width: 420px) {
+  .ds-wave { gap: 1px; }
+  .ds-wave__bar { width: 1.5px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .ds-wave__bar {
     height: 30px !important;

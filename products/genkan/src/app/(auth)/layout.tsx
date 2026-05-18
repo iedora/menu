@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MetaStrip, Wordmark } from '@iedora/design-system'
+import { KeyMark, MetaStrip, Wordmark } from '@iedora/design-system'
 
 /**
  * Editorial shell for every auth page. The lintel above, the form below.
@@ -30,12 +30,7 @@ export default function AuthLayout({
         }}
       >
         <MetaStrip
-          left={
-            <>
-              <span>MMXXVI</span>
-              <span>Genkan · Identity</span>
-            </>
-          }
+          left={<span>MMXXVI</span>}
           right={<Link href="/">Home</Link>}
         />
       </div>
@@ -64,10 +59,22 @@ export default function AuthLayout({
               gap: 'var(--s-2)',
             }}
           >
-            <Wordmark
-              variant="display"
-              className="ds-auth-wordmark ds-wordmark--reveal"
-            />
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'end',
+                gap: 'clamp(10px, 2vw, 18px)',
+              }}
+            >
+              <KeyMark
+                className="ds-auth-key"
+                ariaLabel="iedora — identity"
+              />
+              <Wordmark
+                variant="display"
+                className="ds-auth-wordmark ds-wordmark--reveal"
+              />
+            </div>
             <span
               style={{
                 fontFamily: 'var(--serif)',

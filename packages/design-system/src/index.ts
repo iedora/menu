@@ -14,6 +14,7 @@
 // but speaks the same vocabulary and ships from this package.
 
 export { Wordmark } from "./components/wordmark";
+export { KeyMark } from "./components/key-mark";
 export { MetaStrip } from "./components/meta-strip";
 export { Statement } from "./components/statement";
 export { Lintel } from "./components/lintel";
@@ -21,7 +22,6 @@ export { Lintel } from "./components/lintel";
 // Editorial / motion primitives (used by the iedora.com landing page;
 // reusable in genkan / menu for any scroll-pinned editorial layout).
 export { PageProgress } from "./components/page-progress";
-export { ScreenLabel } from "./components/screen-label";
 export { ScrollHint } from "./components/scroll-hint";
 export {
   ScrollPinned,

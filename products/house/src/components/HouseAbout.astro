@@ -34,7 +34,7 @@ const timelineMarks = [
   <ScrollHint id="scrollHint">Scroll to enter</ScrollHint>
 
   <!-- 01 Mission ───────────────────────────────────────────── -->
-  <div class="ds-value v-mission" data-value="0" data-name="Mission" data-screen-label="Mission">
+  <div class="ds-value v-mission" data-value="0" data-name="Mission">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -73,7 +73,7 @@ const timelineMarks = [
   </div>
 
   <!-- 02 Slowly ───────────────────────────────────────────── -->
-  <div class="ds-value v-slowly" data-value="1" data-name="Slowly" data-screen-label="Practice">
+  <div class="ds-value v-slowly" data-value="1" data-name="Slowly">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -108,7 +108,7 @@ const timelineMarks = [
   </div>
 
   <!-- 03 Quietly ───────────────────────────────────────────── -->
-  <div class="ds-value v-quietly" data-value="2" data-name="Quietly" data-screen-label="Voice">
+  <div class="ds-value v-quietly" data-value="2" data-name="Quietly">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -143,7 +143,7 @@ const timelineMarks = [
   </div>
 
   <!-- 04 Together ───────────────────────────────────────────── -->
-  <div class="ds-value v-together" data-value="3" data-name="Together" data-screen-label="House">
+  <div class="ds-value v-together" data-value="3" data-name="Together">
     <div class="ds-v-track">
       <div class="ds-v-pin">
         <div class="ds-v-head">
@@ -222,6 +222,12 @@ const timelineMarks = [
     place-items: center;
     gap: 36px;
     position: relative;
+    width: 100%;
+    /* `min-width: 0` is the load-bearing fix on flex/grid children:
+       without it the 96-bar Wave forces the column wider than the
+       viewport on narrow phones. Letting children shrink keeps the
+       waveform inside the section. */
+    min-width: 0;
   }
   .v-quietly__title {
     font-size: clamp(64px, min(14vw, 18vh), 200px);
@@ -261,11 +267,15 @@ const timelineMarks = [
     .v-mission__title br { display: none; }
     .v-mission__stage,
     .v-together__stage { gap: 24px; }
+    /* Tighten the wave/title/phrases stack so the section fits a phone
+       viewport — 36px gaps × 2 ate too much of the available stage. */
+    .v-quietly__stage { gap: 18px; }
   }
   @media (max-width: 420px) {
     .v-mission__title { font-size: clamp(30px, 9vw, 44px); }
     .v-slowly__title,
     .v-quietly__title { font-size: clamp(40px, 14vw, 64px); }
     .v-together__title { font-size: clamp(32px, 10vw, 52px); }
+    .v-quietly__stage { gap: 14px; }
   }
 </style>
