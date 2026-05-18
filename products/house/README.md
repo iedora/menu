@@ -90,6 +90,43 @@ Brief downtime between the two commands while DNS swaps from
 `<project>.pages.dev` to the Workers route — fine since this is a brand
 site with no transactional traffic.
 
+## Rendering model — static, with a clear escape hatch
+
+`astro.config.mjs` is pinned at `output: 'static'`. Every byte ships as
+a prebuilt asset; the Worker entrypoint in `wrangler.toml` is
+deliberately absent. No request to `iedora.com` invokes server code —
+Cloudflare's edge serves the response directly. This is intentional for
+a brand site with no per-request data, and it matches Cloudflare's own
+[Astro framework guide](https://developers.cloudflare.com/workers/framework-guides/web-apps/astro/):
+static-first, add dynamic only when something concretely needs it.
+
+If a single component ever needs dynamic data (latest works pulled from
+an API, geo-aware copy, an A/B headline), reach for **Astro Server
+Islands** — not full SSR:
+
+1. `bun add -D @astrojs/cloudflare` in `products/house/`.
+2. In `astro.config.mjs`:
+   ```js
+   import cloudflare from '@astrojs/cloudflare';
+   export default defineConfig({
+     output: 'static',         // stays static-by-default
+     adapter: cloudflare(),    // unlocks the island runtime
+     integrations: [react()],
+   });
+   ```
+3. Mark just the dynamic component with `server:defer`:
+   ```astro
+   <LatestWork server:defer>
+     <Fragment slot="fallback">Loading…</Fragment>
+   </LatestWork>
+   ```
+4. Add `main = "./dist/_worker.js/index.js"` to `wrangler.toml`.
+
+Result: every other route still serves from the edge with zero Worker
+invocations; only the island fragment hits the Worker. `output: 'server'`
+on every route is overkill for this site — revisit only if a second
+route appears that genuinely needs per-request rendering.
+
 ## Design source
 
 Built from `@iedora/design-system` (`packages/design-system/`). Palette and
