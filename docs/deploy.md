@@ -398,6 +398,20 @@ GHA caches are per-branch with base-branch fallback, evicted after 7 days untouc
 - **Tofu changes.** `_kamal-deploy.yml` does NOT run `tofu apply` — only Kamal. If you edit `products/menu/infra/tofu/*.tf`, you still run `just menu::deploy` locally to reconcile Cloudflare resources. CI then takes over for app deploys.
 - **Anything destructive.** `kamal rollback`, `kamal app stop`, `kamal accessory remove` — local only. The CI flow is one-way (forward roll + smoke check).
 
+### Supply-chain verification on a deployed image
+
+Every successful CI deploy mints two Sigstore-signed attestations attached to the GHCR image: SLSA build provenance + SBOM. Verify them client-side without needing repo metadata:
+
+```bash
+# Build provenance — "this digest was built by our CI from this commit"
+gh attestation verify oci://ghcr.io/eduvhc/menu:<sha> --owner eduvhc
+
+# SBOM attestation — "this SBOM is cryptographically bound to that digest"
+gh attestation verify oci://ghcr.io/eduvhc/menu:<sha> --owner eduvhc --type sbom
+```
+
+Verification failures = either the image is from outside our CI (someone with a stolen GHCR push token), the registry returned the wrong content, or the attestations were stripped. The post-deploy Trivy image scan + SARIF upload populates the Security tab with any CVE findings in the OS layer — see `docs/security-audit.md` § Supply-chain perimeter.
+
 ---
 
 ## Adding a second box / a cloud VPS later

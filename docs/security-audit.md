@@ -39,6 +39,35 @@ Ranked by severity for the iedora stack specifically.
 | 29 | Public JWKS rotation cadence | 🟨 low | 🟩 mitigated | 90-day automatic rotation via `src/features/auth/cron.ts` (started from `src/instrumentation.ts`) calling `rotateJwks()`. Multi-replica-safe via `pg_advisory_xact_lock(JWKS_ROTATION_LOCK_KEY=3828642905)` — CRC32 of `"jwks_rotation"`, same pattern as `audit_log_chain`. Manual emergency trigger at /admin/applications → "Rotate now" (step-up gated via `requireFreshSession`). Old keys retained indefinitely (`expiresAt = NULL`) so previously-signed tokens stay verifiable until their own `exp` claim |
 | 30 | `/.well-known/*` cache poisoning | 🟨 low | 🟩 verified | Next route caches for 5 min; Cloudflare cache also 5 min — both below JWT lifetime |
 
+## Supply-chain perimeter
+
+Cross-cutting controls layered over the application threat register above. Independent of any single threat row — these gate the path from code → image → production for every product.
+
+| Layer | What it catches | Where it lives | Action on red |
+|---|---|---|---|
+| **GitHub push protection** | Accidentally committed AWS/Stripe/PAT/etc. — 200+ provider patterns; blocks at the protocol level | Repo Setting: Code security → Secret scanning + Push protection (both enabled) | Refused at `git push`; nothing reaches the remote. Rotate the leaked credential anyway |
+| **GitHub secret scanning** | Real secrets that landed before push protection was enabled | Same setting; alerts at Security → Secret scanning | Revoke the secret, re-issue, force-push history if needed |
+| **CodeQL (SAST)** | App-level taint flows: SQL injection, XSS, prototype pollution, command injection, hardcoded crypto. `security-extended` query suite | `.github/workflows/codeql.yml`; runs on push + PR + Mon 04:30 UTC | Triage in Security → Code scanning, fix root cause, dismiss false positives with reason |
+| **Trivy fs scan** | Known CVEs in workspace deps (bun.lock); HIGH/CRITICAL gates the CI run | `security` job in menu.yml + genkan.yml | Bump dep (often Renovate already has the PR); `.trivyignore` entry only if truly unfixable |
+| **Trivy image scan** | OS-layer CVEs in the built image (Debian packages in node:22-bookworm-slim) — invisible to fs scanning | Post-deploy step in `_kamal-deploy.yml`; SARIF to Security tab grouped per product | Renovate's `digest` rule auto-PRs the next base-image refresh after a 1-day grace; `kamal rollback` if a CVE is actively exploitable |
+| **Dependency Review** | HIGH+ CVE introduced by an open PR — gates before merge | `.github/workflows/dependency-review.yml` on pull_request | Renovate's the typical author; bump to a patched range or rework the PR |
+| **OpenSSF Scorecard** | Posture: token permissions, dangerous workflows, pinned actions, fuzzing, branch protection, etc. | `.github/workflows/scorecard.yml`; weekly Mon 05:00 UTC; published to OpenSSF API | Two intentional low scores (Branch-Protection off by design; Code-Review solo) — accept and document. Treat new regressions as real |
+| **SLSA build provenance** | Authenticity of the image: "this digest was built by this workflow at this commit" — Sigstore-signed, keyless via GitHub OIDC | `actions/attest-build-provenance@v3` in `_kamal-deploy.yml`; attached to the GHCR image | Verify with `gh attestation verify oci://ghcr.io/eduvhc/<product>:<sha> --owner eduvhc`. Failed verification = image was tampered with or rebuilt outside our CI |
+| **SLSA SBOM attestation** | The Trivy-generated SBOM is cryptographically bound to the image digest | `actions/attest-sbom@v3` in `_kamal-deploy.yml`; pushed to GHCR | Used by `gh attestation verify --type sbom` for supply-chain audits |
+| **Renovate** | Vulnerable deps + outdated base-image digests | `renovate.json`; weekly + immediate `[security]` PRs from the vulnerability feed | Renovate's own auto-merge handles minor/patch/digest + security advisories; majors land on the dashboard for manual triage |
+| **Dependabot vulnerability alerts** | The feed Renovate consumes from (Settings: Dependency graph + Vulnerability alerts) | Settings: Code security; alerts at Security → Dependabot alerts | Renovate auto-PRs from the same feed; Dependabot's own auto-PRs are disabled (single-tool policy) |
+| **Better Stack uptime** | Production reachability outside our infra | `https://betterstack.com`; 3 monitors at 3-min cadence; e-mail alerts | Investigate; `kamal rollback` if a recent deploy broke /up |
+
+**One-time GitHub Settings to keep enabled** — verify quarterly via `gh api repos/eduvhc/iedora --jq '.security_and_analysis'`:
+
+```
+secret_scanning:                 enabled
+secret_scanning_push_protection: enabled
+dependabot_security_updates:     disabled  ← Renovate owns this lane
+```
+
+**Renovate App** — installed on `eduvhc/iedora`; weekly schedule (Monday early Lisbon). Config + auto-merge policy in `renovate.json`.
+
 ## Quick-win verifies (run these after every Better Auth upgrade)
 
 ```bash
