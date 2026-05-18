@@ -31,8 +31,8 @@ describe("Th", () => {
 
 describe("Td", () => {
   it("renders a <td> with the body class", () => {
-    const html = renderToStaticMarkup(<Td>metamenu</Td>);
-    expect(html).toMatch(/^<td class="ds-table__td">metamenu<\/td>$/);
+    const html = renderToStaticMarkup(<Td>menu</Td>);
+    expect(html).toMatch(/^<td class="ds-table__td">menu<\/td>$/);
   });
 });
 

@@ -1,18 +1,18 @@
 # Backups — daily Postgres dumps to Cloudflare R2
 
-A `backups` Kamal accessory runs a self-built image based on `postgres:18-alpine` (source: `products/menu/infra/backup/`) on the same network as the `postgres` accessory. Daily it `pg_dump`s the `metamenu` database, GPG-encrypts the dump with `BACKUP_PASSPHRASE`, and uploads to a Cloudflare R2 bucket. 14-day retention. ~€0/yr at our size (R2 free tier ≤ 10 GB + zero egress).
+A `backups` Kamal accessory runs a self-built image based on `postgres:18-alpine` (source: `infra/backup/`) on the same network as the `infra-postgres` accessory. Daily it `pg_dumpall`s every database on the server (menu + genkan + anything future), GPG-encrypts the dump with `INFRA_BACKUP_PASSPHRASE`, and uploads to the `iedora-backups` Cloudflare R2 bucket. 14-day retention. ~€0/yr at our size (R2 free tier ≤ 10 GB + zero egress).
 
-> **Why self-built** — the canonical community image `eeshugerman/postgres-backup-s3` stops at tag `:16` upstream as of mid-2026. Postgres rejects pg_dump version mismatch outright, so a 16-client image can't dump our PG 18 server. The self-built image (~40 lines of bash + a 7-line Dockerfile based on `postgres:18-alpine`) guarantees client/server version parity. When you bump Postgres, bump the image tag here too and run `just menu::build-backup`.
+> **Why self-built** — the canonical community image `eeshugerman/postgres-backup-s3` stops at tag `:16` upstream as of mid-2026. Postgres rejects pg_dump version mismatch outright, so a 16-client image can't dump our PG 18 server. The self-built image (~40 lines of bash + a 7-line Dockerfile based on `postgres:18-alpine`) guarantees client/server version parity. When you bump Postgres, bump the image tag here too and run `just infra::build-backup`.
 
 Kamal itself doesn't manage backups — this is the canonical "use an accessory" pattern (confirmed across discussions [#654](https://github.com/basecamp/kamal/discussions/654), [#1150](https://github.com/basecamp/kamal/discussions/1150), [#1240](https://github.com/basecamp/kamal/discussions/1240), [#1414](https://github.com/basecamp/kamal/discussions/1414)).
 
 ## One-time setup
 
-Tofu provisions BOTH the R2 bucket AND the S3 access keys via a single `cloudflare_api_token` resource — Cloudflare's R2 S3 API accepts a regular Cloudflare API token as credentials (Access Key ID = token ID, Secret = SHA-256(token value), see [docs](https://developers.cloudflare.com/r2/api/tokens/)). `.kamal/secrets` reads both from `tofu output -raw`, same shape as `TUNNEL_TOKEN`. No dashboard interaction.
+The infra Tofu root (`infra/tofu/`) provisions BOTH the `iedora-backups` R2 bucket AND its scoped S3 access keys via a single `cloudflare_api_token` resource — Cloudflare's R2 S3 API accepts a regular Cloudflare API token as credentials (Access Key ID = token ID, Secret = SHA-256(token value), see [docs](https://developers.cloudflare.com/r2/api/tokens/)). The infra `.kamal/secrets` reads both via `tofu output -raw`. No dashboard interaction.
 
-Prerequisite: your existing `CLOUDFLARE_API_TOKEN` needs **User · API Tokens · Edit** added (so Tofu can create the R2 sub-token). The other required scopes are listed in `products/menu/infra/.env.example`.
+Prerequisite: your existing `INFRA_CLOUDFLARE_API_TOKEN` needs **User · API Tokens · Edit** added (so Tofu can create the R2 sub-token). The other required scopes are listed in `products/menu/infra/.env.example`.
 
-The one value you provide yourself: `BACKUP_PASSPHRASE` in `products/menu/infra/.env` — the GPG passphrase that encrypts each dump. **Save it to your password manager** the moment you generate it. Lose the passphrase = lose the ability to decrypt past backups.
+The one value you provide yourself: `INFRA_BACKUP_PASSPHRASE` in BWS — the GPG passphrase that encrypts each dump. **Save it to your password manager** the moment you generate it. Lose the passphrase = lose the ability to decrypt past backups.
 
 ```bash
 # generate once, paste into products/menu/infra/.env, copy to password manager:
@@ -22,20 +22,20 @@ openssl rand -hex 32
 Then:
 
 ```bash
-just menu::build-backup   # one-off: build + push ghcr.io/$GHCR_USER/meta-menu-backup:18
-just menu::deploy         # Tofu creates bucket + R2 token; Kamal boots the accessory
-just menu::backup         # force an immediate dump to verify end-to-end
+just infra::build-backup  # one-off: build + push ghcr.io/$GHCR_USER/iedora-backup:18
+just infra::deploy        # Tofu creates bucket + R2 token; Kamal boots postgres + backups accessories
+just infra::backup        # force an immediate dump to verify end-to-end
 ```
 
-`just menu::build-backup` only needs to be re-run when the Postgres major changes (bump the tag in `products/menu/infra/kamal/config/deploy.yml` to match) or when `products/menu/infra/backup/*.sh` is edited.
+`just infra::build-backup` only needs to be re-run when the Postgres major changes (bump the tag in `infra/kamal/config/deploy.yml` to match) or when `infra/backup/*.sh` is edited.
 
 ## Forcing an on-demand backup
 
 ```bash
-just menu::backup
+just infra::backup
 ```
 
-This runs the dump-and-upload script immediately, in addition to the scheduled cron. Output lands in R2 with a timestamped key like `pg/metamenu-2026-05-15T14:30:00.dump.gpg`.
+This runs the dump-and-upload script immediately, in addition to the scheduled cron. Output lands in R2 with a timestamped key like `pg/all-2026-05-15T14:30:00.sql.gpg` (cluster-wide `pg_dumpall` output).
 
 ## Recovery scenarios
 
@@ -70,16 +70,17 @@ just menu::console
 just menu::rollback                       # roll back to known-good version
 
 # 2. Wipe the postgres volume + boot fresh
-ssh root@$ONPREM_HOST 'docker rm -f meta-menu-postgres && docker volume rm meta-menu-postgres-data'
-kamal accessory boot postgres
+just infra::wipe-postgres           # destroys the accessory + /root/infra-postgres
+just infra::deploy                  # boots a fresh postgres + backups
 
 # 3. Restore latest dump
-just menu::restore                  # prompts for timestamp; defaults to latest
+just infra::restore                 # picks the latest pg_dumpall output
 
-# 4. Schema is at whatever the latest dump captured; re-running `just menu::deploy`
-#    rolls the container, and the boot-time `node scripts/migrate.mjs` applies
-#    any migrations newer than the dump captured (idempotent, pg_advisory_lock).
+# 4. Schema is at whatever the latest dump captured; redeploy each product so the
+#    boot-time `node scripts/migrate.mjs` applies any newer migrations
+#    (idempotent, pg_advisory_lock).
 just menu::deploy
+just genkan::deploy
 ```
 
 Wall-clock: ~10 min for a < 1 GB dump.
@@ -90,10 +91,10 @@ Same flow as the [Hetzner migration](./scaling.md#3-migration-move-entirely-to-a
 
 ```bash
 # 1. Provision new box, get root SSH working (docs/deploy.md step 4)
-# 2. products/menu/infra/.env: ONPREM_HOST=<new-ip>
-# 3. just menu::deploy     # tofu re-points the tunnel, Kamal boots fresh stack on new box,
-#                          #   container start runs migrations (pg_advisory_lock)
-# 4. just menu::restore    # pulls latest dump from R2, restores into the new postgres
+# 2. Update ONPREM_HOST=<new-ip> in infra/.env, products/menu/infra/.env, products/genkan/infra/.env
+# 3. just infra::deploy    # boots fresh Postgres + backups accessory on new box
+# 4. just infra::restore   # pulls latest dump from R2 into the new postgres
+# 5. just menu::deploy && just genkan::deploy   # tofu re-points tunnels, apps boot
 ```
 
 Wall-clock: ~30 min. The Cloudflare tunnel + DNS doesn't change (Tofu repoints ingress), so user-facing hostname stays put.
@@ -111,7 +112,7 @@ Drizzle migrations are forward-only; the migrator detects the DB schema is newer
 
 ### Image uploads — Cloudflare R2
 
-User-uploaded restaurant assets live in the `meta-menu-assets` R2 bucket (separate from the `meta-menu-backups` bucket used here). Cloudflare R2 has built-in redundancy across edge regions, so the assets themselves don't need a separate backup pipeline — the bucket is the source of truth.
+User-uploaded restaurant assets live in the `menu-assets` R2 bucket (separate from the `iedora-backups` bucket used here). Cloudflare R2 has built-in redundancy across edge regions, so the assets themselves don't need a separate backup pipeline — the bucket is the source of truth. To add belt-and-suspenders against accidental delete, enable Object Versioning on `menu-assets` via the Cloudflare dashboard.
 
 If you ever want defense-in-depth (e.g. against accidental delete via a leaked R2 token), enable R2 Object Versioning on the assets bucket via the Cloudflare dashboard — adds delete markers instead of hard-deleting.
 

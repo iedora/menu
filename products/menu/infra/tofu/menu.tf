@@ -3,8 +3,10 @@
 # Owns:
 #   - Tunnel + ingress for the app (1 route: kamal-proxy)
 #   - DNS CNAME for the menu hostname
-#   - R2 buckets: assets (public via custom domain) + backups (private)
-#   - Scoped R2 tokens per bucket
+#   - R2 assets bucket (public via custom domain) + scoped R2 token
+#
+# Does NOT own the backups bucket — that lives in `infra/tofu/` since
+# backups cover every product's database (menu + genkan + future).
 #
 # The Cloudflare zone is also looked up in sibling product roots (e.g.
 # `../../../house/infra/tofu/`) — same zone (`iedora.com`), one data source
@@ -142,38 +144,9 @@ resource "cloudflare_api_token" "assets_r2" {
   }]
 }
 
-resource "cloudflare_r2_bucket" "backups" {
-  account_id = var.account_id
-  name       = var.backups_bucket_name
-  location   = var.backups_bucket_location
-}
-
 # Permission group UUID for "Workers R2 Storage Bucket Item Write". These
 # IDs are global to Cloudflare (not per-account) and stable. Looked up once
 # via the API: GET /user/tokens/permission_groups | grep "R2 Storage Bucket Item Write".
-# `cloudflare_account_permission_groups` data source queries a different
-# endpoint (account roles, not API-token perms) so it returns empty here.
 locals {
   permission_group_r2_bucket_item_write = "2efd5506f9c8494dacb1fa10a3e7d5b6"
-}
-
-resource "cloudflare_api_token" "backups_r2" {
-  name = "${var.tunnel_name}-backups-r2"
-
-  policies = [{
-    effect = "allow"
-    permission_groups = [
-      { id = local.permission_group_r2_bucket_item_write }
-    ]
-    # Scoped to a SINGLE R2 bucket — a leaked token can no longer
-    # write/delete objects in every R2 bucket on the account, only in this
-    # backups bucket. The URN format is the one the Cloudflare dashboard
-    # emits when you scope a token to a specific bucket via the UI:
-    #   com.cloudflare.edge.r2.bucket.<account>_default_<bucket-name>
-    # (`_default_` = the standard jurisdiction; change to `_eu_` if you ever
-    # set a jurisdiction on the bucket).
-    resources = jsonencode({
-      "com.cloudflare.edge.r2.bucket.${var.account_id}_default_${cloudflare_r2_bucket.backups.name}" = "*"
-    })
-  }]
 }

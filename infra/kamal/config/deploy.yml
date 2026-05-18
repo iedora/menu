@@ -1,0 +1,95 @@
+# Shared infrastructure — Postgres + daily backups.
+#
+# Why this exists separately from per-product configs:
+#   The Postgres accessory is reused by BOTH menu and genkan (different
+#   databases on the same server). Naming it as a menu accessory was
+#   misleading; `infra-postgres` makes the cross-product nature obvious.
+#
+# This Kamal config is accessory-only — we never run `kamal deploy` against
+# it. `just infra::deploy` runs `kamal accessory boot all` instead. The
+# `service:` and `image:` keys below exist to satisfy Kamal's config
+# validation; they don't point at anything real.
+
+service: infra
+
+# Never pulled — `kamal accessory <verb>` doesn't touch the app image.
+# If you accidentally `kamal deploy` from infra/kamal/, this fails fast.
+image: <%= ENV.fetch("GHCR_USER") %>/_infra_noop
+
+# Required by the schema, never used.
+servers:
+  web:
+    hosts:
+      - <%= ENV.fetch("ONPREM_HOST") %>
+
+registry:
+  server: ghcr.io
+  username: <%= ENV.fetch("GHCR_USER") %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: root
+
+# Required by Kamal's config validation even though we never `kamal deploy`
+# from infra (accessory-only). The remote builder + arch line satisfy the
+# schema; the dockerfile reference points at nothing meaningful.
+builder:
+  arch: amd64
+  remote: ssh://root@<%= ENV.fetch("ONPREM_HOST") %>
+  local: false
+  context: ../../../..
+  dockerfile: ../../products/menu/infra/Dockerfile
+
+# Accessories share the `kamal` Docker network with kamal-proxy + every
+# product's app container. They reach each other by container name
+# (e.g. `infra-postgres:5432` from menu's and genkan's app containers).
+# No `port: x:x` keys: Docker's NAT rules sit BEFORE host firewalls, so
+# publishing a port bypasses UFW (basecamp/kamal#1790).
+accessories:
+  postgres:
+    image: postgres:18.4-alpine
+    host: <%= ENV.fetch("ONPREM_HOST") %>
+    env:
+      clear:
+        POSTGRES_USER: postgres
+        # Bootstrap DB. The real per-product databases (menu, genkan, …)
+        # are created on first init by ../postgres/init.sql, mounted below.
+        POSTGRES_DB: postgres
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql
+    # Runs ONCE — on the very first boot when the data volume is empty.
+    # Re-running on a populated volume is a no-op (Postgres skips
+    # /docker-entrypoint-initdb.d/ after the cluster's first init).
+    files:
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # Daily encrypted pg_dump → Cloudflare R2.
+  # Image: self-built (../backup/Dockerfile) on postgres:18-alpine so
+  # pg_dump matches the server major exactly. eeshugerman/postgres-backup-s3
+  # only ships through :16 upstream, and PG refuses mismatched dumps.
+  # Rebuild via `just infra::build-backup` when bumping Postgres.
+  # Dumps every database on the server — covers menu AND genkan.
+  backups:
+    image: ghcr.io/<%= ENV.fetch("GHCR_USER") %>/iedora-backup:18
+    host: <%= ENV.fetch("ONPREM_HOST") %>
+    env:
+      clear:
+        SCHEDULE: "@daily"
+        BACKUP_KEEP_DAYS: "14"
+        S3_REGION: auto
+        S3_ENDPOINT: https://<%= ENV.fetch("CLOUDFLARE_ACCOUNT_ID") %>.r2.cloudflarestorage.com
+        S3_BUCKET: <%= ENV.fetch("R2_BUCKET_NAME", "iedora-backups") %>
+        S3_PREFIX: pg
+        POSTGRES_HOST: infra-postgres
+        # All-databases dump (covers menu + genkan + future products).
+        # backup.sh detects empty POSTGRES_DATABASE and uses --all-databases.
+        POSTGRES_DATABASE: ""
+        POSTGRES_USER: postgres
+      secret:
+        - POSTGRES_PASSWORD
+        - S3_ACCESS_KEY_ID
+        - S3_SECRET_ACCESS_KEY
+        - PASSPHRASE

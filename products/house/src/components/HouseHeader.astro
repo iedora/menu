@@ -286,14 +286,12 @@ import { Wordmark, Statement } from "@iedora/design-system";
     .house { padding: 40px 0 48px; }
     .header-top { grid-template-columns: 1fr; gap: 32px; align-items: start; }
     .header-front { gap: 40px; }
-    /* Hold three columns a bit longer with a tighter gap; stacking too
-       early makes the intro feel like a list of cards. */
     .header-meta { gap: 28px; padding-top: 24px; }
   }
   @media (max-width: 760px) {
     .header-meta { grid-template-columns: 1fr 1fr; gap: 22px; }
-    /* "Now" sits below the two narrower columns so the live row gets full
-       width and the eye reaches the most current information last. */
+    /* "Now" takes the full width so the live commission row reads as the
+       last thing on the intro, not a third equal column. */
     .header-meta .col:nth-child(3) { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var(--ink-14); }
     .header-meta .col { gap: 4px; }
   }

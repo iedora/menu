@@ -11,9 +11,9 @@
   assets_hostname = "assets.#{public_hostname.split('.', 2)[1]}"
 %>
 
-service: meta-menu
+service: menu
 
-image: <%= ENV.fetch("GHCR_USER") %>/meta-menu
+image: <%= ENV.fetch("GHCR_USER") %>/menu
 
 servers:
   web:
@@ -78,7 +78,7 @@ env:
     GENKAN_ISSUER_URL: https://genkan.iedora.com
     S3_ENDPOINT: https://<%= assets_hostname %>
     S3_REGION: us-east-1
-    S3_BUCKET: metamenu
+    S3_BUCKET: menu
   secret:
     - BETTER_AUTH_SECRET
     - DATABASE_URL
@@ -92,69 +92,30 @@ aliases:
   logs: app logs -f
   migrate: app exec --reuse "node scripts/migrate.mjs"
 
-# Accessories share the `kamal` Docker network with app + proxy — they reach
-# each other by container name (e.g. meta-menu-postgres:5432). No `port: x:x`
-# keys: Docker's NAT rules sit BEFORE host firewalls, so publishing a port
-# bypasses UFW (basecamp/kamal#1790).
+# Menu owns ONLY its own cloudflared tunnel as a Kamal accessory.
+# Postgres + daily-backup accessories live in the shared `infra/` workspace
+# (containers `infra-postgres`, `infra-backups`) so the naming reflects
+# that they serve every product, not just menu.
+#
+# Accessories share the `kamal` Docker network with kamal-proxy + every
+# product's app + every infra accessory — they reach each other by
+# container name (e.g. menu's app reaches Postgres at `infra-postgres:5432`).
+# No `port: x:x` keys: Docker's NAT rules sit BEFORE host firewalls, so
+# publishing a port bypasses UFW (basecamp/kamal#1790).
 accessories:
-  postgres:
-    image: postgres:18.4-alpine
-    host: <%= ENV.fetch("ONPREM_HOST") %>
-    env:
-      clear:
-        POSTGRES_USER: postgres
-        POSTGRES_DB: metamenu
-      secret:
-        - POSTGRES_PASSWORD
-    directories:
-      - data:/var/lib/postgresql
-
-  # Rate limiting + Better Auth's own throttle live in Postgres now — no
-  # Redis accessory needed. See src/features/rate-limit/adapters/postgres.ts
-  # for the sliding-window-with-advisory-lock pattern.
-
-  # Asset storage lives in Cloudflare R2 (managed by infra/tofu/) served via
-  # custom domain on Cloudflare's edge. No accessory needed here — the app
-  # talks to R2 directly via the S3_ENDPOINT in .kamal/secrets.
-
-  # Cloudflare Tunnel — outbound only, terminates TLS at the edge.
-  # Tunnel ingress (set via tofu apply):
-  #   PUBLIC_HOSTNAME  → http://kamal-proxy
-  #   ASSETS_HOSTNAME  → http://meta-menu-minio:9000
+  # Cloudflare Tunnel for menu.iedora.com — outbound only, terminates TLS
+  # at the edge. Tunnel ingress (set via tofu apply):
+  #   PUBLIC_HOSTNAME → http://kamal-proxy
+  # Asset traffic skips the tunnel — R2 is served directly via its custom
+  # domain on Cloudflare's edge.
   cloudflared:
-    # Tag + digest pinned — see comment on the minio accessory. cloudflared
-    # talks straight to your private network, so a malicious image pull
-    # would be catastrophic. Roll forward by checking the latest tag at
-    # https://hub.docker.com/r/cloudflare/cloudflared/tags and updating both.
+    # Tag + digest pinned. cloudflared talks straight to the private network,
+    # so a malicious image pull would be catastrophic. Roll forward by
+    # checking the latest tag at https://hub.docker.com/r/cloudflare/cloudflared
+    # and updating both.
     image: cloudflare/cloudflared:2026.5.0@sha256:59bab8d3aceec09bf6bdb07d6beca0225ca5cd7ab79436a87ea97978fe1dc4f9
     host: <%= ENV.fetch("ONPREM_HOST") %>
     cmd: tunnel --no-autoupdate run
     env:
       secret:
         - TUNNEL_TOKEN
-
-  # Daily encrypted pg_dump → Cloudflare R2 (free tier ≤ 10 GB, zero egress).
-  # Self-built image (infra/backup/Dockerfile) based on postgres:18-alpine
-  # so pg_dump's version matches the server exactly — eeshugerman/postgres-
-  # backup-s3 stops at :16 upstream, and PG rejects mismatched dumps outright.
-  # Build/push via `make build-backup` (one-off; rerun when bumping Postgres).
-  # Restore: `make restore` or `kamal accessory exec backups -i --reuse "sh /restore.sh"`.
-  backups:
-    image: ghcr.io/<%= ENV.fetch("GHCR_USER") %>/meta-menu-backup:18
-    host: <%= ENV.fetch("ONPREM_HOST") %>
-    env:
-      clear:
-        SCHEDULE: "@daily"
-        BACKUP_KEEP_DAYS: "14"
-        S3_REGION: auto
-        S3_ENDPOINT: https://<%= ENV.fetch("CLOUDFLARE_ACCOUNT_ID") %>.r2.cloudflarestorage.com
-        S3_BUCKET: <%= ENV.fetch("R2_BUCKET_NAME", "meta-menu-backups") %>
-        S3_PREFIX: pg
-        POSTGRES_HOST: meta-menu-postgres
-        POSTGRES_DATABASE: metamenu
-        POSTGRES_USER: postgres
-      secret:
-        - POSTGRES_PASSWORD
-        - S3_ACCESS_KEY_ID
-        - S3_SECRET_ACCESS_KEY
-        - PASSPHRASE

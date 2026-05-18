@@ -26,10 +26,10 @@ servers:
     # collide.
     cmd: sh -c "node scripts/migrate.mjs && node server.js"
     # Kamal auto-attaches every app container to the shared `kamal` Docker
-    # network (same one kamal-proxy + meta-menu-postgres live on). No extra
+    # network (same one kamal-proxy + infra-postgres live on). No extra
     # network: directive needed — adding `options.network: kamal` would
     # cause `--network kamal` to appear twice in `docker run` and fail.
-    # Genkan reaches Postgres at `meta-menu-postgres:5432` automatically.
+    # Genkan reaches Postgres at `infra-postgres:5432` automatically.
 
 proxy:
   ssl: false                              # Cloudflare Tunnel terminates TLS
@@ -86,9 +86,9 @@ aliases:
   migrate: app exec --reuse "node scripts/migrate.mjs"
 
 accessories:
-  # No postgres accessory here — genkan reuses the `meta-menu-postgres`
+  # No postgres accessory here — genkan reuses the `infra-postgres`
   # accessory owned by menu's Kamal config. They share the same Postgres
-  # SERVER but each app uses a separate DATABASE (`metamenu` vs `genkan`).
+  # SERVER but each app uses a separate DATABASE (`menu` vs `genkan`).
   # genkan's scripts/migrate.mjs runs `CREATE DATABASE IF NOT EXISTS` style
   # bootstrap before applying its own migrations.
 

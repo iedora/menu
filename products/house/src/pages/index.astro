@@ -25,7 +25,7 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
   <ScreenLabel id="cornerMark">01 Iedora Studio Hub</ScreenLabel>
 
   <main data-screen-label="01 Iedora Studio Hub">
-    <div class="hub">
+    <div class="ds-shell hub">
       <nav class="ds-meta-strip" aria-label="House meta">
         <div class="ds-meta-strip__left">
           <span>MMXXVI</span>
@@ -43,23 +43,19 @@ import { PageProgress, ScreenLabel } from "@iedora/design-system";
     <HouseAbout />
     <HouseWorks />
 
-    <div class="hub">
+    <div class="ds-shell hub">
       <HouseFooter />
     </div>
   </main>
 </BaseLayout>
 
 <style>
-  /* Same container + horizontal gutter as the pinned section internals
-     (.ds-v-head/.ds-v-stage/.ds-v-foot). Both use var(--margin), so the
-     intro/footer and the rooms below them sit on the same vertical lines
-     at every breakpoint. */
+  /* .ds-shell carries the horizontal rhythm; .hub adds only the
+     vertical breathing room around the intro and footer. */
   .hub {
     position: relative;
     z-index: 1;
-    width: min(var(--container), 100%);
-    margin: 0 auto;
-    padding: clamp(20px, 3vw, 36px) var(--margin);
+    padding-block: clamp(20px, 3vw, 36px);
   }
 </style>
 

@@ -98,7 +98,7 @@ jobs:
 
     services:
       # Service container starts with the default `postgres` admin DB.
-      # globalSetup connects there to CREATE `metamenu_test` before
+      # globalSetup connects there to CREATE `menu_test` before
       # migrations run.
       postgres:
         image: postgres:18.4-alpine
@@ -134,7 +134,7 @@ jobs:
 
     env:
       # --- Database + auth ---
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/metamenu_test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/menu_test
       # The cookie-injection fast path (tests/e2e/helpers/sign-in.ts) pre-signs
       # session cookies with this exact literal. playwright.config.ts:14 sets
       # the same string on the webServer's env. Pinning it here means the
@@ -153,7 +153,7 @@ jobs:
       S3_REGION: us-east-1
       S3_ACCESS_KEY: test
       S3_SECRET_KEY: test
-      S3_BUCKET: metamenu-test
+      S3_BUCKET: menu-test
 
       # --- Genkan (the auth-testkit shim) ---
       # Next 16's "collect page data" build pass executes module-level env
@@ -219,7 +219,7 @@ jobs:
       - name: Create test database
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres \
-            -c "CREATE DATABASE metamenu_test;"
+            -c "CREATE DATABASE menu_test;"
 
       - name: Bootstrap S3 bucket
         # LocalStack starts with zero buckets. `aws` CLI v2 is preinstalled
@@ -229,9 +229,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: test
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws --endpoint-url=http://localhost:4566 s3 mb s3://metamenu-test
+          aws --endpoint-url=http://localhost:4566 s3 mb s3://menu-test
           aws --endpoint-url=http://localhost:4566 s3api put-bucket-acl \
-            --bucket metamenu-test --acl public-read
+            --bucket menu-test --acl public-read
 
       - name: Build Next.js
         # Node, not Bun — production runtime parity + AGENTS.md guidance.

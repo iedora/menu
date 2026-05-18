@@ -5,14 +5,6 @@
    legacy site. If we self-host later, swap to @iedora/design-system/fonts.css
    or next/font equivalents per product. */
 
-/* House owns its horizontal rhythm: a single responsive --margin token
-   keeps the hub padding (intro, footer) and the scroll-pinned section
-   internals (.ds-v-head/.ds-v-stage/.ds-v-foot) on the same gutter at
-   every breakpoint. */
-:root {
-  --margin: clamp(20px, 4.4vw, 56px);
-}
-
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -42,30 +34,19 @@ body::before {
   z-index: 0;
 }
 
-/* ─────────────────────────────────────────────────────────────
- * Mobile-only overrides for design-system primitives the house
- * page leans on. Kept here (not in the package) so other products
- * stay unaffected.
- * ───────────────────────────────────────────────────────────── */
+/* House-only mobile refinements to design-system primitives. Scoped
+   to this file so other products keep the desktop-first defaults. */
 
-/* The pinned-section head packs four mono labels into one row.
-   On phones the rightmost caption ("The roof, first.", etc.) is the
-   first thing to drop — the number + name + rule still read. */
 @media (max-width: 560px) {
   .ds-v-head { gap: 12px; }
   .ds-v-head__right { display: none; }
 }
 
-/* Meta strip: the city subtitle is decoration, not navigation.
-   Hide it on phones so "MMXXVI" and "Contact" sit comfortably. */
 @media (max-width: 520px) {
   .ds-meta-strip { gap: 16px; }
   .ds-meta-strip__left > :nth-child(n + 2) { display: none; }
 }
 
-/* Phones: tighter vertical padding inside every pinned section so the
-   stage has more vertical room (was 40px). HouseAbout has its own scoped
-   override; this catches HouseWorks and any future section. */
 @media (max-width: 680px) {
   .ds-v-pin { padding: 28px 0; gap: 12px; }
 }

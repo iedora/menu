@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const ADMIN_URL = 'postgresql://postgres:postgres@localhost:5432/postgres'
-const TEST_DB = 'metamenu_test'
+const TEST_DB = 'menu_test'
 const TEST_URL = `postgresql://postgres:postgres@localhost:5432/${TEST_DB}`
 
 async function ensureTestDatabase() {

@@ -21,12 +21,10 @@ export default function AuthLayout({
       }}
     >
       <div
-        className="ds-shell-meta"
+        className="ds-shell ds-shell-meta"
         style={{
-          width: 'min(1100px, 100%)',
-          margin: '0 auto',
-          padding:
-            'clamp(var(--s-4), 5vw, var(--s-7)) clamp(var(--s-4), 5vw, var(--margin)) 0',
+          maxWidth: 1100,
+          paddingTop: 'clamp(var(--s-4), 5vw, var(--s-7))',
           position: 'relative',
           zIndex: 1,
         }}
@@ -43,17 +41,19 @@ export default function AuthLayout({
       </div>
 
       <main
+        className="ds-shell"
         style={{
+          maxWidth: 1100,
           flex: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 'clamp(var(--s-7), 8vw, var(--s-10)) var(--gutter)',
+          paddingBlock: 'clamp(var(--s-7), 8vw, var(--s-10))',
           position: 'relative',
           zIndex: 1,
         }}
       >
-        <div style={{ width: '100%', maxWidth: 560, margin: '0 auto' }}>
+        <div style={{ width: '100%', maxWidth: 560 }}>
           <div
             style={{
               textAlign: 'center',
@@ -64,7 +64,10 @@ export default function AuthLayout({
               gap: 'var(--s-2)',
             }}
           >
-            <Wordmark variant="display" className="ds-auth-wordmark" />
+            <Wordmark
+              variant="display"
+              className="ds-auth-wordmark ds-wordmark--reveal"
+            />
             <span
               style={{
                 fontFamily: 'var(--serif)',

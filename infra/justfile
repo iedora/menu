@@ -1,0 +1,91 @@
+# Shared infra workspace — Postgres accessory + daily backup accessory.
+#
+# `just infra::deploy` provisions the R2 backup bucket via Tofu, then
+# boots the Postgres + backups accessories on the homelab via Kamal.
+# Idempotent: re-running converges. Each product's deploy depends on
+# this having run first so `infra-postgres:5432` is reachable.
+
+set dotenv-load := true
+
+kamal-bin := `
+  for d in /opt/homebrew/lib/ruby/gems/*/bin /usr/local/lib/ruby/gems/*/bin "$HOME"/.gem/ruby/*/bin "$HOME"/.rbenv/versions/*/bin; do
+    [ -d "$d" ] && { printf '%s:' "$d"; exit 0; }
+  done
+`
+
+tofu := "bin/with-secrets tofu -chdir=tofu"
+
+_default:
+    @just --list --unsorted
+
+# Boot the shared accessories (Postgres + backups). Tofu first (so the R2
+# bucket + its scoped S3 token exist before backups reads `tofu output`),
+# Kamal second.
+deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{tofu}} init -upgrade -input=false >/dev/null
+    {{tofu}} apply -auto-approve
+    bin/with-secrets bash -c \
+      'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory boot all'
+
+# Tear down the R2 backup bucket + token. Does NOT stop the Postgres
+# accessory — that would delete the data directory's bind mount on the
+# host. Run `just infra::wipe-postgres` for that (destructive).
+destroy:
+    {{tofu}} destroy -auto-approve
+
+# Stop + remove the Postgres accessory AND wipe its bind-mount data dir.
+# Destructive: both menu and genkan databases are gone after this. Asks
+# for "DELETE" confirmation before running.
+wipe-postgres:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf 'Type DELETE to wipe infra-postgres + its data dir: '
+    read -r CONFIRM
+    [ "$CONFIRM" = DELETE ] || { echo "aborted"; exit 1; }
+    bin/with-secrets bash -c \
+      'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory remove postgres'
+    ssh "root@$ONPREM_HOST" 'rm -rf /root/infra-postgres'
+    echo "✓ infra-postgres + /root/infra-postgres removed"
+
+# Tail backups accessory logs (the cron heartbeats).
+logs:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory logs backups'
+
+# psql shell into the live Postgres accessory.
+console:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory exec postgres --interactive --reuse "psql -U postgres"'
+
+# Force a pg_dump now (the cron runs daily anyway).
+backup:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory exec backups --reuse "sh /backup.sh"'
+
+# Restore latest dump (interactive).
+restore:
+    bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory exec backups --interactive --reuse "sh /restore.sh"'
+
+# Rebuild + push the backup accessory image (only when bumping Postgres major).
+build-backup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TOKEN=$(bin/with-secrets bash -c 'printf "%s" "${INFRA_GHCR_TOKEN:-$(gh auth token)}"')
+    echo "Logging into GHCR..."
+    printf "%s" "$TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    echo "Building + pushing ghcr.io/$GHCR_USER/iedora-backup:18..."
+    docker buildx build --platform linux/amd64 \
+      --tag "ghcr.io/$GHCR_USER/iedora-backup:18" --push backup
+
+# Rotate one BWS secret. Usage: just rotate-secret INFRA_POSTGRES_PASSWORD
+rotate-secret key:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SECRET_ID=$(bws secret list "$BWS_PROJECT_ID" -o json | jq -r '.[] | select(.key=="{{key}}") | .id')
+    [ -n "$SECRET_ID" ] || { echo "No BWS secret named {{key}} in project"; exit 1; }
+    printf "New value for {{key}} (no echo): "
+    stty -echo; read -r NEW; stty echo; printf "\n"
+    [ -n "$NEW" ] || { echo "Empty value, aborting"; exit 1; }
+    bws secret edit "$SECRET_ID" --value "$NEW" -o none
+    echo "✓ {{key}} rotated in BWS"
+    echo "→ INFRA_POSTGRES_PASSWORD: 'kamal accessory reboot postgres' + redeploy menu + genkan"
+    echo "→ INFRA_BACKUP_PASSPHRASE: invalidates ALL historical dumps; don't rotate casually"

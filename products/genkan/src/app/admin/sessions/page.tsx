@@ -39,7 +39,7 @@ export default async function AdminSessionsPage() {
       {sessions.length === 0 ? (
         <EmptyState label="No active sessions" note="Nobody is signed in right now." />
       ) : (
-        <Table>
+        <div className="admin-table-scroll"><Table>
           <thead>
             <tr>
               <Th style={{ width: '4ch' }}>N</Th>
@@ -97,7 +97,7 @@ export default async function AdminSessionsPage() {
               </tr>
             ))}
           </tbody>
-        </Table>
+        </Table></div>
       )}
     </>
   )

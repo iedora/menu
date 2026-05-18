@@ -174,7 +174,7 @@ export default async function AdminUserDetailPage({
           </div>
         ) : (
           <div style={{ marginTop: 16 }}>
-            <Table>
+            <div className="admin-table-scroll"><Table>
               <thead>
                 <tr>
                   <Th>IP</Th>
@@ -224,7 +224,7 @@ export default async function AdminUserDetailPage({
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </Table></div>
           </div>
         )}
       </section>
@@ -240,7 +240,7 @@ export default async function AdminUserDetailPage({
           </div>
         ) : (
           <div style={{ marginTop: 16 }}>
-            <Table>
+            <div className="admin-table-scroll"><Table>
               <thead>
                 <tr>
                   <Th>Name</Th>
@@ -272,7 +272,7 @@ export default async function AdminUserDetailPage({
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </Table></div>
           </div>
         )}
       </section>

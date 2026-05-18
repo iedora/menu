@@ -5,7 +5,7 @@
 # (shared with menu) via `bin/with-secrets`.
 #
 # Genkan has NO postgres / backups / R2 of its own. The auth.* schema lives in
-# menu's Postgres on the shared kamal Docker network — see kamal/config/deploy.yml.
+# the shared `infra-postgres` accessory (owned by /infra/) — see kamal/config/deploy.yml.
 #
 # `just` (no args) lists every recipe.
 
@@ -28,14 +28,23 @@ _default:
 # Kamal deploys the app. They meet at kamal/.kamal/secrets (which reads
 # `tofu output`).
 #
-# A 1-second SSH probe checks whether the kamal-proxy is already running on
-# the box. If yes → `kamal deploy` (skips bootstrap, ~10s faster). If no →
-# `kamal setup` (idempotent: docker-install + accessory-boot + deploy).
+# Steps, in order:
+#   1. tofu apply             — reconcile tunnel + DNS
+#   2. kamal accessory boot   — boot genkan's cloudflared accessory
+#                               (idempotent; no-op if it already exists)
+#   3. kamal setup OR deploy  — full setup on first run; `deploy` after that
+#                               (a 1-second SSH probe picks which)
+#
+# Booting the accessory BEFORE the app deploy is the fix for: when kamal-proxy
+# already exists (because menu deployed first), the SSH probe picks `kamal
+# deploy` which silently skips accessory boot, leaving genkan unreachable.
 deploy:
     #!/usr/bin/env bash
     set -euo pipefail
     {{tofu}} init -upgrade -input=false >/dev/null
     {{tofu}} apply -auto-approve
+    bin/with-secrets bash -c \
+      'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal accessory boot all'
     if ssh -o ConnectTimeout=5 -o BatchMode=yes "root@${ONPREM_HOST}" \
          'docker ps --quiet --filter name=kamal-proxy' 2>/dev/null | grep -q .; then
       KAMAL_CMD=deploy
@@ -62,9 +71,10 @@ console:
 rollback:
     bin/with-secrets bash -c 'cd kamal && PATH="{{kamal-bin}}$PATH" exec kamal rollback'
 
-# Rotate one shared BWS secret. Usage: just rotate-secret BETTER_AUTH_SECRET.
-# WARNING: BETTER_AUTH_SECRET rotation invalidates every session on every
-# product (menu + genkan) — coordinate.
+# Rotate one shared BWS secret. Usage: just rotate-secret GENKAN_AUTH_SECRET.
+# WARNING: GENKAN_AUTH_SECRET rotation invalidates every genkan session;
+# INFRA_POSTGRES_PASSWORD rotation needs `kamal accessory reboot postgres` after
+# and impacts BOTH products (shared accessory).
 rotate-secret key:
     #!/usr/bin/env bash
     set -euo pipefail

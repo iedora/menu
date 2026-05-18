@@ -17,15 +17,6 @@ export default async function AdminLayout({
 }) {
   const session = await requireAdmin()
 
-  const navLinkStyle: React.CSSProperties = {
-    fontFamily: 'var(--mono)',
-    fontSize: 10.5,
-    letterSpacing: '0.18em',
-    textTransform: 'uppercase',
-    color: 'var(--ink-55)',
-    textDecoration: 'none',
-  }
-
   return (
     <div
       className="ds-root ds-root--washed"
@@ -36,10 +27,9 @@ export default async function AdminLayout({
       }}
     >
       <div
+        className="ds-shell ds-shell-meta"
         style={{
-          width: 'min(1320px, 100%)',
-          margin: '0 auto',
-          padding: '24px 56px 0',
+          paddingTop: 'var(--s-6)',
           position: 'relative',
           zIndex: 1,
         }}
@@ -52,25 +42,14 @@ export default async function AdminLayout({
             </>
           }
           right={
-            <span style={navLinkStyle} title={session.user.email}>
+            <span className="admin-meta-email" title={session.user.email}>
               {session.user.email}
             </span>
           }
         />
       </div>
 
-      <header
-        style={{
-          width: 'min(1320px, 100%)',
-          margin: '0 auto',
-          padding: '24px 56px 28px',
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 24,
-          borderBottom: '1px solid var(--ink-14)',
-        }}
-      >
+      <header className="ds-shell admin-header">
         <Link
           href="/admin"
           style={{ textDecoration: 'none', display: 'inline-flex' }}
@@ -78,41 +57,18 @@ export default async function AdminLayout({
         >
           <Wordmark word="genkan" variant="inline" />
         </Link>
-        <nav style={{ display: 'flex', gap: 22, alignItems: 'baseline' }}>
-          <Link href="/admin/users" style={navLinkStyle}>
-            Users
-          </Link>
-          <Link href="/admin/organizations" style={navLinkStyle}>
-            Organizations
-          </Link>
-          <Link href="/admin/applications" style={navLinkStyle}>
-            Applications
-          </Link>
-          <Link href="/admin/webhooks" style={navLinkStyle}>
-            Webhooks
-          </Link>
-          <Link href="/admin/grants" style={navLinkStyle}>
-            Grants
-          </Link>
-          <Link href="/admin/sessions" style={navLinkStyle}>
-            Sessions
-          </Link>
-          <Link href="/admin/audit" style={navLinkStyle}>
-            Audit
-          </Link>
+        <nav className="admin-nav" aria-label="Admin sections">
+          <Link href="/admin/users">Users</Link>
+          <Link href="/admin/organizations">Organizations</Link>
+          <Link href="/admin/applications">Applications</Link>
+          <Link href="/admin/webhooks">Webhooks</Link>
+          <Link href="/admin/grants">Grants</Link>
+          <Link href="/admin/sessions">Sessions</Link>
+          <Link href="/admin/audit">Audit</Link>
         </nav>
       </header>
 
-      <main
-        style={{
-          width: 'min(1320px, 100%)',
-          margin: '0 auto',
-          padding: '40px 56px 96px',
-          flex: 1,
-        }}
-      >
-        {children}
-      </main>
+      <main className="ds-shell admin-main">{children}</main>
     </div>
   )
 }

@@ -17,11 +17,11 @@ describe("Card", () => {
 
   it("forwards arbitrary html attributes", () => {
     const html = renderToStaticMarkup(
-      <Card id="metamenu" role="article">
+      <Card id="menu" role="article">
         x
       </Card>,
     );
-    expect(html).toContain('id="metamenu"');
+    expect(html).toContain('id="menu"');
     expect(html).toContain('role="article"');
   });
 });
@@ -57,8 +57,8 @@ describe("CardVisual", () => {
 
 describe("CardTitle", () => {
   it("renders as h5 by default", () => {
-    const html = renderToStaticMarkup(<CardTitle>metamenu</CardTitle>);
-    expect(html).toMatch(/^<h5 class="ds-card__title">metamenu<\/h5>$/);
+    const html = renderToStaticMarkup(<CardTitle>menu</CardTitle>);
+    expect(html).toMatch(/^<h5 class="ds-card__title">menu<\/h5>$/);
   });
 
   it("respects an explicit heading level", () => {
@@ -79,11 +79,11 @@ describe("CardFoot", () => {
     const html = renderToStaticMarkup(
       <CardFoot>
         <span>QR · Menu</span>
-        <span>iedora.metamenu.com</span>
+        <span>iedora.menu.com</span>
       </CardFoot>,
     );
     expect(html).toContain('class="ds-card__foot"');
     expect(html).toContain("QR · Menu");
-    expect(html).toContain("iedora.metamenu.com");
+    expect(html).toContain("iedora.menu.com");
   });
 });

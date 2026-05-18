@@ -40,28 +40,17 @@ test.describe('Landing page (mobile)', () => {
   test('pricing cards stack vertically', async ({ page }) => {
     await page.goto('/')
 
-    // The price cards live under `#pricing`. Their class is configured
-    // in landing.css; we'll match `.price-card` first and fall back to
-    // any `.card` direct child. If the structure changes, surface that
-    // with a skip rather than a brittle assert.
-    const section = page.locator('#pricing')
-    await section.scrollIntoViewIfNeeded()
-    let cards = section.locator('.price-card')
-    if ((await cards.count()) === 0) cards = section.locator('.card')
-    if ((await cards.count()) < 2) {
-      test.skip(
-        true,
-        'TODO: pricing-card selector did not match — update once the price' +
-          ' grid stabilises in landing.css.',
-      )
-      return
-    }
+    // Pricing-card markup in landing-page.tsx: `<section id="pricing">` →
+    // `.price-cards` → two `<article class="menu-card reveal">` siblings.
+    const cards = page.locator('#pricing .price-cards > article')
+    await cards.first().scrollIntoViewIfNeeded()
+    await expect(cards).toHaveCount(2)
     const a = await cards.nth(0).boundingBox()
     const b = await cards.nth(1).boundingBox()
     expect(a).not.toBeNull()
     expect(b).not.toBeNull()
     if (a && b) {
-      // Vertical stack: second card is BELOW the first by more than half
+      // Vertical stack: second card sits below the first by more than half
       // its own height (no horizontal-row overlap).
       expect(b.y).toBeGreaterThan(a.y + a.height / 2)
     }

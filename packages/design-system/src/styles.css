@@ -131,6 +131,24 @@
   .ds-pulse { animation: none; }
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * Shell — the canonical horizontal container.
+ *
+ * One class to keep every iedora product on the same vertical
+ * column at every breakpoint. Width caps at --container; padding
+ * uses --margin (responsive clamp), so the chrome (meta strip,
+ * wordmark) and the section internals share one gutter end to end.
+ *
+ * Pages that want a narrower column (forms, profile, reading copy)
+ * add `style="max-width: ..."` — CSS picks the smaller of the two.
+ * ───────────────────────────────────────────────────────────── */
+
+.ds-shell {
+  width: min(var(--container), 100%);
+  margin-inline: auto;
+  padding-inline: var(--margin);
+}
+
 /* ── meta strip ─────────────────────────────────────────────── */
 
 .ds-meta-strip {

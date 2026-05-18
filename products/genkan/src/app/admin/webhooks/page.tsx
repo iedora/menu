@@ -31,7 +31,7 @@ export default async function AdminWebhooksPage() {
           note="No products are listening yet. Register one to start delivering events."
         />
       ) : (
-        <Table>
+        <div className="admin-table-scroll"><Table>
           <thead>
             <tr>
               <Th style={{ width: '4ch' }}>N</Th>
@@ -81,7 +81,7 @@ export default async function AdminWebhooksPage() {
               </tr>
             ))}
           </tbody>
-        </Table>
+        </Table></div>
       )}
     </>
   )

@@ -46,12 +46,6 @@
   margin: 0 auto;
   padding: 0 var(--margin);
 }
-@media (max-width: 1080px) {
-  .landing-root .container { padding: 0 32px; }
-}
-@media (max-width: 680px) {
-  .landing-root .container { padding: 0 20px; }
-}
 
 .landing-root section { border-top: 1px solid var(--ink-14); }
 .landing-root section,
@@ -1263,20 +1257,15 @@
   .landing-root .hero-ctas { margin-top: 22px; }
   .landing-root .hero-ctas .btn { width: 100%; justify-content: center; }
 
-  /* meta line: keep it one line, ellipsize the long second clause */
+  /* Mobile meta line: only the headline piece reads — separators and
+     secondary clauses collapse so the eye lands on the CTA next. */
   .landing-root .meta-line {
     margin-top: 16px;
-    flex-wrap: nowrap;
-    gap: 8px;
-    overflow: hidden;
+    gap: 6px 10px;
+    font-size: var(--t-2xs);
   }
-  .landing-root .meta-line .meta-part {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .landing-root .meta-line .meta-part:nth-of-type(n+2) { flex: 1 1 auto; }
+  .landing-root .meta-line .dotsep,
+  .landing-root .meta-line .meta-part:nth-of-type(n+2) { display: none; }
 
   /* devices: laptop disappears, phone fills the column */
   .landing-root .devices {

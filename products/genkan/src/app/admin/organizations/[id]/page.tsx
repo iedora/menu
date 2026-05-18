@@ -101,7 +101,7 @@ export default async function AdminOrganizationDetailPage({
           </div>
         ) : (
           <div style={{ marginTop: 16 }}>
-            <Table>
+            <div className="admin-table-scroll"><Table>
               <thead>
                 <tr>
                   <Th>Email</Th>
@@ -138,7 +138,7 @@ export default async function AdminOrganizationDetailPage({
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </Table></div>
           </div>
         )}
       </section>
@@ -172,7 +172,7 @@ export default async function AdminOrganizationDetailPage({
           </div>
         ) : (
           <div style={{ marginTop: 16 }}>
-            <Table>
+            <div className="admin-table-scroll"><Table>
               <thead>
                 <tr>
                   <Th>Email</Th>
@@ -218,7 +218,7 @@ export default async function AdminOrganizationDetailPage({
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </Table></div>
           </div>
         )}
       </section>

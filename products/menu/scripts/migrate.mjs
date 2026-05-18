@@ -1,8 +1,14 @@
-// Aplica migrations Drizzle em produção sem precisar de drizzle-kit no runtime.
-// Corre no container produção via:  node scripts/migrate.mjs
+// Applies Drizzle migrations in production without drizzle-kit at runtime.
+// Runs inside the container via:  node scripts/migrate.mjs
 //
-// O `lib/db` da app já importa `drizzle-orm/postgres-js`, portanto o migrator
-// vai no bundle standalone do Next.
+// The `menu` database is created on first boot of the shared infra-postgres
+// accessory by infra/postgres/init.sql (CREATE DATABASE menu); the runtime
+// here only needs to apply Drizzle migrations.
+//
+// pg_advisory_lock guards against two replicas racing on `migrate()` —
+// Drizzle still has no built-in migration lock (see drizzle-orm#874).
+// The literal "meta-menu-migrate" feeds the crc32 → keep stable across
+// renames so the key doesn't shift between deploys.
 
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
@@ -14,27 +20,23 @@ if (!url) {
   process.exit(1)
 }
 
-// pg advisory lock garante que dois deploys paralelos não migram em duplicado.
-// O valor é arbitrário mas tem de ser estável e único — crc32 de "meta-menu-migrate".
-const LOCK_KEY = 727072073
+const LOCK_KEY = 727072073 // crc32 of "meta-menu-migrate"
 
 const sql = postgres(url, { max: 1 })
 const db = drizzle(sql)
 
 try {
-  console.log(`Acquiring advisory lock (${LOCK_KEY})...`)
   await sql`SELECT pg_advisory_lock(${LOCK_KEY})`
-
-  console.log('Applying migrations from ./drizzle ...')
-  // Per-product tracker — see drizzle.config.ts. Without this, menu and genkan
-  // would write into the same `drizzle.__drizzle_migrations` and shadow each
-  // other (the migrator only applies entries newer than max(created_at)).
+  // Per-product tracker — see drizzle.config.ts. Without this, menu and
+  // genkan would write into the same `drizzle.__drizzle_migrations` and
+  // shadow each other (the migrator only applies entries newer than
+  // max(created_at)).
   await migrate(db, {
     migrationsFolder: './drizzle',
     migrationsTable: '__drizzle_migrations',
     migrationsSchema: 'menu',
   })
-  console.log('Migrations applied successfully.')
+  console.log('Migrations applied.')
 } catch (err) {
   console.error('Migration failed:', err)
   process.exitCode = 1

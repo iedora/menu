@@ -48,7 +48,7 @@ export default async function AdminUsersPage({
           }
         />
       ) : (
-        <Table>
+        <div className="admin-table-scroll"><Table>
           <thead>
             <tr>
               <Th style={{ width: '4ch' }}>N</Th>
@@ -90,7 +90,7 @@ export default async function AdminUsersPage({
               </tr>
             ))}
           </tbody>
-        </Table>
+        </Table></div>
       )}
     </>
   )

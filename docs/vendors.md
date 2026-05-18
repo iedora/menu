@@ -19,7 +19,7 @@ These vendors process customer data or hold the keys to it. Their compromise dir
 | | |
 |---|---|
 | **Service** | DNS + TLS termination + Cloudflare Tunnel (no inbound ports on the homelab) + R2 object storage (encrypted pg_dump backups + future asset uploads) + Workers Static Assets (iedora.com) |
-| **Data they touch** | Every HTTP request and response in flight (Cloudflare terminates TLS at the edge). Backup data at rest (encrypted with `BACKUP_PASSPHRASE` from BWS — Cloudflare sees ciphertext only). |
+| **Data they touch** | Every HTTP request and response in flight (Cloudflare terminates TLS at the edge). Backup data at rest (encrypted with `INFRA_BACKUP_PASSPHRASE` from BWS — Cloudflare sees ciphertext only). |
 | **SOC 2 status** | ✅ Type II — current. Available via Cloudflare Trust Hub at https://www.cloudflare.com/trust-hub/compliance-resources/ |
 | **Other compliance** | ISO 27001, ISO 27018, PCI DSS, FedRAMP Moderate |
 | **DPA** | Standard Cloudflare DPA accepted at account-setup time |
@@ -44,13 +44,13 @@ These vendors process customer data or hold the keys to it. Their compromise dir
 
 | | |
 |---|---|
-| **Service** | Production secret storage (8 secrets — Cloudflare API token, state passphrase, BETTER_AUTH_SECRET, Postgres password, backup passphrase, GHCR token, MENU_CLIENT_ID/SECRET) |
+| **Service** | Production secret storage in project `iedora-deploy` (9 keys, prefixed by ownership: `INFRA_*` for tofu/Cloudflare/Postgres/backups/GHCR; `MENU_*` and `GENKAN_*` for per-product session and OAuth secrets) |
 | **Data they touch** | Plaintext secrets at rest (encrypted with Bitwarden's KMS). Access tokens we generate for the deploy machine. |
 | **SOC 2 status** | ✅ Type II — current. Available via https://bitwarden.com/help/bitwarden-security-white-paper/ + SOC 2 report on request |
 | **Other compliance** | ISO 27001, GDPR, HIPAA, SOC 3 (public) |
 | **DPA** | Bitwarden DPA accepted at account-setup time |
 | **What happens if they're compromised** | Attacker who steals the BWS access token AND project ID gets every production secret. The token is on **one** developer laptop (FileVault-encrypted) and is the single highest-value credential in the iedora system. Mitigated by: short access-token lifetime (rotate quarterly), FileVault on the laptop, Bitwarden's own audit logs. |
-| **Rotation / exit plan** | Access token rotated via Bitwarden UI → BWS_ACCESS_TOKEN updated in local `.env`. Per-secret rotation via `just menu::rotate-secret <KEY>`. Switching providers (HashiCorp Vault, AWS Secrets Manager, age-encrypted file in repo) is a 1-day project — secrets are few and named. |
+| **Rotation / exit plan** | Access token rotated via Bitwarden UI → BWS_ACCESS_TOKEN updated in each workspace's local `.env`. Per-secret rotation via `just <workspace>::rotate-secret <KEY>` (any of `infra::`, `menu::`, `genkan::`). Switching providers (HashiCorp Vault, AWS Secrets Manager, age-encrypted file in repo) is a 1-day project — secrets are few and named. |
 | **Last reviewed** | 2026-05-17 |
 
 ---
@@ -64,8 +64,8 @@ These vendors process customer data or hold the keys to it. Their compromise dir
 | **Service** | Single VM (`192.168.50.53`) running Docker + every iedora container (genkan, menu, postgres, cloudflared, backups). Physical location: Eduardo's premises. |
 | **Data they touch** | All production data at rest (Postgres data directory mounted on the box). Backup tarballs (encrypted before R2 upload). |
 | **SOC 2 status** | n/a — self-hosted. Compensating controls: FileVault-equivalent disk encryption on the box (LUKS), SSH key-only auth (no password login), no public ports (Cloudflare Tunnel is the only ingress). |
-| **What happens if it's compromised** | Plaintext DB access. Mitigated by: encrypted disk, no inbound network exposure, daily encrypted backups to R2 (recovery point ≤ 24h), `just menu::restore` to a fresh box. Webhook secrets (now encrypted at rest — see security audit #27) stay safe unless the attacker also has `BETTER_AUTH_SECRET`. |
-| **Rotation / exit plan** | Restore on a different host is a ~30-min runbook: stand up new VM, install Docker, paste BWS token, `just menu::deploy && just menu::restore`. Cloud failover target (Hetzner / DigitalOcean / OVH) is the planned migration target if home-lab uptime ever becomes a constraint. |
+| **What happens if it's compromised** | Plaintext DB access. Mitigated by: encrypted disk, no inbound network exposure, daily encrypted backups to R2 (recovery point ≤ 24h), `just infra::restore` to a fresh box. Webhook secrets (now encrypted at rest — see security audit #27) stay safe unless the attacker also has `MENU_AUTH_SECRET` or `GENKAN_AUTH_SECRET`. |
+| **Rotation / exit plan** | Restore on a different host is a ~30-min runbook: stand up new VM, install Docker, paste BWS token, `just infra::deploy && just infra::restore && just menu::deploy && just genkan::deploy`. Cloud failover target (Hetzner / DigitalOcean / OVH) is the planned migration target if home-lab uptime ever becomes a constraint. |
 | **Last reviewed** | 2026-05-17 |
 
 ---

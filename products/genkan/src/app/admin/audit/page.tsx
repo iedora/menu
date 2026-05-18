@@ -166,7 +166,7 @@ export default async function AdminAuditPage({
         />
       ) : (
         <>
-          <Table>
+          <div className="admin-table-scroll"><Table>
             <thead>
               <tr>
                 <Th>When</Th>
@@ -222,7 +222,7 @@ export default async function AdminAuditPage({
                 </tr>
               ))}
             </tbody>
-          </Table>
+          </Table></div>
           <div
             style={{
               display: 'flex',

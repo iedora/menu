@@ -218,7 +218,7 @@ independently appliable.
 iedora/                                  repo root
   bun.lock                               single workspace lockfile
   package.json                           workspaces: packages/* + products/{menu,genkan,house}
-  justfile                               just modules: menu::, genkan::, house::
+  justfile                               just modules: infra::, menu::, genkan::, house::
   .github/                               composite setup action + one workflow per workspace
     actions/setup/action.yml             composite: install Bun + bun install --frozen-lockfile
     workflows/menu.yml                   menu's full pipeline (typecheck + lint + unit + e2e)
@@ -229,6 +229,17 @@ iedora/                                  repo root
   .mcp.json                              shadcn, postgres, bun, next-devtools, playwright MCP servers
   docs/                                  brand-level docs (deploy, scaling, backups, secrets,
                                          security-audit, tenancy, vendors, architecture, testing)
+
+  infra/                                 SHARED INFRASTRUCTURE — applied BEFORE any product.
+                                         Postgres accessory + daily backups accessory live here
+                                         because both products use them. Container names are
+                                         `infra-postgres` and `infra-backups`.
+    justfile                             deploy / backup / restore / wipe-postgres / build-backup
+    .env.example                         infra template (BWS token + ONPREM_HOST + GHCR_USER + CF acct)
+    bin/with-secrets                     BWS wrapper; only TF_VAR_account_id + cloudflare_api_token + state_passphrase
+    tofu/                                ONE resource set: `iedora-backups` R2 bucket + its scoped R2 token
+    kamal/                               Kamal 2 — accessory-only (`kamal accessory boot all`, never `kamal deploy`)
+    backup/                              self-built Postgres-backup image (Dockerfile + backup.sh + restore.sh + run.sh)
 
   packages/
     design-system/                       @iedora/design-system — editorial CSS + React primitives
@@ -322,9 +333,9 @@ iedora/                                  repo root
         justfile                         deploy/destroy/rotate-secret/logs/etc. recipes; `set dotenv-load`
         .env.example                     infra template — copy to infra/.env (gitignored)
         bin/with-secrets                 BWS-env wrapper; injects TF_VAR_* aliases
-        tofu/menu/                       Cloudflare tunnel + DNS + R2 buckets (encrypted state)
-        kamal/                           Kamal 2 — app + postgres + cloudflared + backups accessories
-        backup/                          self-built Postgres-backup image (Dockerfile + bash)
+        tofu/                            Cloudflare tunnel + DNS + R2 assets bucket (encrypted state)
+        kamal/                           Kamal 2 — app + cloudflared accessory (NO postgres/backups —
+                                         those live in /infra/kamal/ as the shared `infra-*` accessories)
 
     genkan/                              genkan product (genkan.iedora.com — the IdP)
       src/
@@ -367,9 +378,10 @@ iedora/                                  repo root
       scripts/check-migrations.ts        same guardrail as menu's
       infra/                             genkan's deploy machinery (sibling to menu's)
         Dockerfile, justfile, tofu/, kamal/, bin/with-secrets, .env.example
-        # NB: NO backup/ — genkan reuses menu's Postgres accessory over the
-        # shared kamal Docker network. Separate logical databases:
-        # `metamenu` for menu, `genkan` for genkan.
+        # Genkan's app container reaches `infra-postgres:5432` on the shared
+        # kamal Docker network. Separate logical databases: `menu` for menu,
+        # `genkan` for genkan. The shared infra workspace at /infra/ owns
+        # the Postgres + backups accessories.
 
     house/                               iedora.com root brand site (Astro on Workers Static Assets)
       README.md                          what it is + how to deploy
@@ -435,12 +447,13 @@ or package directory.
 
 ### Deploy (`just <product>::<recipe>` at repo root)
 
-- **First-time setup** (once, manual): `ssh-copy-id root@$ONPREM_HOST` (Kamal's canonical SSH user — root with key-only login); `gh auth refresh -s write:packages`; then `just menu::deploy` followed by `just genkan::deploy`. See `docs/deploy.md` for the homelab key-copy step when root SSH isn't already enabled.
-- `just menu::deploy` — menu app: tofu apply + kamal setup/deploy, idempotent. The recipe probes for an existing kamal-proxy container and chooses `setup` vs `deploy` accordingly.
-- `just genkan::deploy` — same shape; reuses menu's Postgres accessory on the shared Kamal Docker network (separate logical database: `genkan`).
+- **First-time setup** (once, manual): `ssh-copy-id root@$ONPREM_HOST` (Kamal's canonical SSH user — root with key-only login); `gh auth refresh -s write:packages`; then `just infra::deploy` (shared Postgres + backups), then `just menu::deploy`, then `just genkan::deploy`. See `docs/deploy.md` for the homelab key-copy step when root SSH isn't already enabled.
+- `just infra::deploy` — shared infra: provisions the `iedora-backups` R2 bucket via Tofu, then boots `infra-postgres` + `infra-backups` accessories via Kamal. MUST run before any product deploy.
+- `just menu::deploy` — menu app: tofu apply (tunnel + DNS + assets R2) + kamal setup/deploy, idempotent. The recipe probes for an existing kamal-proxy container and chooses `setup` vs `deploy` accordingly.
+- `just genkan::deploy` — same shape; connects to the shared `infra-postgres` accessory (separate logical database: `genkan`).
 - `just menu::logs` / `console` / `rollback` and `just genkan::logs` / `console` / `rollback` — direct `kamal` calls; each product's `.env` is auto-loaded via `set dotenv-load`. (Migrations run on container start via the Kamal `cmd:` — no separate `migrate` recipe needed.)
-- `just menu::backup` / `restore` — force a Postgres dump now / restore latest (interactive). Backups cover BOTH databases since the accessory lives with menu.
-- `just menu::build-backup` — rebuild the backup accessory image (only needed when bumping the Postgres major).
+- `just infra::backup` / `restore` — force a Postgres dump now / restore latest (interactive). The infra workspace owns the shared Postgres accessory + the backups accessory; backups are cluster-wide (`pg_dumpall`) and cover every product's database.
+- `just infra::build-backup` — rebuild the backup accessory image (only needed when bumping the Postgres major).
 - `just menu::rotate-secret <KEY>` / `just genkan::rotate-secret <KEY>` — rotate one BWS secret (prompts new value, edits BWS, reminds to redeploy). For sub-tokens (R2, tunnel): `cd products/<name>/infra && bin/with-secrets tofu -chdir=tofu apply -replace=<resource>`. See `docs/secrets.md`.
 - `just menu::destroy` / `just genkan::destroy` — `tofu destroy` for that product: removes its Cloudflare tunnel + DNS (does NOT touch the box, does NOT touch the other product).
 - `just house::deploy` / `house::destroy` — manage iedora.com (Astro build → workload-token refresh → `wrangler deploy` uploading dist/ + apex `custom_domain` route). `just house::build` / `house::preview` for local-only checks.
@@ -451,7 +464,7 @@ Makefiles.
 
 Build + push lives on the homelab box itself
 (`builder.remote: ssh://root@$ONPREM_HOST`, native amd64). Images
-are pushed to **GHCR** (`ghcr.io/$GHCR_USER/meta-menu` for menu,
+are pushed to **GHCR** (`ghcr.io/$GHCR_USER/menu` for menu,
 `ghcr.io/$GHCR_USER/genkan` for genkan); auth is `gh auth token`
 evaluated from each product's `kamal/.kamal/secrets`. No local
 registry, no buildx insecure-registry config, no daemon.json

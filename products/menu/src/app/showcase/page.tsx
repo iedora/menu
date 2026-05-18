@@ -182,11 +182,11 @@ export default function ShowcasePage() {
                 <Badge variant="live">In service</Badge>
               </CardIndex>
               <CardVisual />
-              <CardTitle>metamenu</CardTitle>
+              <CardTitle>menu</CardTitle>
               <CardDesc>A QR menu system for restaurants, with quiet, deep analytics.</CardDesc>
               <CardFoot>
                 <span>QR · Menu · Analytics</span>
-                <span style={{ color: "var(--ink)" }}>iedora.metamenu.com</span>
+                <span style={{ color: "var(--ink)" }}>menu.iedora.com</span>
               </CardFoot>
             </Card>
             <Card style={{ maxWidth: 340 }}>
@@ -214,7 +214,7 @@ export default function ShowcasePage() {
             </Field>
             <Field error>
               <FieldLabel htmlFor="ex-slug">Slug</FieldLabel>
-              <FieldInput id="ex-slug" name="slug" defaultValue="metamenu" />
+              <FieldInput id="ex-slug" name="slug" defaultValue="menu" />
               <FieldHint>Already taken.</FieldHint>
             </Field>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -241,7 +241,7 @@ export default function ShowcasePage() {
               <tbody>
                 <tr>
                   <Td><TableRowNum>01</TableRowNum></Td>
-                  <Td>metamenu</Td>
+                  <Td>menu</Td>
                   <Td style={{ color: "var(--ink-70)" }}>QR · Analytics</Td>
                   <Td><Badge variant="live">In service</Badge></Td>
                   <Td style={{ fontFamily: "var(--mono)", color: "var(--ink-55)" }}>MMXXIV</Td>
@@ -323,7 +323,7 @@ export default function ShowcasePage() {
             <Breadcrumb>
               <BreadcrumbLink href="/">Studio</BreadcrumbLink>
               <BreadcrumbLink href="/works">Works</BreadcrumbLink>
-              <BreadcrumbHere>metamenu</BreadcrumbHere>
+              <BreadcrumbHere>menu</BreadcrumbHere>
             </Breadcrumb>
           </div>
         </Section>

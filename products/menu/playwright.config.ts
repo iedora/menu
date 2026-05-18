@@ -73,7 +73,7 @@ export default defineConfig({
       timeout: 240_000,
       env: {
         DATABASE_URL:
-          'postgresql://postgres:postgres@localhost:5432/metamenu_test',
+          'postgresql://postgres:postgres@localhost:5432/menu_test',
         BETTER_AUTH_SECRET: MENU_TEST_SECRET,
         BETTER_AUTH_URL: BASE_URL,
         DISABLE_AUTH_RATE_LIMIT: 'true',
@@ -98,7 +98,7 @@ export default defineConfig({
         S3_REGION: 'us-east-1',
         S3_ACCESS_KEY: 'test',
         S3_SECRET_KEY: 'test',
-        S3_BUCKET: 'metamenu-test',
+        S3_BUCKET: 'menu-test',
         // Mirrors `process.env.NODE_ENV === 'production'` so `src/shared/brand.ts`
         // resolves `GENKAN_URL` to the localhost (3001) dev default. Tests
         // never visit that URL — they hit the shim through Better Auth's

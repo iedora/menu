@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: [
-    'metamenu.733113.xyz'
+    'menu.733113.xyz'
   ],
   // `next build` typechecks everything reachable from tsconfig include.
   // Tests import @iedora/auth-testkit which re-exports genkan's schema

@@ -15,7 +15,7 @@ import postgres from 'postgres'
 
 const TEST_URL =
   process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5432/metamenu_test'
+  'postgresql://postgres:postgres@localhost:5432/menu_test'
 
 async function truncateMenu(): Promise<void> {
   const sql = postgres(TEST_URL, { max: 1 })

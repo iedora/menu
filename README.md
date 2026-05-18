@@ -1,4 +1,4 @@
-# Meta Menu
+# Menu
 
 Self-hosted, multi-tenant SaaS for restaurants to build digital menus by drag-and-drop. Public page at `/r/<slug>`; admin builds it from the dashboard with reorderable categories, items, image uploads, themes, multi-language overrides, plans, and analytics.
 

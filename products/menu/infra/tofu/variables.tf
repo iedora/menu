@@ -37,7 +37,7 @@ variable "account_id" {
 variable "tunnel_name" {
   description = "Logical name for the tunnel (shown in Cloudflare → Zero Trust → Networks → Tunnels)."
   type        = string
-  default     = "meta-menu"
+  default     = "menu"
 }
 
 variable "public_hostname" {
@@ -59,7 +59,7 @@ variable "assets_hostname" {
 variable "assets_bucket_name" {
   description = "Cloudflare R2 bucket name for user-uploaded restaurant assets (logos, banners, item photos). Globally unique within your account."
   type        = string
-  default     = "meta-menu-assets"
+  default     = "menu-assets"
 }
 
 variable "assets_bucket_location" {
@@ -68,14 +68,3 @@ variable "assets_bucket_location" {
   default     = "EEUR"
 }
 
-variable "backups_bucket_name" {
-  description = "Cloudflare R2 bucket name for Postgres dumps. Must be globally unique within your account."
-  type        = string
-  default     = "meta-menu-backups"
-}
-
-variable "backups_bucket_location" {
-  description = "R2 location hint (auto = closest, EUR/EEUR = Europe). See Cloudflare R2 docs."
-  type        = string
-  default     = "EEUR"
-}

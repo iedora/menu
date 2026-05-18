@@ -9,7 +9,7 @@
 
 | Location | Holds | Why |
 |---|---|---|
-| **Bitwarden Secrets Manager** (`meta-menu` project) | All 8 production secrets | Single source of truth; survives laptop loss |
+| **Bitwarden Secrets Manager** (`iedora-deploy` project) | All 8 production secrets | Single source of truth; survives laptop loss |
 | `products/menu/infra/.env` (gitignored, on one laptop) | `BWS_ACCESS_TOKEN` + `BWS_PROJECT_ID` + non-secret IDs (account/zone/hostnames) | The one credential that unlocks the rest — must be on disk to bootstrap |
 | `products/menu/infra/tofu/terraform.tfstate` (encrypted) | Tunnel token + R2 sub-tokens (`assets_r2`, `backups_r2`) for the menu product | Created by Tofu; rotate via `tofu apply -replace=<resource>` |
 | `products/house/infra/tofu/terraform.tfstate` (encrypted) | Narrow `workers_deploy` token (Workers Scripts: Write + DNS: Write) for `wrangler deploy` | Created by Tofu; rotate via `tofu apply -replace=cloudflare_api_token.workers_deploy` |
@@ -20,7 +20,7 @@
 
 The Cloudflare credentials follow a two-tier pattern, deliberately:
 
-1. **Bootstrap token** — one token, in BWS (`CLOUDFLARE_API_TOKEN`). Categories it must hold (any new workload token's `permission_groups` is a subset of this — Cloudflare won't let a parent grant what it lacks). The current set, as of the Workers migration:
+1. **Bootstrap token** — one token, in BWS (`INFRA_CLOUDFLARE_API_TOKEN`). Categories it must hold (any new workload token's `permission_groups` is a subset of this — Cloudflare won't let a parent grant what it lacks). The current set, as of the Workers migration:
 
    **Account scope** (`Eduardoferdcarvalho@gmail.com's Account`):
 
@@ -61,17 +61,34 @@ The point: **runtime tools never authenticate with the bootstrap.** If wrangler 
 
 **Adding a workload**: copy the pattern — `cloudflare_api_token "X"` resource with a narrow `permission_groups` list (the UUID is stable, found via `curl -H "Authorization: Bearer $TOKEN" https://api.cloudflare.com/client/v4/user/tokens/permission_groups`), surface as a sensitive output, consume via `tofu output -raw` at runtime. Whatever permission groups you reference must already be on the bootstrap — if you're adding a new category (e.g. Workers KV, Hyperdrive), grant it to the bootstrap first.
 
-## The 8 secrets in BWS
+## BWS secret naming
+
+One project (`iedora-deploy`) holds every production secret. Names use a
+two-prefix convention so it's obvious at a glance which subsystem owns
+each key:
+
+- **`INFRA_*`** — shared infrastructure (Tofu / Cloudflare / Postgres
+  accessory / backups / GHCR). Not product-specific.
+- **`MENU_*` / `GENKAN_*`** — app secrets for that one product. Each
+  product has its own Better Auth instance, so each has its own
+  `*_AUTH_SECRET` — separate values, separate blast radius. The BWS-key
+  name describes the purpose (signs that product's session cookies); the
+  fact that Better Auth happens to be the library doing the signing is an
+  implementation detail kept out of the secret-management surface.
+
+## The secrets in BWS
 
 | Key | What it does | Impact of leak | Rotation effort |
 |---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | Master Cloudflare API token (7 permission groups across Account / Zone(`iedora.com`) / User scopes — see Token tiers above) | Attacker can edit `iedora.com` DNS, manage the tunnel, write to R2, push Workers, mint new tokens | Browser create-new → BWS edit → revoke old. Sub-tokens (tunnel/R2/workers_deploy) survive; rotate them separately only if suspected leaked |
-| `STATE_PASSPHRASE` | Tofu state encryption (PBKDF2 + AES-GCM) | Old state file becomes decryptable if attacker has the file | `tofu init -migrate-state` with new passphrase |
-| `BETTER_AUTH_SECRET` | Signs Better Auth sessions | Attacker can forge sessions for any user | `just menu::rotate-secret BETTER_AUTH_SECRET` — **invalidates every active session** |
-| `POSTGRES_PASSWORD` | Postgres root + app DB password | Full DB read/write | `just menu::rotate-secret POSTGRES_PASSWORD` + reboot postgres accessory + redeploy app |
-| `MINIO_ROOT_PASSWORD` | MinIO root + app's S3 secret | Full asset bucket access | `just menu::rotate-secret MINIO_ROOT_PASSWORD` + reboot minio accessory + redeploy app |
-| `BACKUP_PASSPHRASE` | GPG passphrase for encrypted Postgres dumps in R2 | Attacker with R2 access can decrypt past dumps | **Don't rotate** — invalidates historical dumps. Maintain dual-passphrase overlap if necessary |
-| `GHCR_TOKEN` | GitHub PAT (`write:packages`) for image push/pull | Attacker can push malicious images to `ghcr.io/eduvhc/meta-menu` | GitHub UI regenerate + BWS edit + redeploy |
+| `INFRA_CLOUDFLARE_API_TOKEN` | Master Cloudflare API token (7 permission groups across Account / Zone(`iedora.com`) / User scopes — see Token tiers above) | Attacker can edit `iedora.com` DNS, manage the tunnel, write to R2, push Workers, mint new tokens | Browser create-new → BWS edit → revoke old. Sub-tokens (tunnel/R2/workers_deploy) survive; rotate them separately only if suspected leaked |
+| `INFRA_STATE_PASSPHRASE` | Tofu state encryption (PBKDF2 + AES-GCM) | Old state file becomes decryptable if attacker has the file | `tofu init -migrate-state` with new passphrase |
+| `INFRA_POSTGRES_PASSWORD` | Postgres root + app DB password (shared Postgres accessory) | Full DB read/write for menu AND genkan databases | `just menu::rotate-secret INFRA_POSTGRES_PASSWORD` + reboot postgres accessory + redeploy both apps |
+| `INFRA_BACKUP_PASSPHRASE` | GPG passphrase for encrypted Postgres dumps in R2 | Attacker with R2 access can decrypt past dumps | **Don't rotate** — invalidates historical dumps. Maintain dual-passphrase overlap if necessary |
+| `INFRA_GHCR_TOKEN` | GitHub PAT (`write:packages`) for image push/pull | Attacker can push malicious images to `ghcr.io/$GHCR_USER/{menu,genkan}` | GitHub UI regenerate + BWS edit + redeploy |
+| `MENU_AUTH_SECRET` | Signs menu's session cookies (HMAC) | Attacker can forge menu sessions for any user | `just menu::rotate-secret MENU_AUTH_SECRET` — **invalidates every active menu session** |
+| `MENU_OAUTH_CLIENT_ID` | Menu's OAuth client ID at genkan | Identifies menu as a first-party client | Re-register the client; update on both sides |
+| `MENU_OAUTH_CLIENT_SECRET` | Menu's OAuth client secret at genkan | Lets attacker impersonate menu in the OAuth handshake | `just menu::rotate-secret MENU_OAUTH_CLIENT_SECRET` + redeploy both menu and genkan |
+| `GENKAN_AUTH_SECRET` | Signs genkan's session cookies + JWTs | Attacker can forge genkan sessions | `just genkan::rotate-secret GENKAN_AUTH_SECRET` — **invalidates every active genkan session** |
 
 ## Expand–Contract for permission / token changes
 
@@ -133,15 +150,15 @@ at any phase boundary without leaving the system in an undefined state.
 
 ## "I think it leaked — what now?"
 
-For any of the rotatable ones (everything except `BACKUP_PASSPHRASE`):
+For any of the rotatable ones (everything except `INFRA_BACKUP_PASSPHRASE`):
 
 ```bash
-just menu::rotate-secret BETTER_AUTH_SECRET   # or whatever
+just menu::rotate-secret MENU_AUTH_SECRET   # or whatever
 ```
 
 The recipe prompts for the new value (no echo), updates BWS, and reminds you to `just menu::deploy` to roll the new value out — Kamal re-reads `.kamal/secrets` (which fetches from BWS via the `bitwarden-sm` adapter) on every deploy, so the rotated value lands in the container env on the next image swap.
 
-For `CLOUDFLARE_API_TOKEN` rotation: sub-tokens (tunnel + R2 + workers_deploy) are independent credentials once created by Tofu — they keep working when the master rotates. Only rotate the sub-tokens if you suspect they're individually compromised. The one-liners (paths assume you're inside `products/<product>/infra/`):
+For `INFRA_CLOUDFLARE_API_TOKEN` rotation: sub-tokens (tunnel + R2 + workers_deploy) are independent credentials once created by Tofu — they keep working when the master rotates. Only rotate the sub-tokens if you suspect they're individually compromised. The one-liners (paths assume you're inside `products/<product>/infra/`):
 
 ```bash
 # Rotate menu's R2 sub-token (suspected R2 leak, e.g. via backup logs):
@@ -162,7 +179,7 @@ cd .. && just house::deploy   # picks up the new value end-to-end
 
 For `BWS_ACCESS_TOKEN` itself (the bootstrap secret):
 
-1. Bitwarden → Secrets Manager → Machine accounts → `meta-menu-deploy` → Access tokens → revoke the old one
+1. Bitwarden → Secrets Manager → Machine accounts → `iedora-deploy` → Access tokens → revoke the old one
 2. Generate a new access token
 3. Replace `BWS_ACCESS_TOKEN=` in `products/menu/infra/.env`
 
@@ -172,8 +189,8 @@ No code changes — `.kamal/secrets` and `bin/with-secrets` both pull `BWS_ACCES
 
 | Credential | Expires | Reminder |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | Every 90 days (set at token creation) | Cloudflare emails 14/7/1 days before |
-| `GHCR_TOKEN` | 1 year (set at token creation) | GitHub emails 1 week before |
+| `INFRA_CLOUDFLARE_API_TOKEN` | Every 90 days (set at token creation) | Cloudflare emails 14/7/1 days before |
+| `INFRA_GHCR_TOKEN` | 1 year (set at token creation) | GitHub emails 1 week before |
 | `BWS_ACCESS_TOKEN` | No expiration | Rotate manually every 6-12 months |
 | Everything else in BWS | No expiration | Rotate on suspicion of leak |
 

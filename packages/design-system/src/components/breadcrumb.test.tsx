@@ -11,7 +11,7 @@ describe("Breadcrumb", () => {
     const html = renderToStaticMarkup(
       <Breadcrumb>
         <BreadcrumbLink href="/">Studio</BreadcrumbLink>
-        <BreadcrumbHere>metamenu</BreadcrumbHere>
+        <BreadcrumbHere>menu</BreadcrumbHere>
       </Breadcrumb>,
     );
     expect(html).toMatch(/^<nav[^>]*aria-label="Breadcrumb"[^>]*class="ds-breadcrumb"[^>]*>/);
@@ -22,7 +22,7 @@ describe("Breadcrumb", () => {
       <Breadcrumb>
         <BreadcrumbLink href="/">Studio</BreadcrumbLink>
         <BreadcrumbLink href="/works">Works</BreadcrumbLink>
-        <BreadcrumbHere>metamenu</BreadcrumbHere>
+        <BreadcrumbHere>menu</BreadcrumbHere>
       </Breadcrumb>,
     );
     // exactly two separators for three items
@@ -51,9 +51,9 @@ describe("BreadcrumbLink", () => {
 
 describe("BreadcrumbHere", () => {
   it("marks the current page with aria-current and the here class", () => {
-    const html = renderToStaticMarkup(<BreadcrumbHere>metamenu</BreadcrumbHere>);
+    const html = renderToStaticMarkup(<BreadcrumbHere>menu</BreadcrumbHere>);
     expect(html).toMatch(
-      /^<span[^>]*aria-current="page"[^>]*class="ds-breadcrumb__here"[^>]*>metamenu<\/span>$/,
+      /^<span[^>]*aria-current="page"[^>]*class="ds-breadcrumb__here"[^>]*>menu<\/span>$/,
     );
   });
 });

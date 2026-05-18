@@ -59,7 +59,7 @@ Verify each: `tofu version`, `kamal version`, `docker info`, `gh auth status`. A
 gh auth refresh -s write:packages
 ```
 
-Kamal pushes the built image to `ghcr.io/<your-github-username>/meta-menu`. The scope is per-token, not per-package — do it once, ever. Confirm with `gh auth status` and look for `write:packages` in the scopes line.
+Kamal pushes the built image to `ghcr.io/<your-github-username>/menu` (and `…/genkan`). The scope is per-token, not per-package — do it once, ever. Confirm with `gh auth status` and look for `write:packages` in the scopes line.
 
 ---
 
@@ -115,8 +115,8 @@ ssh root@<box-ip> 'whoami'
 ## Step 5 — Clone, configure, populate Bitwarden Secrets Manager
 
 ```bash
-git clone https://github.com/<you>/meta-menu.git
-cd meta-menu
+git clone https://github.com/<you>/iedora.git
+cd iedora
 cp products/menu/infra/.env.example products/menu/infra/.env
 ```
 
@@ -133,10 +133,10 @@ PUBLIC_HOSTNAME=menu.example.com
 # The box (cloud VPS public IP or homelab LAN IP). Kamal connects as root.
 ONPREM_HOST=192.168.50.53
 
-# Your GitHub username — image will be pushed to ghcr.io/<this>/meta-menu
+# Your GitHub username — image will be pushed to ghcr.io/<this>/menu
 GHCR_USER=eduvhc
 
-# Bitwarden Secrets Manager: vault.bitwarden.com/#/sm → New project "meta-menu",
+# Bitwarden Secrets Manager: vault.bitwarden.com/#/sm → New project "iedora-deploy",
 # new Machine account with R/W on the project, new access token.
 BWS_ACCESS_TOKEN=0.…
 BWS_PROJECT_ID=…uuid…
@@ -146,14 +146,16 @@ Then populate BWS with 7 secrets — use the same machine to avoid pasting token
 
 ```bash
 source products/menu/infra/.env
-for KEY in CLOUDFLARE_API_TOKEN STATE_PASSPHRASE BETTER_AUTH_SECRET \
-           POSTGRES_PASSWORD BACKUP_PASSPHRASE GHCR_TOKEN; do
+for KEY in INFRA_CLOUDFLARE_API_TOKEN INFRA_STATE_PASSPHRASE \
+           INFRA_POSTGRES_PASSWORD INFRA_BACKUP_PASSPHRASE INFRA_GHCR_TOKEN \
+           MENU_AUTH_SECRET GENKAN_AUTH_SECRET \
+           MENU_OAUTH_CLIENT_ID MENU_OAUTH_CLIENT_SECRET; do
   read -s -p "$KEY: " V && echo
   bws secret create "$KEY" "$V" "$BWS_PROJECT_ID" -o none
 done
 ```
 
-Generate each value with `openssl rand -hex 32`, except `CLOUDFLARE_API_TOKEN` (from step 3) and `GHCR_TOKEN` (https://github.com/settings/tokens — classic PAT, `write:packages` scope).
+Generate each value with `openssl rand -hex 32`, except `INFRA_CLOUDFLARE_API_TOKEN` (from step 3) and `INFRA_GHCR_TOKEN` (https://github.com/settings/tokens — classic PAT, `write:packages` scope). For `MENU_OAUTH_CLIENT_ID` / `MENU_OAUTH_CLIENT_SECRET`, generate fresh random values and remember them — they get seeded into genkan's `oauth_client` table by genkan's `migrate.mjs` on first boot (driven by `TRUSTED_CLIENTS`).
 
 Keep the BWS access token in your password manager — losing it means losing access to every other secret. `products/menu/infra/.env` is gitignored.
 
@@ -162,20 +164,27 @@ Keep the BWS access token in your password manager — losing it means losing ac
 ## Step 6 — Deploy
 
 ```bash
-just menu::deploy
+just infra::deploy       # FIRST — boots shared Postgres + backups accessory
+just menu::deploy        # then the products
+just genkan::deploy
 ```
 
-Same command for first-time AND every-other-time. Internally it runs:
+The order matters on a fresh box: menu and genkan both connect to `infra-postgres:5432`, so the infra workspace MUST boot first.
 
-1. **`tofu apply`** — creates (or updates) the Cloudflare Tunnel + ingress, R2 buckets (assets + backups), R2 sub-tokens, DNS records.
+`just infra::deploy` runs:
+1. **`tofu apply`** on `infra/tofu/` — creates the `iedora-backups` R2 bucket + its scoped R2 token.
+2. **`kamal accessory boot all`** on `infra/kamal/` — boots `infra-postgres` + `infra-backups` accessories.
+
+`just menu::deploy` (and the genkan equivalent) runs:
+1. **`tofu apply`** on the product's `tofu/` — creates the Cloudflare Tunnel + ingress, DNS record, and (menu only) R2 assets bucket + its scoped token.
 2. **`kamal setup`** — Kamal's idempotent first-time-or-anytime command:
    - `kamal server bootstrap` — installs Docker on the box if not already (no-op on subsequent runs).
-   - `kamal accessory boot all` — boots postgres, cloudflared, backups (no-op if already running).
+   - `kamal accessory boot all` — boots the product's `cloudflared` accessory (no-op if already running).
    - `kamal deploy` — builds the image natively on the box (amd64, no QEMU on the Mac via `builder.remote`), pushes to GHCR, pulls on the box, starts the app container.
 
-The app container's start command is `node scripts/migrate.mjs && node server.js` — Drizzle migrations run under a `pg_advisory_lock` (safe across multiple replicas) before the server boots.
+Each app container's start command is `node scripts/migrate.mjs && node server.js` — Drizzle migrations run under a `pg_advisory_lock` (safe across multiple replicas) before the server boots. Menu's migrate creates the `menu` database; genkan's creates `genkan`. Both connect to the shared `infra-postgres` server.
 
-Total time: **5–10 min** the first time (cold image build). Subsequent deploys are 1–2 min with the build cache (the no-op setup checks add ~10s — acceptable for not having two commands to remember).
+Total time: **5–10 min** the first time (cold image build for each product). Subsequent deploys are 1–2 min with the build cache.
 
 When it finishes, hit `https://$PUBLIC_HOSTNAME/up` — should return `{"ok":true,"db":"ok"}`.
 
@@ -190,8 +199,8 @@ just menu::deploy        # idempotent — tofu apply + kamal setup. Same on day-
 just menu::logs          # tail app logs (rolling)
 just menu::console       # bash inside a fresh app container with env loaded
 just menu::rollback      # roll back to the previous version
-just menu::backup        # force a pg_dump now (cron runs daily)
-just menu::restore       # restore latest dump (interactive)
+just infra::backup       # force a pg_dump now (cron runs daily)
+just infra::restore      # restore latest dump (interactive)
 just menu::destroy       # tofu destroy — removes the Cloudflare tunnel + DNS only; box untouched
 ```
 
@@ -219,7 +228,7 @@ Same five steps — only step 4 (provisioning) differs. For a cloud VPS, **nothi
 - **`products/menu/infra/.env`** → justfile `set dotenv-load` → visible to every `tofu`/`kamal` subprocess that the recipe spawns.
 - **Tunnel token** → generated by `tofu apply` in `products/menu/infra/tofu/`, read at deploy time by `products/menu/infra/kamal/.kamal/secrets` via `$(tofu -chdir=../tofu output -raw tunnel_token)` (paths are relative to Kamal's cwd, `products/menu/infra/kamal/`). No manual copy step.
 - **Registry password** → `$(gh auth token)` evaluated when Kamal logs into ghcr.io.
-- **App secrets** (BETTER_AUTH_SECRET, POSTGRES_PASSWORD, etc.) → `.kamal/secrets` references `$VAR` form, which Kamal evaluates against the env (sourced from `products/menu/infra/.env` via the justfile).
+- **App + infra secrets** (`MENU_AUTH_SECRET`, `INFRA_POSTGRES_PASSWORD`, etc.) → `.kamal/secrets` extracts them by BWS key name via the `bitwarden-sm` adapter, then exposes them under the in-container env-var names the apps expect (e.g. `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD`).
 
 `.kamal/secrets` is checked into git — it contains **only references**, never values.
 

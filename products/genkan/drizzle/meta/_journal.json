@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1779025466576,
-      "tag": "0000_amusing_stephen_strange",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1779031047488,
-      "tag": "0001_glamorous_hedge_knight",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1779045043134,
-      "tag": "0002_previous_leader",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1779045271728,
-      "tag": "0003_gigantic_revanche",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1779047072480,
-      "tag": "0004_wild_human_cannonball",
+      "when": 1779062974503,
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]

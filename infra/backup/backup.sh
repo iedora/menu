@@ -1,10 +1,13 @@
 #!/bin/sh
 # One-shot encrypted backup → S3-compatible (R2). Env vars expected:
-#   POSTGRES_HOST, POSTGRES_DATABASE, POSTGRES_USER, POSTGRES_PASSWORD
+#   POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD
+#   POSTGRES_DATABASE      — if empty, pg_dumpall covers every database
+#                            on the server (menu + genkan + future).
+#                            If set, pg_dump -d <name> covers only that one.
 #   S3_ENDPOINT, S3_BUCKET, S3_PREFIX, S3_REGION
 #   S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY  (read by aws-cli automatically)
-#   PASSPHRASE  (GPG symmetric encryption)
-#   BACKUP_KEEP_DAYS  (optional — prune older dumps)
+#   PASSPHRASE             — GPG symmetric encryption
+#   BACKUP_KEEP_DAYS       — optional, prune older dumps
 set -eu
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
@@ -13,27 +16,37 @@ export AWS_SECRET_ACCESS_KEY="$S3_SECRET_ACCESS_KEY"
 export AWS_DEFAULT_REGION="${S3_REGION:-auto}"
 
 TIMESTAMP=$(date +%F-%H%M%S)
-KEY="${S3_PREFIX:+${S3_PREFIX}/}${POSTGRES_DATABASE}-${TIMESTAMP}.dump.gpg"
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT
 
-echo "[backup] $(date -u +%FT%TZ) pg_dump ${POSTGRES_DATABASE}@${POSTGRES_HOST}"
-# Stream pg_dump stdout to gpg; the passphrase goes via fd 3 so it never
-# appears in /proc/<pid>/cmdline (where `--passphrase=$VAR` would leak it to
-# any process that can list pids on the host).
-pg_dump --format=custom --compress=9 \
-  -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" \
-  | gpg --batch --yes --passphrase-fd 3 --symmetric --cipher-algo AES256 \
-      --output "$TMP" 3<<EOF
+if [ -z "${POSTGRES_DATABASE:-}" ]; then
+  # Cluster-wide. Plain SQL (pg_dumpall doesn't support --format=custom).
+  LABEL=all
+  KEY="${S3_PREFIX:+${S3_PREFIX}/}${LABEL}-${TIMESTAMP}.sql.gpg"
+  echo "[backup] $(date -u +%FT%TZ) pg_dumpall @${POSTGRES_HOST}"
+  pg_dumpall --clean --if-exists \
+    -h "$POSTGRES_HOST" -U "$POSTGRES_USER" \
+    | gpg --batch --yes --passphrase-fd 3 --symmetric --cipher-algo AES256 \
+        --output "$TMP" 3<<EOF
 $PASSPHRASE
 EOF
+else
+  LABEL="$POSTGRES_DATABASE"
+  KEY="${S3_PREFIX:+${S3_PREFIX}/}${LABEL}-${TIMESTAMP}.dump.gpg"
+  echo "[backup] $(date -u +%FT%TZ) pg_dump ${POSTGRES_DATABASE}@${POSTGRES_HOST}"
+  pg_dump --format=custom --compress=9 \
+    -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" \
+    | gpg --batch --yes --passphrase-fd 3 --symmetric --cipher-algo AES256 \
+        --output "$TMP" 3<<EOF
+$PASSPHRASE
+EOF
+fi
 
 SIZE=$(stat -c %s "$TMP" 2>/dev/null || stat -f %z "$TMP")
 echo "[backup] encrypted size: ${SIZE} bytes; uploading s3://${S3_BUCKET}/${KEY}"
 aws --endpoint-url "$S3_ENDPOINT" s3 cp "$TMP" "s3://${S3_BUCKET}/${KEY}"
 
 if [ -n "${BACKUP_KEEP_DAYS:-}" ]; then
-  # Alpine's date supports `-d "@<epoch>"`. Compute cutoff = now - days.
   CUTOFF_EPOCH=$(( $(date -u +%s) - BACKUP_KEEP_DAYS * 86400 ))
   echo "[backup] pruning > ${BACKUP_KEEP_DAYS}d (cutoff epoch ${CUTOFF_EPOCH})"
   aws --endpoint-url "$S3_ENDPOINT" s3api list-objects-v2 \

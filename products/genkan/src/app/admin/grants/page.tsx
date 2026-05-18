@@ -68,7 +68,7 @@ export default async function AdminGrantsPage({
       {grants.length === 0 ? (
         <EmptyState label="No grants" note="No consent rows match the current filter." />
       ) : (
-        <Table>
+        <div className="admin-table-scroll"><Table>
           <thead>
             <tr>
               <Th style={{ width: '4ch' }}>N</Th>
@@ -112,7 +112,7 @@ export default async function AdminGrantsPage({
               </tr>
             ))}
           </tbody>
-        </Table>
+        </Table></div>
       )}
     </>
   )

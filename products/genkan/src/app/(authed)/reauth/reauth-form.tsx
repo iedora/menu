@@ -80,14 +80,7 @@ export function ReauthForm({
             </FieldHint>
           )}
         </Field>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 'var(--s-3)',
-            alignItems: 'center',
-          }}
-        >
+        <div className="ds-auth-foot" style={{ justifyContent: 'flex-end' }}>
           <Button type="submit" variant="accent" arrow disabled={pending}>
             {pending ? 'Confirming' : 'Confirm'}
           </Button>

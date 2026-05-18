@@ -55,15 +55,7 @@ export function ConsentForm({ scope }: { scope: string }) {
           {error}
         </p>
       ) : null}
-      <div
-        style={{
-          display: 'flex',
-          gap: 'var(--s-3)',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className="ds-auth-foot" style={{ justifyContent: 'flex-end' }}>
         <Button
           variant="ghost"
           onClick={() => submit(false)}

@@ -3,12 +3,12 @@ import postgres from 'postgres'
 /**
  * Single Postgres client for menu's test DB. Helpers reuse it; the fixture
  * `resetMenu()` calls `truncateAll()`. The TEST_DATABASE_URL env var
- * override mirrors `metamenu_test` from global-setup.
+ * override mirrors `menu_test` from global-setup.
  */
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5432/metamenu_test'
+  'postgresql://postgres:postgres@localhost:5432/menu_test'
 
 let _sql: ReturnType<typeof postgres> | null = null
 

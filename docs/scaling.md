@@ -59,13 +59,13 @@ Single command-flow change. Same `just menu::deploy`, different IP.
 # 2. ssh root@<new-ip> 'whoami'  → "root" instantly. No host-init needed.
 
 # 3. On the OLD box: dump postgres. Assets live in R2 already — no migration needed.
-ssh root@$OLD_HOST 'docker exec meta-menu-postgres pg_dump -U postgres metamenu | gzip' > db.sql.gz
+ssh root@$OLD_HOST 'docker exec infra-postgres pg_dump -U postgres menu | gzip' > db.sql.gz
 
 # 4. Edit products/menu/infra/.env: ONPREM_HOST=<new-ip>
 # 5. just menu::deploy   → tofu re-points the tunnel ingress, kamal boots fresh stack on new box.
 
 # 6. Restore data on the new box.
-gunzip < db.sql.gz | ssh root@$NEW_HOST 'docker exec -i meta-menu-postgres psql -U postgres metamenu'
+gunzip < db.sql.gz | ssh root@$NEW_HOST 'docker exec -i infra-postgres psql -U postgres menu'
 
 # 7. Hit https://$PUBLIC_HOSTNAME/up — should be {"ok":true,"db":"ok"}.
 ```
@@ -104,7 +104,7 @@ accessories:
     # e.g. DB_HOST=100.64.10.5  (MagicDNS: db.tail-xxxx.ts.net also works)
 ```
 
-App containers reach Postgres over the tailnet (`DATABASE_URL=postgres://...@100.64.10.5:5432/metamenu`). Kamal-proxy on each web host load-balances locally; Cloudflare Tunnel ingress points to the kamal-proxy on either box (or both via two `cloudflared` accessories). R2 assets + backups stay on Cloudflare, accessed identically from each web host.
+App containers reach Postgres over the tailnet (`DATABASE_URL=postgres://...@100.64.10.5:5432/menu`). Kamal-proxy on each web host load-balances locally; Cloudflare Tunnel ingress points to the kamal-proxy on either box (or both via two `cloudflared` accessories). R2 assets + backups stay on Cloudflare, accessed identically from each web host.
 
 **Latency reality.** Tailscale picks the lowest-latency path it can:
 - **Direct WireGuard** EU↔EU: typically 15–40 ms. Possible when at least one peer has a public IP (any Hetzner box does). Per DB round-trip.
@@ -153,11 +153,11 @@ Install Tailscale as a host service on the homelab. Takes 2 minutes, costs nothi
 ```bash
 # On the homelab box, as root:
 curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up --ssh --hostname=meta-menu-homelab
+tailscale up --ssh --hostname=iedora-homelab
 # Authenticate via the printed URL (one-time, your Tailscale account).
 
 # Note the MagicDNS hostname Tailscale assigns (something like
-# meta-menu-homelab.tail-xxxx.ts.net) — write it in products/menu/infra/.env as a comment
+# iedora-homelab.tail-xxxx.ts.net) — write it in products/menu/infra/.env as a comment
 # next to ONPREM_HOST. That's it.
 ```
 

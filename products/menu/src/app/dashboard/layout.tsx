@@ -27,27 +27,25 @@ export default async function DashboardLayout({
   const showAnalyticsLink = plan ? planHas(plan, 'analytics') : false
 
   const navLinkClass =
-    "font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)] no-underline transition-colors hover:text-[var(--ink)]"
+    "font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)] no-underline transition-colors hover:text-[var(--ink)] py-1.5"
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--paper)]">
-      {/* Top MetaStrip — quiet brand context, locale + plan slot */}
+      {/* Top meta strip */}
       <div className="border-b border-[var(--ink-14)]">
-        <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-3 px-6 py-3 text-[10.5px] uppercase tracking-[0.18em] font-[family-name:var(--mono)] text-[var(--ink-55)]">
+        <div className="ds-shell flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 text-[10.5px] uppercase tracking-[0.18em] font-[family-name:var(--mono)] text-[var(--ink-55)]">
           <div className="flex items-center gap-3">
             <span>MMXXVI</span>
             <span aria-hidden="true">·</span>
             <span>iedora · menu</span>
           </div>
-          <div className="flex items-center gap-3">
-            <UserLocaleSwitcher />
-          </div>
+          <UserLocaleSwitcher />
         </div>
       </div>
 
-      {/* Wordmark + nav */}
+      {/* Wordmark + nav — mobile-first column, row at sm: */}
       <header className="border-b border-[var(--ink-14)]">
-        <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-6 px-6 py-6">
+        <div className="ds-shell flex flex-col gap-3 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:py-6">
           <Link
             href="/dashboard"
             className="inline-flex shrink-0 items-baseline no-underline"
@@ -59,7 +57,7 @@ export default async function DashboardLayout({
               className="ds-wordmark--reveal"
             />
           </Link>
-          <nav className="flex min-w-0 items-center gap-6">
+          <nav className="flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-2">
             {showAnalyticsLink && (
               <Link
                 href="/dashboard/analytics"
@@ -74,7 +72,7 @@ export default async function DashboardLayout({
             </Link>
             {session?.user && (
               <span
-                className="hidden truncate font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)] sm:inline"
+                className="hidden min-w-0 truncate font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)] md:inline"
                 title={session.user.email}
               >
                 {session.user.email}
@@ -84,9 +82,7 @@ export default async function DashboardLayout({
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1320px] flex-1 px-6 py-12">
-        {children}
-      </main>
+      <main className="ds-shell flex-1 py-8 sm:py-12">{children}</main>
     </div>
   )
 }

@@ -72,7 +72,10 @@
 
   /* ── Layout ────────────────────────────────────────────────── */
   --gutter:          24px;
-  --margin:          56px;
+  /* Horizontal page gutter. Scales with viewport so the same token
+     keeps every iedora product aligned from 320px phones up to 1320px
+     desktops without per-breakpoint media queries in consumer CSS. */
+  --margin:          clamp(20px, 4.4vw, 56px);
   --container:       1320px;
   --measure:         56ch;
 

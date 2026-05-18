@@ -2,8 +2,8 @@ import type { CSSProperties, ReactNode } from 'react'
 
 /**
  * Shared editorial bits for the /admin pages. Page heads share the same
- * eyebrow / serif title / italic note pattern, so we centralize the styles
- * here rather than repeating them in every page file.
+ * eyebrow / serif title / italic note pattern. Layout lives in globals.css
+ * under .admin-pagehead* so the responsive behaviour is testable in CSS.
  */
 
 const eyebrowStyle: CSSProperties = {
@@ -14,24 +14,6 @@ const eyebrowStyle: CSSProperties = {
   textTransform: 'uppercase',
   color: 'var(--ink-55)',
   marginBottom: 12,
-}
-
-const titleStyle: CSSProperties = {
-  fontFamily: 'var(--serif)',
-  fontSize: 48,
-  lineHeight: 1.05,
-  letterSpacing: '-0.02em',
-  margin: 0,
-  fontWeight: 400,
-}
-
-const noteStyle: CSSProperties = {
-  fontFamily: 'var(--serif)',
-  fontStyle: 'italic',
-  fontSize: 17,
-  color: 'var(--ink-70)',
-  marginTop: 12,
-  maxWidth: '56ch',
 }
 
 export function PageHead({
@@ -46,26 +28,14 @@ export function PageHead({
   actions?: ReactNode
 }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        gap: 24,
-        paddingBottom: 36,
-        borderBottom: '1px solid var(--ink-14)',
-        marginBottom: 36,
-      }}
-    >
+    <div className="admin-pagehead">
       <div>
         <span style={eyebrowStyle}>{eyebrow}</span>
-        <h1 style={titleStyle}>{title}</h1>
-        {note ? <p style={noteStyle}>{note}</p> : null}
+        <h1 className="admin-pagehead__title">{title}</h1>
+        {note ? <p className="admin-pagehead__note">{note}</p> : null}
       </div>
       {actions ? (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {actions}
-        </div>
+        <div className="admin-pagehead__actions">{actions}</div>
       ) : null}
     </div>
   )

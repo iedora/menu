@@ -153,7 +153,7 @@ The package defends against three concrete attacks:
 
 1. **SSRF via subscription URLs.** A malicious admin (or a misconfigured
    `/admin/webhooks` form) could point a webhook at
-   `http://meta-menu-postgres:5432` or `http://169.254.169.254/…` and use
+   `http://infra-postgres:5432` or `http://169.254.169.254/…` and use
    the sender as an internal probe. Before each delivery the sender
    resolves the hostname and rejects private/loopback/link-local IPs.
    The same check applies to URL-literal IPs so a custom resolver can't

@@ -287,7 +287,7 @@ so CI controls the build separately (Node, not Bun — Bun +
 ### Database
 
 `tests/e2e/global-setup.ts` resets the test DB before each run.
-The DB URL comes from `DATABASE_URL` and points to `metamenu_test`.
+The DB URL comes from `DATABASE_URL` and points to `menu_test`.
 The CI workflow creates that database explicitly (see
 `.github/workflows/ci.yml`).
 

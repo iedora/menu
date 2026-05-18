@@ -49,7 +49,7 @@ export default async function AdminOrganizationsPage({
           note={q ? `Nothing matches “${q}”.` : 'No organizations yet.'}
         />
       ) : (
-        <Table>
+        <div className="admin-table-scroll"><Table>
           <thead>
             <tr>
               <Th style={{ width: '4ch' }}>N</Th>
@@ -85,7 +85,7 @@ export default async function AdminOrganizationsPage({
               </tr>
             ))}
           </tbody>
-        </Table>
+        </Table></div>
       )}
     </>
   )

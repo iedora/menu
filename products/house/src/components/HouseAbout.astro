@@ -188,9 +188,9 @@ const timelineMarks = [
     margin-right: calc(50% - 50vw);
   }
 
-  /* Faster scroll: design-system default is 320vh × 4 rooms (≈ 13 screens
-     just for About). 200vh still gives the phrases / line draws room to
-     breathe but takes ~40% less wheel travel. */
+  /* 200vh × 4 rooms keeps the About section to roughly one reader's-pace
+     scroll per room — enough travel for the five-phrase crossfade and
+     the line-draw to land, no more. */
   .about .ds-v-track { height: 200vh; }
 
   /* 01 Mission — two-column: copy on the left, house on the right. */
