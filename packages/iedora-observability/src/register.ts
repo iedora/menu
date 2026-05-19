@@ -1,5 +1,8 @@
 import { registerOTel } from "@vercel/otel";
-import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
+import {
+  AggregationTemporalityPreference,
+  OTLPMetricExporter,
+} from "@opentelemetry/exporter-metrics-otlp-http";
 import {
   PeriodicExportingMetricReader,
   type MetricReader,
@@ -201,12 +204,23 @@ export function registerIedoraOtel(opts: RegisterOptions): void {
   // is set — see the package's Configuration type, where metricReaders
   // is "[]" by default. The exporter consults OTEL_EXPORTER_OTLP_ENDPOINT
   // and OTEL_EXPORTER_OTLP_HEADERS itself.
+  //
+  // `temporalityPreference: DELTA` is load-bearing. The OTLP exporter
+  // defaults to CUMULATIVE — every 60s flush would resend the
+  // process-lifetime counter total, and the documented `sum(value)` queries
+  // in docs/observability.md would re-count the same events on every
+  // flush until the process restarts. DELTA exports only "events since
+  // last flush" — sum() over a window then gives the right answer. Per
+  // the OTLP metrics spec, DELTA is the recommended preference for
+  // dashboards that aggregate via sum(). Pinned here against the default.
   const metricReaders =
     opts.metricReaders ??
     (process.env.OTEL_EXPORTER_OTLP_ENDPOINT
       ? [
           new PeriodicExportingMetricReader({
-            exporter: new OTLPMetricExporter(),
+            exporter: new OTLPMetricExporter({
+              temporalityPreference: AggregationTemporalityPreference.DELTA,
+            }),
             exportIntervalMillis:
               opts.metricExportIntervalMs ?? DEFAULT_METRIC_EXPORT_INTERVAL_MS,
           }),

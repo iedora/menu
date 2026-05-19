@@ -258,8 +258,16 @@ so call sites stay safe to exercise in tests.
 OTel metrics flow through the same `@iedora/observability` package as
 traces — one set of resource attributes, one `OTEL_EXPORTER_OTLP_*` config,
 one OpenObserve org. `registerIedoraOtel` configures a
-`PeriodicExportingMetricReader` (60s interval) automatically when
-`OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+`PeriodicExportingMetricReader` (60s interval, **DELTA temporality**)
+automatically when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
+> **Why DELTA, not CUMULATIVE.** OTel's OTLP exporter defaults to
+> cumulative temporality, which sends the process-lifetime counter total
+> on every flush. The dashboards below use `sum(value)` aggregation —
+> cumulative would re-count every prior event on every flush, making
+> "views in the last hour" silently grow without bound. DELTA exports
+> only "events since last flush", so `sum(value)` over a window gives the
+> right answer. Pinned in `packages/iedora-observability/src/register.ts`.
 
 ### Surface
 
