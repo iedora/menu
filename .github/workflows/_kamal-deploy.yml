@@ -248,7 +248,7 @@ jobs:
       # Post-deploy CVE scan of the built image (OS layer + npm deps + jars).
       # Complements the CI-side `trivy fs` scan in menu.yml/genkan.yml, which
       # only sees the workspace lockfile — this one catches CVEs in the
-      # `node:22-bookworm-slim` base layer (glibc, openssl, etc.) that fs
+      # `node:24-bookworm-slim` base layer (glibc, openssl, etc.) that fs
       # scanning is blind to.
       #
       # Positioned AFTER the deploy + smoke check on purpose: Kamal's build/

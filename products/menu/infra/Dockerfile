@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile --ignore-scripts
 
 # ── Stage 2: build ────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim@sha256:689c11043dad91472750cd824c97dd5e2318e9dd6f954e492fe7af0135d33ceb AS builder
+FROM node:24-bookworm-slim@sha256:6bdcd38621f965652197b6fffa34b719a7dd6831a00e91e338671887e51e1e1b AS builder
 WORKDIR /workspace
 # Copy the ENTIRE /workspace from deps — this brings every workspace's
 # node_modules tree, including packages/design-system/node_modules where
@@ -65,7 +65,7 @@ ENV BETTER_AUTH_URL=http://build.local
 RUN node --run build
 
 # ── Stage 3: runtime ──────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim@sha256:689c11043dad91472750cd824c97dd5e2318e9dd6f954e492fe7af0135d33ceb AS runner
+FROM node:24-bookworm-slim@sha256:6bdcd38621f965652197b6fffa34b719a7dd6831a00e91e338671887e51e1e1b AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -93,7 +93,7 @@ WORKDIR /app/products/menu
 EXPOSE 3000
 
 # Kamal uses this as the rolling-deploy gate. /up returns 200 from Next
-# as soon as server.js binds the port. Node 22's global fetch covers the
+# as soon as server.js binds the port. Node 24's global fetch covers the
 # whole one-liner; no curl needed in the image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:3000/up').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
