@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // Bun workspaces monorepo — trace files up to the workspace root so the
   // standalone build includes the linked @iedora/design-system.
   outputFileTracingRoot: path.join(here, '..', '..'),
-  transpilePackages: ['@iedora/design-system', '@iedora/identity'],
+  transpilePackages: ['@iedora/design-system', '@iedora/identity', '@iedora/observability'],
   outputFileTracingIncludes: {
     '/*': [
       './node_modules/drizzle-orm/**/*',

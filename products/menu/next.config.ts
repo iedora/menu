@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   // linked @iedora/design-system package + its CSS / fonts. Without this
   // Next emits a warning and traces only inside products/menu/.
   outputFileTracingRoot: path.join(here, '..', '..'),
-  transpilePackages: ['@iedora/design-system'],
+  transpilePackages: ['@iedora/design-system', '@iedora/observability'],
   outputFileTracingIncludes: {
     // Workaround: Turbopack standalone não rastreia drizzle-orm/postgres
     // automaticamente porque a app importa-os mas o `scripts/migrate.mjs`
