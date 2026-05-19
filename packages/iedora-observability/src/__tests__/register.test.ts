@@ -55,4 +55,39 @@ describe("registerIedoraOtel", () => {
       }
     }
   });
+
+  it("does NOT warn when metricReaders is injected explicitly", async () => {
+    // Tests + diagnostics may inject a reader without configuring an OTLP
+    // endpoint. Suppressing the warning here keeps test output quiet — the
+    // reader-only path is intentional, not a misconfiguration.
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    process.env.NODE_ENV = "production";
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const { registerIedoraOtel } = await import("../register");
+      const {
+        InMemoryMetricExporter,
+        PeriodicExportingMetricReader,
+        AggregationTemporality,
+      } = await import("@opentelemetry/sdk-metrics");
+      const reader = new PeriodicExportingMetricReader({
+        exporter: new InMemoryMetricExporter(AggregationTemporality.DELTA),
+        exportIntervalMillis: 60_000,
+      });
+      registerIedoraOtel({
+        serviceName: "iedora-test-injected-reader",
+        metricReaders: [reader],
+      });
+      expect(consoleSpy).not.toHaveBeenCalled();
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalEndpoint !== undefined) {
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalEndpoint;
+      }
+    }
+  });
 });

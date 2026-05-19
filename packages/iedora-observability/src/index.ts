@@ -12,12 +12,22 @@
  */
 export { registerIedoraOtel, type RegisterOptions } from "./register";
 export { tracer } from "./tracer";
+export { meter } from "./meter";
 export {
   withTenantSpan,
+  tenantAttributes,
   IEDORA_RESTAURANT_ID,
   IEDORA_ORGANIZATION_ID,
   type TenantAttrs,
 } from "./tenant";
 
 /** Re-export the API types callers will actually touch. */
-export type { Span, SpanOptions, Tracer } from "@opentelemetry/api";
+export type {
+  Counter,
+  Histogram,
+  Meter,
+  Span,
+  SpanOptions,
+  Tracer,
+  UpDownCounter,
+} from "@opentelemetry/api";

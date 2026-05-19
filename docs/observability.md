@@ -253,11 +253,121 @@ booting — no network attempts, no test slowdown. `withTenantSpan` and
 `tracer` degrade to the global no-op tracer from `@opentelemetry/api`,
 so call sites stay safe to exercise in tests.
 
-## Not yet shipped (phase 2+)
+## Metrics (Phase 2 — shipped)
 
-- **Metrics.** OTel JS metrics SDK is GA; the wrapper doesn't enable
-  them yet. RED metrics + `restaurant_views_total` planned.
+OTel metrics flow through the same `@iedora/observability` package as
+traces — one set of resource attributes, one `OTEL_EXPORTER_OTLP_*` config,
+one OpenObserve org. `registerIedoraOtel` configures a
+`PeriodicExportingMetricReader` (60s interval) automatically when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
+### Surface
+
+```ts
+import { meter, tenantAttributes } from "@iedora/observability";
+
+// Counter — long-lived, increment many times:
+const counter = meter.createCounter("iedora.something_total", {
+  description: "What you are counting",
+  unit: "operation",
+});
+counter.add(1, tenantAttributes({ restaurantId, organizationId }));
+
+// Histogram for latency-style data:
+const dur = meter.createHistogram("iedora.work_duration_ms");
+dur.record(elapsedMs, tenantAttributes({ restaurantId }));
+```
+
+### Conventions
+
+- Instrument names: lowercase snake_case, `iedora.` namespace
+  (e.g. `iedora.restaurant_views_total`). Distinct from Next 16's
+  auto-emitted `http.server.*` metrics.
+- Counters end in `_total`. Histograms end in `_ms` for latency,
+  `_bytes` for sizes.
+- Tenant labels via `tenantAttributes(...)` — same attribute keys as
+  spans (`tenant.restaurant_id`, `tenant.organization_id`), so the same
+  query filter works against both signals.
+- Bound-cardinality labels only. Restaurant IDs are fine (prod count is
+  small); user IDs are NOT (would explode the label space — use a span
+  attribute for those if you need to inspect per-user behaviour).
+
+### What's emitted today
+
+| Metric                              | Type           | Where                                            | Labels                                                       |
+| ----------------------------------- | -------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| `iedora.restaurant_views_total`     | Counter        | menu — `src/features/metrics/index.ts`           | `tenant.restaurant_id`, `tenant.organization_id`, `iedora.language` |
+| `http.server.request.duration`      | Histogram (ms) | Auto-instrumented by Next 16                     | `http.method`, `http.route`, `http.status_code`              |
+| `http.server.active_requests`       | UpDownCounter  | Auto-instrumented by Next 16                     | `http.method`, `http.route`                                  |
+
+Anything Next 16 auto-instruments comes for free — no extra wiring.
+
+### Query recipes (OpenObserve metrics)
+
+Open `https://obs.iedora.com` → Metrics tab. OpenObserve normalizes
+dotted labels to underscored column names — `tenant.restaurant_id`
+becomes `tenant_restaurant_id`. Use `Streams → metrics → Schema` to see
+the exact column names if a query doesn't return rows.
+
+#### One restaurant's daily views this week
+
+```sql
+SELECT
+  toStartOfDay(timestamp) AS day,
+  sum(value) AS views
+FROM metrics
+WHERE metric_name = 'iedora.restaurant_views_total'
+  AND tenant_restaurant_id = 'r_abc123'
+  AND timestamp > now() - INTERVAL '7 day'
+GROUP BY day
+ORDER BY day
+```
+
+#### Top 10 restaurants by views in the last hour
+
+```sql
+SELECT tenant_restaurant_id, sum(value) AS views
+FROM metrics
+WHERE metric_name = 'iedora.restaurant_views_total'
+  AND timestamp > now() - INTERVAL '1 hour'
+GROUP BY tenant_restaurant_id
+ORDER BY views DESC
+LIMIT 10
+```
+
+#### p95 request latency per route
+
+```sql
+SELECT
+  http_route,
+  quantile(0.95)(value) AS p95_ms
+FROM metrics
+WHERE metric_name = 'http.server.request.duration'
+  AND service_name = 'iedora-menu'
+  AND timestamp > now() - INTERVAL '15 minute'
+GROUP BY http_route
+ORDER BY p95_ms DESC
+```
+
+### Adding a metric
+
+1. Pick a name + type (counter / histogram / up-down-counter / gauge).
+2. Create the instrument once at module load: `const x = meter.createCounter(...)`.
+3. Increment / record at the call site with `tenantAttributes(...)` when
+   the work is tenant-scoped.
+4. Add a row to the table above + a query recipe if it's load-bearing
+   for ops.
+
+That's it. No PR to `@iedora/observability` needed for routine metric
+additions — only the wrapper plumbing lives there. Metric definitions
+belong to the slice that owns them.
+
+## Not yet shipped (phase 3+)
+
 - **Logs.** `@opentelemetry/sdk-logs` is still 0.x. Container logs via
-  `kamal app logs` until that reaches 1.0.
+  `kamal app logs` until that reaches 1.0. Tracked in #11.
 - **Browser RUM.** Phase 4. OpenObserve has a RUM SDK; not wired yet.
+  Tracked in #12.
+- **OpenObserve UI login via Genkan OIDC.** Currently uses shared root
+  creds — fine for solo, blocker for second contributor. Tracked in #13.
 - **Better Auth telemetry.** Stays OFF (genkan rule 7). Do not flip.

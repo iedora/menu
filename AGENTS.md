@@ -163,13 +163,14 @@ iedora/                                  repo root
         secret-storage.ts                AES-256-GCM HKDF cipher used for stored webhook secrets
         __tests__/                       crypto + parsing unit tests (no DB)
       README.md                          surface + security model
-    iedora-observability/                @iedora/observability — one-line OTel wiring per product
+    iedora-observability/                @iedora/observability — one-line OTel wiring per product (traces + metrics)
       src/
-        index.ts                         barrel (registerIedoraOtel, tracer, withTenantSpan)
-        register.ts                      wraps @vercel/otel — resource attrs + sampler + noise filter
+        index.ts                         barrel (registerIedoraOtel, tracer, meter, withTenantSpan, tenantAttributes)
+        register.ts                      wraps @vercel/otel — resource attrs + sampler + noise filter + 60s metrics reader
         tracer.ts                        pre-configured Tracer for custom spans
-        tenant.ts                        withTenantSpan + IEDORA_RESTAURANT_ID/ORGANIZATION_ID
-        __tests__/                       no-op-in-tests + tenant attribute contract
+        meter.ts                         pre-configured Meter for counters / histograms / gauges
+        tenant.ts                        withTenantSpan + tenantAttributes + IEDORA_RESTAURANT_ID/ORGANIZATION_ID
+        __tests__/                       no-op-in-tests, tenant attribute contract, tenant-isolation contracts
       README.md                          quickstart + behaviour table
     iedora-auth-testkit/                 @iedora/auth-testkit — in-process Better Auth + PGLite
       src/

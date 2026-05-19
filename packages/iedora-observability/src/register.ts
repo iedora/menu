@@ -1,4 +1,9 @@
 import { registerOTel } from "@vercel/otel";
+import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
+import {
+  PeriodicExportingMetricReader,
+  type MetricReader,
+} from "@opentelemetry/sdk-metrics";
 import {
   ParentBasedSampler,
   TraceIdRatioBasedSampler,
@@ -23,6 +28,14 @@ import {
 // in @opentelemetry/semantic-conventions/package.json::exports. The string
 // is well-known and shipped on every fleet host via $HOST_NAME.
 import { ATTR_HOST_NAME } from "@opentelemetry/semantic-conventions/incubating";
+
+/**
+ * Default OTLP metric export interval (ms). 60s matches what most
+ * dashboards expect — anything faster wastes bandwidth without changing
+ * the picture, and anything much slower lags dashboards behind reality.
+ * Override per-call via RegisterOptions.metricExportIntervalMs.
+ */
+const DEFAULT_METRIC_EXPORT_INTERVAL_MS = 60_000;
 
 /**
  * Spans whose name matches any of these regexes are dropped at sampling
@@ -108,6 +121,17 @@ export type RegisterOptions = {
    * 100% sampling temporarily.
    */
   sampler?: Sampler;
+  /**
+   * Override the metric export interval (ms). Defaults to 60s. Useful for
+   * tests that want a faster flush, or for high-frequency debugging.
+   */
+  metricExportIntervalMs?: number;
+  /**
+   * Inject one or more MetricReaders directly — bypasses the default OTLP
+   * exporter setup. Primary use case: tests that pull samples via an
+   * in-memory reader. Production callers should not need this.
+   */
+  metricReaders?: MetricReader[];
 };
 
 /**
@@ -145,13 +169,14 @@ export function registerIedoraOtel(opts: RegisterOptions): void {
   const environment =
     process.env.DEPLOYMENT_ENV ?? process.env.NODE_ENV ?? "development";
 
-  if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
+  if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT && !opts.metricReaders) {
     // Visible at boot, not on every request. Without an OTLP endpoint
-    // @vercel/otel falls back to a no-op (off-Vercel), so traces silently
-    // vanish. One line in the logs is cheaper than wondering why
-    // OpenObserve is empty.
+    // @vercel/otel falls back to a no-op (off-Vercel), so traces AND
+    // metrics silently vanish. One line in the logs is cheaper than
+    // wondering why OpenObserve is empty. The `metricReaders` escape
+    // hatch suppresses the warning for tests that inject a reader.
     console.warn(
-      `[iedora-observability] OTEL_EXPORTER_OTLP_ENDPOINT not set; traces will not be exported (env=${environment}).`,
+      `[iedora-observability] OTEL_EXPORTER_OTLP_ENDPOINT not set; traces and metrics will not be exported (env=${environment}).`,
     );
   }
 
@@ -170,9 +195,28 @@ export function registerIedoraOtel(opts: RegisterOptions): void {
     resource[ATTR_HOST_NAME] = process.env.HOST_NAME;
   }
 
+  // Metric readers: explicit injection (tests) wins; otherwise build a
+  // PeriodicExportingMetricReader pointed at the OTLP endpoint. @vercel/otel
+  // does NOT auto-configure metric exporters even when the trace endpoint
+  // is set — see the package's Configuration type, where metricReaders
+  // is "[]" by default. The exporter consults OTEL_EXPORTER_OTLP_ENDPOINT
+  // and OTEL_EXPORTER_OTLP_HEADERS itself.
+  const metricReaders =
+    opts.metricReaders ??
+    (process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+      ? [
+          new PeriodicExportingMetricReader({
+            exporter: new OTLPMetricExporter(),
+            exportIntervalMillis:
+              opts.metricExportIntervalMs ?? DEFAULT_METRIC_EXPORT_INTERVAL_MS,
+          }),
+        ]
+      : []);
+
   registerOTel({
     serviceName: opts.serviceName,
     attributes: resource,
     traceSampler: opts.sampler ?? defaultSampler(environment),
+    metricReaders,
   });
 }
