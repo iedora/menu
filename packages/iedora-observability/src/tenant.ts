@@ -20,6 +20,31 @@ export type TenantAttrs = {
 };
 
 /**
+ * Build the canonical tenant-attribute record for a metric instrument's
+ * `.add` / `.record` call. The same shape `withTenantSpan` writes onto
+ * spans — using both keeps span filters and metric filters in lock-step
+ * so a query for `tenant.restaurant_id = X` returns matching slices of
+ * both signals.
+ *
+ *   const counter = meter.createCounter('iedora.foo_total')
+ *   counter.add(1, tenantAttributes({ restaurantId, organizationId }))
+ *
+ * Returns a plain attribute object — safe to spread with other
+ * non-tenant attributes (`{ ...tenantAttributes(t), 'iedora.language': 'pt' }`).
+ */
+export function tenantAttributes(
+  attrs: TenantAttrs,
+): Record<string, string> {
+  const out: Record<string, string> = {
+    [IEDORA_RESTAURANT_ID]: attrs.restaurantId,
+  };
+  if (attrs.organizationId) {
+    out[IEDORA_ORGANIZATION_ID] = attrs.organizationId;
+  }
+  return out;
+}
+
+/**
  * Wrap a request-scoped operation in a span tagged with tenant attributes,
  * then run `fn` inside it. The span is ended automatically — even on throw —
  * and exceptions are surfaced both as a span status AND re-thrown so the

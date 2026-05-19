@@ -21,7 +21,9 @@ import {
 | ---------------------- | ------------------------------------------------------------------------------ |
 | `registerIedoraOtel`   | Called once from the product's `instrumentation.ts::register()`.               |
 | `tracer`               | Pre-configured `Tracer` instance for custom spans.                             |
+| `meter`                | Pre-configured `Meter` instance for counters / histograms / gauges.            |
 | `withTenantSpan`       | Wrap a request-scoped operation in a span tagged with `tenant.restaurant_id`.  |
+| `tenantAttributes`     | Build the canonical tenant-attribute record for metric `.add` / `.record` calls. |
 | `IEDORA_RESTAURANT_ID` / `IEDORA_ORGANIZATION_ID` | Stable attribute-key constants for dashboards. |
 
 ## Quickstart
@@ -50,6 +52,25 @@ export async function loadPublicMenu(slug: string) {
   );
 }
 ```
+
+Tenant-scoped counters / histograms:
+
+```ts
+import { meter, tenantAttributes } from "@iedora/observability";
+
+const viewsCounter = meter.createCounter("iedora.restaurant_views_total", {
+  description: "Newly tracked public-menu views (deduped per visitor/restaurant/hour)",
+});
+
+// Inside the beacon handler — fire one increment per real visit:
+viewsCounter.add(1, {
+  ...tenantAttributes({ restaurantId, organizationId }),
+  "iedora.language": language,
+});
+```
+
+The counter is safe to create at module load even before
+`registerIedoraOtel` has run — the no-op meter degrades cleanly.
 
 ## Behaviour
 
@@ -83,6 +104,19 @@ when the work is scoped to one tenant.
 Both wrap a `NoiseFilteringSampler` that drops `GET /up` (Kamal proxy
 health checks) and `GET /api/track/*` (public-menu view beacon) before
 any decision is made.
+
+### Metrics export
+
+When `OTEL_EXPORTER_OTLP_ENDPOINT` is set, `registerIedoraOtel`
+configures a `PeriodicExportingMetricReader` (60s interval by default)
+that ships metrics via OTLP-HTTP to the same OpenObserve instance as
+traces. The reader is not active when the endpoint is unset — the
+package's `meter` still works (it's just no-op), so callers don't need
+to gate their counter creation on register having run.
+
+Tests inject their own reader via `registerIedoraOtel({ metricReaders })`
+to pull samples synchronously (`InMemoryMetricExporter` + `forceFlush()`).
+See `src/__tests__/metrics.test.ts` for the pattern.
 
 ### No-op in tests
 

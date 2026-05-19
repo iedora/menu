@@ -55,4 +55,108 @@ describe("registerIedoraOtel", () => {
       }
     }
   });
+
+  it("does NOT warn when metricReaders is injected explicitly", async () => {
+    // Tests + diagnostics may inject a reader without configuring an OTLP
+    // endpoint. Suppressing the warning here keeps test output quiet — the
+    // reader-only path is intentional, not a misconfiguration.
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    process.env.NODE_ENV = "production";
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const { registerIedoraOtel } = await import("../register");
+      const {
+        InMemoryMetricExporter,
+        PeriodicExportingMetricReader,
+        AggregationTemporality,
+      } = await import("@opentelemetry/sdk-metrics");
+      const reader = new PeriodicExportingMetricReader({
+        exporter: new InMemoryMetricExporter(AggregationTemporality.DELTA),
+        exportIntervalMillis: 60_000,
+      });
+      registerIedoraOtel({
+        serviceName: "iedora-test-injected-reader",
+        metricReaders: [reader],
+      });
+      expect(consoleSpy).not.toHaveBeenCalled();
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalEndpoint !== undefined) {
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalEndpoint;
+      }
+    }
+  });
+
+  it("constructs the OTLP metric exporter with DELTA temporality (counters are sum-aggregatable)", async () => {
+    // Pinned against the OTLP exporter default (CUMULATIVE). Caught by
+    // Codex on PR #14: a CUMULATIVE counter sends process-lifetime totals
+    // on every flush, so every documented `sum(value)` query in
+    // docs/observability.md would re-count the same events for the
+    // lifetime of the container. DELTA reports "events since last flush"
+    // — sum() over a window then gives the right answer.
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    process.env.NODE_ENV = "production";
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT =
+      "http://infra-openobserve.test:5080/api/default";
+
+    // Spy on the exporter constructor through a module mock. Reset module
+    // graph so the spy applies to the import chain register.ts uses.
+    vi.resetModules();
+    const exporterSpy = vi.fn();
+    vi.doMock("@opentelemetry/exporter-metrics-otlp-http", async () => {
+      const actual = await vi.importActual<
+        typeof import("@opentelemetry/exporter-metrics-otlp-http")
+      >("@opentelemetry/exporter-metrics-otlp-http");
+      return {
+        ...actual,
+        OTLPMetricExporter: class SpiedExporter {
+          constructor(opts?: unknown) {
+            exporterSpy(opts);
+          }
+          // Cast/satisfy the MetricExporter contract just enough for
+          // PeriodicExportingMetricReader's constructor to accept it.
+          export(): void {}
+          forceFlush(): Promise<void> {
+            return Promise.resolve();
+          }
+          shutdown(): Promise<void> {
+            return Promise.resolve();
+          }
+          selectAggregation(): typeof actual.AggregationTemporalityPreference {
+            return actual.AggregationTemporalityPreference;
+          }
+          selectAggregationTemporality(): unknown {
+            return actual.AggregationTemporalityPreference.DELTA;
+          }
+        },
+      };
+    });
+
+    try {
+      const { registerIedoraOtel } = await import("../register");
+      registerIedoraOtel({ serviceName: "iedora-test-delta" });
+      expect(exporterSpy).toHaveBeenCalledTimes(1);
+      const passedOptions = exporterSpy.mock.calls[0]?.[0] as
+        | { temporalityPreference?: number }
+        | undefined;
+      // AggregationTemporalityPreference.DELTA === 0 per the enum definition
+      // in @opentelemetry/exporter-metrics-otlp-http. We assert the value
+      // explicitly because importing the enum from the mocked module is
+      // intentionally awkward; the numeric pin is the contract.
+      expect(passedOptions?.temporalityPreference).toBe(0);
+    } finally {
+      vi.doUnmock("@opentelemetry/exporter-metrics-otlp-http");
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalEndpoint !== undefined) {
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalEndpoint;
+      } else {
+        delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+      }
+    }
+  });
 });
