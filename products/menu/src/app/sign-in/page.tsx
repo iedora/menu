@@ -50,7 +50,20 @@ function SignInDispatcher() {
   const next = safeNextPath(params.get('next'))
 
   useEffect(() => {
-    authClient.signIn.oauth2({ providerId: 'genkan', callbackURL: next })
+    // `signIn.oauth2()` POSTs to /api/auth/sign-in/oauth2; the server
+    // responds with `{ url, redirect: true }` (the genkan authorize URL).
+    // Better Auth's client does NOT auto-follow that response on its own —
+    // we have to do `window.location.href = url` manually. Otherwise the
+    // browser stays on /sign-in indefinitely with the fetch wasted.
+    // See https://github.com/better-auth/better-auth/issues/1160.
+    void authClient.signIn
+      .oauth2({ providerId: 'genkan', callbackURL: next })
+      .then((res) => {
+        const url = res?.data?.url
+        if (typeof url === 'string' && url) {
+          window.location.href = url
+        }
+      })
   }, [next])
 
   return <SigningInIndicator />
