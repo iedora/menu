@@ -231,6 +231,22 @@ variable "infra_openobserve_root_user_email" {
   sensitive   = true
 }
 
+variable "allow_masterkey_rotation" {
+  description = <<-EOT
+    One-time override for the lifecycle.prevent_destroy guard on
+    `random_password.zitadel_masterkey`. Default false → prevent_destroy=true,
+    blocking accidental `-replace` (rotating the masterkey makes the encrypted
+    Zitadel projection table unreadable).
+
+    To actually rotate, pass `TF_VAR_allow_masterkey_rotation=true` for that
+    single apply, run `tofu apply -replace=random_password.zitadel_masterkey`,
+    then unset the var. The full re-key flow (recovering session state, etc.)
+    is documented in docs/secrets.md.
+  EOT
+  type        = bool
+  default     = false
+}
+
 # ── Menu app runtime env ─────────────────────────────────────────────────────
 # Every runtime env var the menu container needs is produced by TF
 # resources in this root — no BWS round-trip, no infra_menu_* vars:

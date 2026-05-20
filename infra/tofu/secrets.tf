@@ -29,10 +29,14 @@ resource "random_password" "zitadel_masterkey" {
   length  = 32 # Zitadel rejects anything other than exactly 32 chars
   special = false
   # See docs/secrets.md "Do NOT rotate casually" — rotating this
-  # makes the encrypted projection table unreadable. Lifecycle gate
-  # so a stray -replace doesn't silently brick auth.
+  # makes the encrypted projection table unreadable. The gate inverts
+  # the explicit `allow_masterkey_rotation` knob: false (default) →
+  # prevent_destroy = true, blocking any -replace. To actually rotate,
+  # pass `TF_VAR_allow_masterkey_rotation=true` for that single apply.
+  # Dynamic prevent_destroy is OpenTofu 1.12+ — it lets us gate this
+  # behind a variable instead of code-editing the lifecycle block.
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = !var.allow_masterkey_rotation
   }
 }
 
