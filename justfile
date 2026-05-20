@@ -30,20 +30,22 @@ mod house 'products/house/infra'
 _default:
     @just --list
 
-# Start the full menu dev stack: docker compose (postgres + localstack +
-# zitadel) → tofu seed → drizzle migrate → next dev. Equivalent to
-# `cd products/menu && bun run dev`. Lives at the root because the dev
-# infra is transversal across products — `infra/dev/dev.go` is the
-# orchestrator.
-[doc("boot the full menu dev stack")]
-dev:
-    @go run infra/dev/dev.go
+# Boot the dev stack — everything (or a subset, via -i / --only / --except).
+# Pure OpenTofu — `infra/dev/tofu/` calls the shared `infra/modules/services/*`
+# modules with dev inputs (local docker daemon, host-published ports,
+# LocalStack instead of R2). No docker-compose.
+[doc("boot the dev stack via OpenTofu")]
+dev *ARGS:
+    @cd infra/dev && go run . {{ARGS}}
 
 # Tear the dev stack down + wipe its volumes. Use before a clean
 # re-bootstrap when you want fresh PATs / fresh Zitadel DB.
-[doc("wipe the dev stack (volumes + bootstrap PATs + .env.local)")]
+[doc("wipe the dev stack (containers + network + volumes + PATs + .env.local)")]
 dev-down:
-    docker compose -f infra/dev/docker-compose.yml down -v
+    -cd infra/dev/tofu && tofu destroy -auto-approve -var zitadel_pat="" 2>/dev/null
+    -docker ps -aq --filter "name=infra-" | xargs -r docker rm -f
+    -docker network rm dev 2>/dev/null
+    -docker volume ls -q --filter "name=dev_" | xargs -r docker volume rm
     rm -rf infra/dev/.zitadel-bootstrap
     rm -rf infra/dev/tofu/.terraform infra/dev/tofu/.terraform.lock.hcl infra/dev/tofu/terraform.tfstate*
     rm -f products/menu/.env.local

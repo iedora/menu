@@ -1,29 +1,20 @@
-// Dev container orchestrator. Pure compose-generator + TF seed + env
-// file emitter — does NOT launch any host app (next dev, astro dev,
-// etc.). A menu-team dev shouldn't have to install Bun/Astro just to
-// have this script able to run house, and vice versa. Each product
-// owns its own `bun run dev` and runs it from its product dir AFTER
-// `just dev`.
+// Dev container orchestrator. One declarative source (OpenTofu) for
+// dev AND prod — `infra/modules/services/*` are the building blocks,
+// `infra/dev/tofu/` is the dev root, `infra/tofu/` is the prod root.
+// No docker-compose.
 //
-// Same shape as prod: shared infra (postgres, localstack, zitadel,
-// openobserve) sits at `infra/dev/`. Products (`menu`, `house`) are
-// listed in the service graph as consumer presets — picking one
-// expands to the union of infra it depends on.
+// Default: bring everything up — `just dev`.
 //
-// Default: bring up everything — `just dev`.
+// Subset selection (each service is a `enable_*` TF input):
+//   just dev -i                    interactive TUI per category
+//   just dev --only menu           everything menu needs (zitadel + …)
+//   just dev --only zitadel        zitadel + postgres only
+//   just dev --except openobserve  everything else, deps preserved
 //
-// Subset selection (deps auto-resolved):
-//   just dev -i                  interactive TUI per category
-//   just dev --only menu         everything menu needs (postgres + zitadel + ...)
-//   just dev --only zitadel      zitadel + postgres only
-//   just dev --except openobserve  everything else, deps preserved unless blocked
-//
-// When the user opts out of zitadel, dev.go does NOT write
-// `products/menu/.env.local` — they're responsible for hand-providing
-// those keys (or pointing them at an alternate IdP).
-//
-// Stdlib only except for `github.com/charmbracelet/huh` (one Charm dep
-// for the grouped multi-select TUI). go.mod committed.
+// The host apps (Next dev for menu) are NOT launched by this script —
+// each product owns its own `bun run dev`. The summary at the end
+// points the user at the right URLs (always read from the canonical
+// source: .env / `docker port`).
 
 package main
 
@@ -51,28 +42,24 @@ const (
 )
 
 type service struct {
-	name        string   // selection key + label
-	composeName []string // docker-compose service names; empty for host-run apps
-	deps        []string // transitive selection deps (other service.name values)
-	cat         category
+	name     string   // selection key + TF enable_* suffix + TUI label
+	tfVar    string   // empty for products (they're presets, not TF gates)
+	deps     []string // transitive selection deps (other service.name values)
+	cat      category
+	hostRun  bool // true if launched on the host (next dev), false if TF-managed
 }
 
 // Ordered for deterministic UI rendering.
-//
-// Products are presets — selecting one expands to the infra services
-// it depends on. They have no compose entries of their own (the host
-// app is launched by the product's own `bun run dev`, separately).
 var allServices = []service{
-	{name: "postgres", composeName: []string{"postgres"}, cat: catInfra},
-	{name: "localstack", composeName: []string{"localstack"}, cat: catInfra},
-	{name: "zitadel", composeName: []string{"zitadel", "zitadel-login"}, deps: []string{"postgres"}, cat: catInfra},
-	{name: "openobserve", composeName: []string{"openobserve"}, deps: []string{"localstack"}, cat: catInfra},
-	{name: "menu", deps: []string{"postgres", "localstack", "zitadel", "openobserve"}, cat: catProducts},
-	// House serves the pre-built Astro dist via Caddy in a container —
-	// `products/house/Dockerfile`. Lets a menu-team dev bring house
-	// up without installing Bun/Astro locally. For active house dev
-	// with HMR, `cd products/house && bun run dev` on the host.
-	{name: "house", composeName: []string{"house"}, cat: catProducts},
+	{name: "postgres", tfVar: "enable_postgres", cat: catInfra},
+	{name: "localstack", tfVar: "enable_localstack", cat: catInfra},
+	{name: "zitadel", tfVar: "enable_zitadel", deps: []string{"postgres"}, cat: catInfra},
+	{name: "openobserve", tfVar: "enable_openobserve", deps: []string{"localstack"}, cat: catInfra},
+	{name: "house", tfVar: "enable_house", cat: catProducts},
+	// `menu` is a preset — selecting it expands to its dep set. It
+	// has no TF resource itself (menu runs host-side via `bun run
+	// dev` in products/menu/, where HMR works).
+	{name: "menu", deps: []string{"postgres", "localstack", "zitadel", "openobserve"}, cat: catProducts, hostRun: true},
 }
 
 func serviceByName(n string) (service, bool) {
@@ -120,18 +107,6 @@ func expandDeps(selected []string) []string {
 	return out
 }
 
-// composeServiceNames maps the selection to docker-compose service names.
-// Skips entries with no compose presence (e.g. menu — host-run via Next).
-func composeServiceNames(selected []string) []string {
-	out := []string{}
-	for _, n := range selected {
-		s, _ := serviceByName(n)
-		out = append(out, s.composeName...)
-	}
-	sort.Strings(out)
-	return out
-}
-
 func contains(haystack []string, needle string) bool {
 	for _, s := range haystack {
 		if s == needle {
@@ -155,10 +130,6 @@ func main() {
 		fail("%v", err)
 	}
 	selected = expandDeps(selected)
-	// `--except` must win over dep-expansion: a user saying
-	// `--except openobserve` doesn't want it back through menu's deps.
-	// The menu app boots either way — when OTLP_ENDPOINT can't reach
-	// the collector, the observability SDK degrades to a no-op silently.
 	if *except != "" {
 		blocked := map[string]bool{}
 		for _, n := range splitCSV(*except) {
@@ -177,38 +148,70 @@ func main() {
 	}
 
 	repoRoot := findRepoRoot()
-	devInfraDir := filepath.Join(repoRoot, "infra/dev")
 	devTofuDir := filepath.Join(repoRoot, "infra/dev/tofu")
 	menuDir := filepath.Join(repoRoot, "products/menu")
 
 	fmt.Printf("[dev] selection: %s\n", strings.Join(selected, ", "))
 
-	composeServices := composeServiceNames(selected)
-	if len(composeServices) > 0 {
-		step(1, "docker compose up -d --wait")
-		args := append([]string{"compose", "up", "-d", "--wait"}, composeServices...)
-		runIn(devInfraDir, "docker", args...)
-	} else {
-		fmt.Println("[dev] no docker services in this selection — skipping compose")
+	// Build the -var flags for the enable_* toggles. Anything not in
+	// `selected` defaults to false; selected items pass true.
+	enableVars := []string{}
+	for _, s := range allServices {
+		if s.tfVar == "" {
+			continue
+		}
+		enableVars = append(enableVars,
+			"-var", fmt.Sprintf("%s=%t", s.tfVar, contains(selected, s.name)))
 	}
 
-	// Zitadel-bound steps. Skip when the user opted out — they're
-	// responsible for providing the dynamic Zitadel keys in
-	// products/menu/.env.local (or hitting a remote IdP).
+	step(1, "tofu init")
+	runIn(devTofuDir, "tofu", "init", "-upgrade", "-input=false")
+
+	step(2, "tofu apply -target=... (containers — first pass)")
+	// First pass targets the docker resources only. zitadel_* /
+	// random_password / module.menu_env need the runtime PAT and
+	// aren't part of this pass; targeting keeps stale state from
+	// previous failed runs from tripping the apply.
+	applyArgs := []string{
+		"apply", "-auto-approve", "-input=false",
+		"-target=docker_network.dev",
+		"-target=docker_volume.postgres_data",
+		"-target=docker_volume.localstack_data",
+		"-target=docker_volume.openobserve_data",
+		"-target=docker_container.zitadel_bootstrap_chmod",
+		"-target=module.postgres",
+		"-target=module.localstack",
+		"-target=module.zitadel",
+		"-target=module.zitadel_login",
+		"-target=module.openobserve",
+		"-target=docker_image.house",
+		"-target=module.house",
+		"-var", "zitadel_pat=",
+	}
+	applyArgs = append(applyArgs, enableVars...)
+	runIn(devTofuDir, "tofu", applyArgs...)
+
 	if contains(selected, "zitadel") {
-		step(2, "waiting for .zitadel-bootstrap/menu-sa.pat")
-		patPath := filepath.Join(devInfraDir, ".zitadel-bootstrap/menu-sa.pat")
+		step(3, "wait for FirstInstance PAT + Zitadel API ready")
+		patPath := filepath.Join(repoRoot, "infra/dev/.zitadel-bootstrap/menu-sa.pat")
 		if err := waitForFile(patPath, 60*time.Second); err != nil {
-			fail("%v\nhint: docker compose -f infra/dev/docker-compose.yml logs zitadel", err)
+			fail("%v\nhint: docker logs infra-zitadel", err)
+		}
+		// PAT existing means FirstInstance ran but the HTTP/gRPC server
+		// may still be coming up. Block on /debug/ready (Zitadel's
+		// readiness probe) before the seed apply.
+		if err := waitForHTTPOK("http://localhost:8080/debug/ready", 60*time.Second); err != nil {
+			fail("%v\nhint: docker logs infra-zitadel", err)
 		}
 		patBytes, _ := os.ReadFile(patPath)
 		pat := strings.TrimSpace(string(patBytes))
 
-		step(3, "tofu apply (seed Zitadel + emit env files)")
-		runIn(devTofuDir, "tofu", "init", "-upgrade", "-input=false")
-		runIn(devTofuDir, "tofu", "apply", "-auto-approve", "-input=false", "-var", "zitadel_pat="+pat)
+		step(4, "tofu apply (seed Zitadel + emit env files)")
+		seedArgs := append([]string{"apply", "-auto-approve", "-input=false"}, enableVars...)
+		seedArgs = append(seedArgs, "-var", "zitadel_pat="+pat)
+		runIn(devTofuDir, "tofu", seedArgs...)
 
-		step(4, "write products/menu/{.env,.env.local}")
+		// Write the two env files from TF outputs.
 		writeEnvFile(filepath.Join(menuDir, ".env"),
 			captureIn(devTofuDir, "tofu", "output", "-raw", "env_committable_file"),
 			false, 0o644)
@@ -216,66 +219,10 @@ func main() {
 			captureIn(devTofuDir, "tofu", "output", "-raw", "env_dynamic_file"),
 			true, 0o600)
 	} else if contains(selected, "menu") {
-		warn("zitadel opted out — products/menu/.env.local is NOT updated. Make sure ZITADEL_OAUTH_CLIENT_ID/SECRET/MANAGEMENT_TOKEN point at a real IdP, or auth flows will 500.")
+		warn("zitadel opted out — products/menu/.env.local NOT updated. Provide ZITADEL_OAUTH_CLIENT_ID/SECRET/MANAGEMENT_TOKEN yourself or auth flows will 500.")
 	}
 
-	printNextSteps(selected, repoRoot, devInfraDir)
-}
-
-// printNextSteps tells the user where their selected products are
-// reachable. URLs are NEVER hardcoded here — they're pulled from the
-// canonical source so the script can't drift away from the actual
-// config (menu's URL = MENU_PUBLIC_URL in the env file the TF module
-// just rendered; house's URL = the runtime port mapping reported by
-// docker compose).
-func printNextSteps(selected []string, repoRoot, infraDir string) {
-	fmt.Println()
-	fmt.Println("[dev] infra is up.")
-	if contains(selected, "menu") {
-		url := readEnvVar(filepath.Join(repoRoot, "products/menu/.env"), "MENU_PUBLIC_URL")
-		fmt.Printf("  host:      cd products/menu && bun run dev   # %s\n", url)
-	}
-	if contains(selected, "house") {
-		fmt.Printf("  container: %s              # Astro static (busybox httpd)\n", composePort(infraDir, "house", "80"))
-	}
-	if !contains(selected, "menu") && !contains(selected, "house") {
-		fmt.Println("  (no product selected — compose stack stays running for ad-hoc work)")
-	}
-}
-
-// readEnvVar pulls a single KEY=value entry out of a dotenv-style file.
-// Returns "" if the file or key isn't found — the caller decides whether
-// that's fatal or a soft missing-value display.
-func readEnvVar(path, key string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	prefix := key + "="
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.HasPrefix(line, prefix) {
-			return strings.TrimPrefix(line, prefix)
-		}
-	}
-	return ""
-}
-
-// composePort asks docker compose what host port a container's internal
-// port maps to. `docker compose port <service> <internal>` prints
-// `0.0.0.0:<port>` or similar. We rewrite that to `http://localhost:<port>`
-// so the URL is clickable in a terminal.
-func composePort(infraDir, service, internal string) string {
-	cmd := exec.Command("docker", "compose", "port", service, internal)
-	cmd.Dir = infraDir
-	out, err := cmd.Output()
-	if err != nil {
-		return "(docker compose port " + service + " " + internal + " failed)"
-	}
-	raw := strings.TrimSpace(string(out))
-	if idx := strings.LastIndex(raw, ":"); idx >= 0 {
-		return "http://localhost" + raw[idx:]
-	}
-	return raw
+	printNextSteps(selected, repoRoot, devTofuDir)
 }
 
 // ── Selection: flags + interactive ──────────────────────────────────────────
@@ -317,8 +264,6 @@ func splitCSV(s string) []string {
 	return out
 }
 
-// runTUI presents a per-category multi-select. Returns the selection
-// the user confirmed (Enter on the last group).
 func runTUI() ([]string, error) {
 	groups := map[category][]huh.Option[string]{}
 	for _, s := range allServices {
@@ -330,14 +275,14 @@ func runTUI() ([]string, error) {
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("infra").
-				Description("Backing services. Postgres + LocalStack required for any menu use; Zitadel optional if pointing at a remote IdP; OpenObserve optional.").
+				Description("Backing services. Postgres + LocalStack required for any menu work; Zitadel optional if pointing at a remote IdP; OpenObserve optional.").
 				Options(groups[catInfra]...).
 				Value(&infraSelected),
 		),
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("products").
-				Description("Host-run apps. Menu boots Next.js after the infra it depends on is up.").
+				Description("Pick what you'll be working on. `menu` boots host-side (cd products/menu && bun run dev). `house` runs in a container.").
 				Options(groups[catProducts]...).
 				Value(&productsSelected),
 		),
@@ -348,9 +293,28 @@ func runTUI() ([]string, error) {
 	return append(infraSelected, productsSelected...), nil
 }
 
-// ── File helpers ─────────────────────────────────────────────────────────────
+// ── Summary + file helpers ──────────────────────────────────────────────────
+
+func printNextSteps(selected []string, repoRoot, tofuDir string) {
+	fmt.Println()
+	fmt.Println("[dev] infra is up.")
+	if contains(selected, "menu") {
+		url := readEnvVar(filepath.Join(repoRoot, "products/menu/.env"), "MENU_PUBLIC_URL")
+		fmt.Printf("  host:      cd products/menu && bun run dev   # %s\n", url)
+	}
+	if contains(selected, "house") {
+		fmt.Printf("  container: %s              # Astro static (busybox httpd)\n",
+			composePort(tofuDir, "infra-house", "80"))
+	}
+	if !contains(selected, "menu") && !contains(selected, "house") {
+		fmt.Println("  (no product selected — infra stays up for ad-hoc work)")
+	}
+}
 
 func writeEnvFile(path, body string, dynamic bool, mode os.FileMode) {
+	if body == "" {
+		return // first-pass apply doesn't produce these outputs
+	}
 	header := envHeader(dynamic)
 	if err := os.WriteFile(path, []byte(header+body+"\n"), mode); err != nil {
 		fail("write %s: %v", path, err)
@@ -371,6 +335,38 @@ func envHeader(dynamic bool) string {
 		"# Commit changes here when the env schema evolves.\n\n"
 }
 
+func readEnvVar(path, key string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	prefix := key + "="
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimPrefix(line, prefix)
+		}
+	}
+	return ""
+}
+
+// composePort returns the host port a container's internal port maps to.
+// Replaces the compose-port lookup with a direct `docker port`.
+func composePort(_ /*tofuDir*/, container, internal string) string {
+	out, err := exec.Command("docker", "port", container, internal).Output()
+	if err != nil {
+		return "(docker port " + container + " " + internal + " failed)"
+	}
+	raw := strings.TrimSpace(string(out))
+	// Multiple lines (IPv4 + IPv6); take the first.
+	if idx := strings.IndexByte(raw, '\n'); idx >= 0 {
+		raw = raw[:idx]
+	}
+	if idx := strings.LastIndex(raw, ":"); idx >= 0 {
+		return "http://localhost" + raw[idx:]
+	}
+	return raw
+}
+
 // ── Process helpers ──────────────────────────────────────────────────────────
 
 func findRepoRoot() string {
@@ -378,7 +374,6 @@ func findRepoRoot() string {
 	if !ok {
 		fail("runtime.Caller failed")
 	}
-	// <repo>/infra/dev/dev.go → two levels up.
 	return filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
 }
 
@@ -409,6 +404,24 @@ func captureIn(dir, name string, args ...string) string {
 		fail("%s %v: %v", name, args, err)
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// waitForHTTPOK polls an HTTP endpoint until it returns a 2xx (or the
+// timeout expires). Used to gate the Zitadel seed apply on the API
+// actually being reachable — the PAT file existing only proves
+// FirstInstance ran; the gRPC + HTTP servers take a couple more
+// seconds to come up after that.
+func waitForHTTPOK(url string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		out, _ := exec.Command("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", url).Output()
+		code := strings.TrimSpace(string(out))
+		if strings.HasPrefix(code, "2") {
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return fmt.Errorf("timed out after %s waiting for %s", timeout, url)
 }
 
 func waitForFile(path string, timeout time.Duration) error {
