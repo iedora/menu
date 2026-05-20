@@ -39,8 +39,8 @@ export default defineConfig([
 
 Per-package configs win on three axes for this repo:
 
-1. **Workspace ownership.** Each package's CI workflow lints just that package — adding a rule for the React package shouldn't retrigger genkan's pipeline.
+1. **Workspace ownership.** Each package's CI workflow lints just that package — adding a rule for the React package shouldn't retrigger menu's pipeline.
 2. **Avoids root-config bloat.** A single root config would need ever-larger `files: [...]` globs to apply the right rules to the right paths. Composing factories per-package keeps each config short and obvious.
-3. **Aligns with the rest of the monorepo.** Every other workspace (menu, genkan, design-system, …) declares its own `package.json`, `tsconfig.json`, scripts. ESLint follows the same shape.
+3. **Aligns with the rest of the monorepo.** Every other workspace (menu, design-system, …) declares its own `package.json`, `tsconfig.json`, scripts. ESLint follows the same shape.
 
 This matches the prevailing 2026 industry pattern (typescript-eslint monorepo guide; antfu/eslint-config; the official ESLint discussion on flat-config layout).

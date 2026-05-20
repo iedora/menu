@@ -20,7 +20,7 @@ export { Statement } from "./components/statement";
 export { Lintel } from "./components/lintel";
 
 // Editorial / motion primitives (used by the iedora.com landing page;
-// reusable in genkan / menu for any scroll-pinned editorial layout).
+// reusable in menu for any scroll-pinned editorial layout).
 export { PageProgress } from "./components/page-progress";
 export { ScrollHint } from "./components/scroll-hint";
 export {

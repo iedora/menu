@@ -73,7 +73,7 @@ Sets `tenant.restaurant_id` and `tenant.organization_id`. Search OpenObserve by 
 
 ## Cross-product trace context
 
-`@vercel/otel` propagates W3C `traceparent` on every outbound `fetch` automatically, and Next 16 picks it up inbound. So menu → identity (whenever the Zitadel adapter lands) is stitched automatically. Webhook senders in `@iedora/identity` inject `traceparent`; receivers extract it.
+`@vercel/otel` propagates W3C `traceparent` on every outbound `fetch` automatically, and Next 16 picks it up inbound. So menu → Zitadel is stitched automatically.
 
 ## Sampling
 

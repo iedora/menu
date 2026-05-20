@@ -8,7 +8,7 @@ type KeyMarkProps = {
 /**
  * Editorial security mark — a small skeleton key that turns a quiet
  * quarter on idle. Sits beside the iedora wordmark on the brand surfaces
- * (house intro, genkan auth) to read as "identity, attended."
+ * (house intro, auth) to read as "identity, attended."
  *
  * SSR-only: the animation is CSS @keyframes on the SVG root, so this
  * composes inside Astro templates without a `client:*` directive and

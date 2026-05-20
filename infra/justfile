@@ -85,7 +85,7 @@ destroy:
     {{tofu}} destroy -auto-approve
 
 # Stop + remove the Postgres container AND wipe its bind-mount data dir on
-# the Hetzner box. Destructive: menu + genkan + zitadel databases all gone.
+# the Hetzner box. Destructive: menu + zitadel databases all gone.
 wipe-postgres:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -143,7 +143,7 @@ rotate-secret key:
     [ -n "$NEW" ] || { echo "Empty value, aborting"; exit 1; }
     bws secret edit "$SECRET_ID" --value "$NEW" -o none
     echo "✓ {{key}} rotated in BWS"
-    echo "→ INFRA_POSTGRES_PASSWORD: 'just infra::deploy' recreates infra-postgres + zitadel + backups with new password; menu + genkan need their own redeploy"
+    echo "→ INFRA_POSTGRES_PASSWORD: 'just infra::deploy' recreates infra-postgres + zitadel + backups with new password; menu needs its own redeploy"
     echo "→ INFRA_BACKUP_PASSPHRASE: invalidates ALL historical dumps; don't rotate casually"
     echo "→ INFRA_OPENOBSERVE_ROOT_USER_PASSWORD: 'just infra::deploy' recreates infra-openobserve; every product needs a redeploy (OTEL_EXPORTER_OTLP_HEADERS depends on it)"
     echo "→ INFRA_ZITADEL_MASTERKEY: requires 32-char value EXACTLY; rotating renders the encrypted projection table unreadable — DO NOT ROTATE without the documented re-key flow"

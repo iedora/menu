@@ -1,6 +1,6 @@
 # @iedora/design-system
 
-Editorial design system for Iedora products. Paper, ink, cinnabar; Fraunces and JetBrains Mono; hairline rules; one warm accent used sparingly. Every product in the monorepo (house, menu, genkan) renders out of this one package.
+Editorial design system for Iedora products. Paper, ink, cinnabar; Fraunces and JetBrains Mono; hairline rules; one warm accent used sparingly. Every product in the monorepo (house, menu) renders out of this one package.
 
 ## Quickstart
 

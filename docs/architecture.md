@@ -4,7 +4,7 @@ How code is organised across the product and shared packages, and what you do wh
 
 ## Shape
 
-**iedora** is a Bun-workspaces monorepo with one Next.js product (Menu), one Astro static site (House), and three shared packages (`@iedora/design-system`, `@iedora/identity`, `@iedora/observability`). Inside menu, code is organised as **vertical slices** on the outside and **light hexagonal** on the inside. Each business capability lives in `src/features/<slice>/` and owns everything it needs: a port (interface to the outside world), one or more adapters (production + tests), pure-ish use-cases that take the port as their first argument, an `actions.ts` shell for Next.js Server Actions, slice-owned UI, and a single `index.ts` barrel. `src/shared/` holds primitives with no domain knowledge. `src/app/` is the delivery layer. **Next.js is a delivery detail**, not the architecture.
+**iedora** is a Bun-workspaces monorepo with one Next.js product (Menu), one Astro static site (House), and two shared packages (`@iedora/design-system`, `@iedora/observability`). Inside menu, code is organised as **vertical slices** on the outside and **light hexagonal** on the inside. Each business capability lives in `src/features/<slice>/` and owns everything it needs: a port (interface to the outside world), one or more adapters (production + tests), pure-ish use-cases that take the port as their first argument, an `actions.ts` shell for Next.js Server Actions, slice-owned UI, and a single `index.ts` barrel. `src/shared/` holds primitives with no domain knowledge. `src/app/` is the delivery layer. **Next.js is a delivery detail**, not the architecture.
 
 ## Monorepo
 
@@ -12,7 +12,6 @@ How code is organised across the product and shared packages, and what you do wh
 iedora/
   packages/
     design-system/                @iedora/design-system    (editorial CSS + React primitives)
-    iedora-identity/              @iedora/identity         (webhook envelope + signature + receiver + secret cipher)
     iedora-observability/         @iedora/observability    (OTel wiring — traces + metrics)
   products/
     menu/                         menu.iedora.com          (SaaS menu builder)
@@ -50,7 +49,7 @@ Path: `products/menu/src/features/`.
 - **`billing/`** — invoice ledger (read-only today).
 - **`dashboard-home/`** — restaurants-with-counts aggregate query.
 - **`i18n/`** — per-language registry (en, pt, es, fr) + format helpers + `LocalizedFields` editor UI.
-- **`identity/`** — dead code awaiting Zitadel OIDC adapter (issue #20). The former genkan-http adapter has been removed.
+- **`identity/`** — federated organization ownership through Zitadel (`auth.iedora.com`). Calls Zitadel's REST management API using the menu service-account PAT (IAM_OWNER) for memberships and org provisioning.
 - **`menu-builder/`** — dnd-kit admin builder. Menu / category / item CRUD + reorder (position recompute in a single transaction).
 - **`menu-publishing/`** — public-side render path. `loadRestaurantSnapshot` / `loadRestaurantAdminMenus` cache wrappers (per-slug tag), template registry, renderer, sample-data seed.
 - **`metrics/`** — daily-view counters + analytics range helpers. Writes are driven by the beacon endpoint, not this slice.
@@ -72,16 +71,6 @@ Consumed by menu and house. Tests in `packages/design-system/src/test/` (jsdom +
 
 Menu also keeps shadcn primitives under `products/menu/src/shared/ui/` — pieces without an editorial equivalent (e.g. `dropdown-menu`, `label`) stay menu-local until the design system grows to subsume them.
 
-### `@iedora/identity` — `packages/iedora-identity/`
-
-The webhook surface for the iedora identity estate. Today only used by menu's (dead) webhook receiver, awaiting the Zitadel webhook adapter.
-
-- `events.ts` — `IdentityEvent` union (source of truth for both ends).
-- `sender.ts` — signs body per-subscriber, POSTs, retries on 5xx, gives up on 4xx. Uses `ssrf.ts` to reject private/loopback/link-local hosts.
-- `receiver.ts` — verifies signature, enforces freshness window (default ±5 min), dedups by envelope id over 24h.
-- `signature.ts` — Stripe/Svix-style `x-iedora-signature: t=<ms>,v1=<hmac>`; digest covers `${t}.${body}` so replays with a rewritten `t` fail.
-- `ssrf.ts` — DNS resolve + private-CIDR reject (DNS-rebinding gap noted in README).
-- `secret-storage.ts` — AES-256-GCM with HKDF-derived key (input: `BETTER_AUTH_SECRET`). Encrypts webhook subscription secrets at rest.
 
 Tests are DB-less — pure crypto + parsing.
 
@@ -99,8 +88,8 @@ One-line OTel wiring per product. Wraps `@vercel/otel` — resource attrs + samp
   → A workspace package under `packages/`. Bar is real reuse, not "might someday." When in doubt, copy twice; promote on the third use.
 - **Visual chrome that the brand renders identically across products?**
   → `@iedora/design-system`.
-- **Identity / observability shared surface?**
-  → `@iedora/identity` (webhook envelope, signature, secret cipher) or `@iedora/observability`.
+- **Observability shared surface?**
+  → `@iedora/observability`.
 - **Next.js route file?**
   → `src/app/`. Routes compose slice exports; not where business logic lives.
 - **Next 16 long-running background job (cron, queue consumer)?**
@@ -120,7 +109,7 @@ One-line OTel wiring per product. Wraps `@vercel/otel` — resource attrs + samp
 - Files **across** slices import only via the sibling barrel (`@/features/auth`). Reaching into `@/features/auth/use-cases/...` is a boundary violation flagged by `eslint-plugin-boundaries`.
 - `src/shared/*` is freely importable — the only horizontal layer.
 - Use-cases inside a slice don't call into other slices. If two slices need to coordinate, the coordination happens in the action shell or in the page component that composes both.
-- **No cross-product imports.** Menu reaches `@iedora/identity` (webhook envelope) and `@iedora/observability`; nothing reaches across products' source trees.
+- **No cross-product imports.** Menu reaches `@iedora/observability`; nothing reaches across products' source trees.
 
 ## The Next.js boundary
 

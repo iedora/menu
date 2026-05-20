@@ -2,7 +2,7 @@
 # One-shot encrypted backup → S3-compatible (R2). Env vars expected:
 #   POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD
 #   POSTGRES_DATABASE      — if empty, pg_dumpall covers every database
-#                            on the server (menu + genkan + future).
+#                            on the server (menu + zitadel + future).
 #                            If set, pg_dump -d <name> covers only that one.
 #   S3_ENDPOINT, S3_BUCKET, S3_PREFIX, S3_REGION
 #   S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY  (read by aws-cli automatically)

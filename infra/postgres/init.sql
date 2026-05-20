@@ -10,7 +10,4 @@
 -- adds against an existing cluster, run `CREATE DATABASE` manually).
 
 CREATE DATABASE menu;
-CREATE DATABASE genkan;
--- Phase 1 of #19. Stands alongside `genkan` while menu still federates
--- through the Better Auth IdP; Phase 5 drops the genkan database.
 CREATE DATABASE zitadel;

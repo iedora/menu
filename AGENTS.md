@@ -7,9 +7,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Iedora monorepo — project conventions
 
 > Bun-workspaces monorepo. One Next.js product (`products/menu/`), one
-> Astro static site (`products/house/`), and three workspace packages
-> (`packages/design-system/`, `packages/iedora-identity/`,
-> `packages/iedora-observability/`). `bun install` runs ONCE at the repo
+> Astro static site (`products/house/`), and two workspace packages
+> (`packages/design-system/`, `packages/iedora-observability/`). `bun install` runs ONCE at the repo
 > root and resolves every workspace.
 >
 > Paths starting with `src/...` are relative to the product directory
@@ -78,7 +77,6 @@ iedora/                                  repo root
   packages/
     eslint-config/                       flat-config factories shared by every workspace
     design-system/                       editorial CSS + React primitives (paper/ink/cinnabar)
-    iedora-identity/                     webhook envelope + signature + receiver + secret cipher
     iedora-observability/                one-line OTel wiring (traces + metrics)
 
   products/
@@ -99,7 +97,7 @@ Menu's `infra/` owns a Dockerfile (built by CI into the GHCR image) plus a tiny 
 ### Per-product
 
 - **Menu** — see [products/menu/CLAUDE.md](products/menu/CLAUDE.md) § Commands.
-- **Packages** — `bun run test` / `test:watch` (Vitest; no DB for `@iedora/identity` and `@iedora/observability`, jsdom for `@iedora/design-system`); `bun run typecheck`.
+- **Packages** — `bun run test` / `test:watch` (Vitest; no DB for `@iedora/observability`, jsdom for `@iedora/design-system`); `bun run typecheck`.
 
 ### Deploy
 
@@ -125,7 +123,6 @@ One workflow per workspace. Each is self-contained: own `paths:` trigger, own en
   workflows/
     menu.yml                     typecheck + lint + unit + security + build/push image
     design-system.yml            unit (jsdom)
-    identity.yml                 unit (crypto + parsing)
     observability.yml            unit (no-op-in-tests + tenant attrs)
     infra-deploy.yml             one tofu apply for the whole estate; workflow_run after menu.yml
     house-deploy.yml             Astro → wrangler deploy

@@ -38,7 +38,8 @@ describe('session adapter — encrypted cookie round-trip', () => {
     // Flip a byte in the ciphertext (4th segment of compact JWE: hdr.cek.iv.ct.tag)
     const parts = jwe.split('.')
     if (!parts[3]) throw new Error('unexpected JWE shape')
-    parts[3] = parts[3].slice(0, -1) + (parts[3].endsWith('A') ? 'B' : 'A')
+    // Changing the first character of the base64url string guarantees modifying the first byte
+    parts[3] = parts[3].startsWith('A') ? 'B' + parts[3].slice(1) : 'A' + parts[3].slice(1)
     expect(await a.open(parts.join('.'))).toBeNull()
   })
 
