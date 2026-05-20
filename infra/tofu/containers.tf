@@ -88,7 +88,7 @@ module "postgres" {
   source = "../modules/services/postgres"
 
   network_name      = docker_network.iedora.name
-  postgres_password = var.infra_postgres_password
+  postgres_password = random_password.postgres.result
   data_path         = "/root/infra-postgres/data"
   init_sql          = file("${path.module}/../postgres/init.sql")
   # Container-only — backups + zitadel reach it via the iedora network.
@@ -106,7 +106,7 @@ module "openobserve" {
   network_name       = docker_network.iedora.name
   data_path          = "/root/infra-openobserve/openobserve-data"
   root_user_email    = var.infra_openobserve_root_user_email
-  root_user_password = var.infra_openobserve_root_user_password
+  root_user_password = random_password.openobserve_password.result
   s3 = {
     endpoint      = "https://${var.account_id}.r2.cloudflarestorage.com"
     region        = "auto"
@@ -144,10 +144,10 @@ resource "docker_container" "backups" {
     # Empty → backup.sh uses --all-databases (every iedora product).
     "POSTGRES_DATABASE=",
     "POSTGRES_USER=postgres",
-    "POSTGRES_PASSWORD=${var.infra_postgres_password}",
+    "POSTGRES_PASSWORD=${random_password.postgres.result}",
     "S3_ACCESS_KEY_ID=${cloudflare_api_token.data_r2.id}",
     "S3_SECRET_ACCESS_KEY=${sha256(cloudflare_api_token.data_r2.value)}",
-    "PASSPHRASE=${var.infra_backup_passphrase}",
+    "PASSPHRASE=${random_password.backup_passphrase.result}",
   ]
 
   networks_advanced {
@@ -177,15 +177,15 @@ module "zitadel" {
   source = "../modules/services/zitadel"
 
   network_name      = docker_network.iedora.name
-  masterkey         = var.infra_zitadel_masterkey
+  masterkey         = random_password.zitadel_masterkey.result
   external_domain   = var.zitadel_hostname
   external_port     = 443
   external_secure   = true
   login_v2_base_uri = "https://${var.zitadel_hostname}/ui/v2/login"
   postgres_host     = "infra-postgres"
-  postgres_password = var.infra_postgres_password
+  postgres_password = random_password.postgres.result
   admin_email       = "eduardoferdcarvalho@gmail.com"
-  admin_password    = var.infra_zitadel_first_admin_password
+  admin_password    = random_password.zitadel_first_admin.result
   bootstrap_path    = docker_volume.zitadel_bootstrap.name
 
   # Prod's TF provider authenticates with the FirstInstance-minted
@@ -268,7 +268,7 @@ module "menu_env" {
   source = "../modules/menu_env"
 
   node_env        = "production"
-  database_url    = "postgres://postgres:${var.infra_postgres_password}@infra-postgres:5432/menu"
+  database_url    = "postgres://postgres:${random_password.postgres.result}@infra-postgres:5432/menu"
   menu_public_url = "https://${var.menu_public_hostname}"
 
   menu_session_secret         = random_password.menu_session_secret.result
@@ -288,7 +288,7 @@ module "menu_env" {
   # OpenObserve runs in ZO_LOCAL_MODE — Basic auth header is the same
   # shape as the dev compose, fed from BWS-backed credentials.
   otel_exporter_otlp_endpoint = "http://infra-openobserve:5080/api/default"
-  otel_exporter_otlp_headers  = "Authorization=Basic%20${base64encode("${var.infra_openobserve_root_user_email}:${var.infra_openobserve_root_user_password}")}"
+  otel_exporter_otlp_headers  = "Authorization=Basic%20${base64encode("${var.infra_openobserve_root_user_email}:${random_password.openobserve_password.result}")}"
 
   host_name = hcloud_server.iedora.name
   git_sha   = var.menu_image_sha

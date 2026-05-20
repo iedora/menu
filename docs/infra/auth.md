@@ -157,23 +157,23 @@ behind.
 
 ## Secrets
 
-All in BWS, project `iedora-deploy`. Two new for Phase 1:
+All in BWS, project `iedora-deploy`. Tofu-minted (operator never populates):
 
 | Key | Length / format | What it does | Rotation |
 |---|---|---|---|
-| `INFRA_ZITADEL_MASTERKEY` | **exactly 32 ASCII chars** | Encrypts every internal Zitadel secret (signing keys, OAuth client secrets, action target keys) | **Do not rotate casually.** Re-keying requires a documented multi-step flow with downtime. Generate once at bootstrap via `openssl rand -base64 24 \| head -c 32` |
-| `INFRA_ZITADEL_FIRST_ADMIN_PASSWORD` | strong; mix of upper/lower/digit/symbol | Seeds the `zitadel-admin` human user **on the first boot only** | Rotate the live password via the Zitadel UI — this BWS entry is ignored on subsequent boots |
+| `AUTOGEN_INFRA_ZITADEL_MASTERKEY` | **exactly 32 ASCII chars** (`random_password.zitadel_masterkey`, `length=32 special=false`) | Encrypts every internal Zitadel secret (signing keys, OAuth client secrets, action target keys) | **`lifecycle.prevent_destroy = true`.** Re-keying requires removing the lifecycle block and the documented multi-step flow. |
+| `AUTOGEN_INFRA_ZITADEL_FIRST_ADMIN_PASSWORD` | 24 chars with symbols (`random_password.zitadel_first_admin`) | Seeds the `zitadel-admin` human user **on the first boot only** | Look up in BWS for first login, then rotate via the Zitadel UI — this BWS entry is ignored on subsequent boots |
 
-Reused (no new BWS entries needed):
+Postgres credentials shared with the rest of the stack:
 
-- `INFRA_POSTGRES_PASSWORD` — the `infra-postgres` superuser; serves
-  Zitadel's User and Admin DB connections.
+- `AUTOGEN_INFRA_POSTGRES_PASSWORD` — Tofu-minted superuser password for `infra-postgres`; same value serves Zitadel's User and Admin DB connections.
 
-Tofu-managed write-throughs:
+Tofu-managed write-throughs (require a one-time op):
 
 - `INFRA_ZITADEL_SA_KEY_JSON` — JSON service-account key for the
-  Terraform provider. **Cannot be created by Tofu** (chicken-and-egg
-  — the provider needs it to authenticate). FirstInstance writes it
+  Terraform provider. **Cannot be Tofu-minted** (chicken-and-egg — the
+  Zitadel provider needs the key to authenticate, and the key is only
+  created by Zitadel's own FirstInstance step). FirstInstance writes it
   to the `zitadel-bootstrap` named volume; `just zitadel-fetch-sa-key`
   lifts it into BWS. One-time per Zitadel re-bootstrap.
 
@@ -182,23 +182,7 @@ App secrets.
 
 ## Bootstrap (first-time-only flow)
 
-After the infra code changes from #19 Phase 1 land:
-
-1. **Mint the BWS secrets** (already done 2026-05-19, kept for
-   reproducibility):
-
-   ```sh
-   # masterkey — EXACTLY 32 chars
-   openssl rand -base64 24 | head -c 32
-   # first-admin password — ≥ 8 chars, mix of upper/lower/digit/symbol
-   PW=$(openssl rand -base64 18 | tr -d '/+=' | head -c 24); printf '%s!9Aa\n' "$PW"
-
-   # Push to BWS (project iedora-deploy)
-   bws secret create -o none -- INFRA_ZITADEL_MASTERKEY              "<32-char value>"      "$BWS_PROJECT_ID"
-   bws secret create -o none -- INFRA_ZITADEL_FIRST_ADMIN_PASSWORD   '<strong password>'    "$BWS_PROJECT_ID"
-   ```
-
-2. **Deploy** — `just infra::deploy` runs one `tofu apply` that does
+1. **Deploy** — `just infra::deploy` runs one `tofu apply` that does
    everything in order via `depends_on` and the docker provider's
    create/start semantics:
    - Cloudflare resources land (R2 buckets, grey-cloud A records for
@@ -220,7 +204,7 @@ After the infra code changes from #19 Phase 1 land:
      Caddyfile (`/ui/v2/*` → login app, everything else → main binary
      over h2c).
 
-3. **Mint the service-account key for Terraform** — one-shot, manual,
+2. **Mint the service-account key for Terraform** — one-shot, manual,
    in the Zitadel UI:
    - Log in to `https://auth.iedora.com/ui/v2/login` with the
      `zitadel-admin` user and the bootstrap password from BWS.
@@ -234,7 +218,7 @@ After the infra code changes from #19 Phase 1 land:
      bws secret create -o none -- INFRA_ZITADEL_SA_KEY_JSON "$(cat ~/Downloads/sa-key.json)" "$BWS_PROJECT_ID"
      ```
 
-4. **Declare the IdP shape in Tofu** (Phase 1.5) — `infra/tofu/zitadel.tf`
+3. **Declare the IdP shape in Tofu** (Phase 1.5) — `infra/tofu/zitadel.tf`
    gets the `zitadel/zitadel` provider block + the first declarative
    resources (`zitadel_org.iedora`, `zitadel_project.iedora`). From
    this point on, every OAuth client and policy iedora ever needs is
@@ -300,7 +284,7 @@ ssh root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4) 'docker exec infra-z
 # psql into the zitadel database.
 just infra::console        # then: \c zitadel
 
-# Reboot zitadel (e.g. to pick up a rotated INFRA_POSTGRES_PASSWORD).
+# Reboot zitadel (e.g. to pick up a rotated AUTOGEN_INFRA_POSTGRES_PASSWORD).
 ssh root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4) 'docker restart infra-zitadel infra-zitadel-login'
 
 # Rotate the operator login password (NOT the masterkey).

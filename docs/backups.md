@@ -1,6 +1,6 @@
 # Backups — daily Postgres dumps to Cloudflare R2
 
-The Tofu-managed `docker_container.backups` runs a self-built `postgres:18-alpine`-based image (source: `infra/backup/`) on the same Docker network as `infra-postgres`. Daily it `pg_dumpall`s every database (menu, zitadel, anything future), GPG-encrypts the dump with `INFRA_BACKUP_PASSPHRASE`, and uploads to the `iedora-backups` R2 bucket. 14-day retention. ~€0/yr at this size (R2 free tier ≤ 10 GB + zero egress).
+The Tofu-managed `docker_container.backups` runs a self-built `postgres:18-alpine`-based image (source: `infra/backup/`) on the same Docker network as `infra-postgres`. Daily it `pg_dumpall`s every database (menu, zitadel, anything future), GPG-encrypts the dump with `AUTOGEN_INFRA_BACKUP_PASSPHRASE` (Tofu-minted, write-through to BWS), and uploads to the `iedora-backups` R2 bucket. 14-day retention. ~€0/yr at this size (R2 free tier ≤ 10 GB + zero egress).
 
 > **Why self-built.** The canonical `eeshugerman/postgres-backup-s3` image stops at tag `:16` upstream as of mid-2026. Postgres rejects pg_dump version mismatch outright, so a 16-client image can't dump our PG 18 server. Self-built (~40 lines bash + a 7-line Dockerfile) guarantees client/server parity. When bumping Postgres, bump the image tag in `infra/tofu/containers.tf` and `just infra::build-backup`.
 
@@ -10,12 +10,11 @@ The infra Tofu root provisions BOTH the `iedora-backups` R2 bucket AND its scope
 
 Prerequisite: `INFRA_CLOUDFLARE_API_TOKEN` needs **User · API Tokens · Edit** (see `docs/deploy.md` step 3).
 
-Set `INFRA_BACKUP_PASSPHRASE` in BWS — the GPG passphrase. **Save to your password manager immediately** — lose the passphrase, lose the ability to decrypt past backups.
+The GPG passphrase (`AUTOGEN_INFRA_BACKUP_PASSPHRASE`) is Tofu-minted on first apply via `random_password.backup_passphrase` and synced to BWS for human lookup. **The value lives in encrypted Tofu state — if you ever lose the state file _and_ the BWS entry, every past backup is unrecoverable.** Keep both. The committed `infra/tofu/terraform.tfstate` is your backstop.
 
 ```bash
-bws secret create INFRA_BACKUP_PASSPHRASE "$(openssl rand -hex 32)" "$BWS_PROJECT_ID" -o none
 just infra::build-backup  # one-off: build + push ghcr.io/$GHCR_USER/iedora-backup:18
-just infra::deploy
+just infra::deploy        # mints AUTOGEN_INFRA_BACKUP_PASSPHRASE + boots backups container
 just infra::backup        # force an immediate dump to verify end-to-end
 ```
 

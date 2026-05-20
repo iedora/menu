@@ -89,29 +89,37 @@ export BWS_ACCESS_TOKEN=0.…
 | `GHCR_USER`, `OPENOBSERVE_BUCKET_NAME` | TF variable defaults in `infra/tofu/variables.tf` |
 | `ONPREM_HOST` | `tofu output -raw hetzner_ipv4` after pass 1 |
 
-Install `bws`: `brew install bitwarden/tap/bws` or download from https://github.com/bitwarden/sdk-sm/releases. Then populate BWS (the wrapper expects every `INFRA_*` key below):
+Install `bws`: `brew install bitwarden/tap/bws` or download from https://github.com/bitwarden/sdk-sm/releases. Then populate BWS with the keys you have to obtain from third parties — Tofu mints the rest itself.
 
 ```bash
 PROJECT_ID=$(bws project list -o json | jq -r '.[] | select(.name=="iedora-deploy") | .id')
 for KEY in INFRA_CLOUDFLARE_API_TOKEN INFRA_STATE_PASSPHRASE \
-           INFRA_HCLOUD_TOKEN INFRA_GITHUB_API_TOKEN \
-           INFRA_POSTGRES_PASSWORD INFRA_BACKUP_PASSPHRASE INFRA_GHCR_TOKEN \
+           INFRA_HCLOUD_TOKEN INFRA_GITHUB_API_TOKEN INFRA_GHCR_TOKEN \
            INFRA_SSH_PRIVATE_KEY INFRA_CLAUDE_CODE_OAUTH_TOKEN \
-           INFRA_ZITADEL_MASTERKEY INFRA_ZITADEL_FIRST_ADMIN_PASSWORD \
-           INFRA_OPENOBSERVE_ROOT_USER_EMAIL INFRA_OPENOBSERVE_ROOT_USER_PASSWORD; do
+           INFRA_OPENOBSERVE_ROOT_USER_EMAIL; do
   read -s -p "$KEY: " V && echo
   bws secret create "$KEY" "$V" "$PROJECT_ID" -o none
 done
 ```
 
-Generate random values with `openssl rand -hex 32`, except:
-- `INFRA_CLOUDFLARE_API_TOKEN` — from step 3. Must have **Account:Read** scope so the wrapper can resolve `CLOUDFLARE_ACCOUNT_ID`.
-- `INFRA_HCLOUD_TOKEN` — Hetzner console → Security → API tokens (R/W).
-- `INFRA_GHCR_TOKEN` — classic PAT with `write:packages` (see "Why classic" below).
-- `INFRA_GITHUB_API_TOKEN` — fine-grained PAT scoped to the repo.
-- `INFRA_SSH_PRIVATE_KEY` — contents of `~/.ssh/id_ed25519`. Load-bearing across BWS / GH secrets / `kreuzwerker/docker` provider / rotation playbook. Don't rename.
-- `INFRA_ZITADEL_MASTERKEY` — must be exactly 32 chars: `openssl rand -base64 24 | head -c 32`.
-- `INFRA_CLAUDE_CODE_OAUTH_TOKEN` — Claude Code OAuth token for the in-repo automation agent. Generate via `claude login`.
+| Key | Source |
+|---|---|
+| `INFRA_CLOUDFLARE_API_TOKEN` | CF dashboard → API Tokens. Needs **Account:Read** so the wrapper can resolve `CLOUDFLARE_ACCOUNT_ID`. |
+| `INFRA_STATE_PASSPHRASE` | `openssl rand -hex 32`. Encrypts Tofu state. Has to come from outside Tofu — chicken-and-egg with the state encryption itself. |
+| `INFRA_HCLOUD_TOKEN` | Hetzner console → Security → API tokens (R/W). |
+| `INFRA_GITHUB_API_TOKEN` | Fine-grained PAT scoped to the repo. |
+| `INFRA_GHCR_TOKEN` | Classic PAT with `write:packages` (see "Why classic" below). |
+| `INFRA_SSH_PRIVATE_KEY` | `cat ~/.ssh/id_ed25519`. Load-bearing across BWS / GH secrets / docker provider / rotation playbook — don't rename. |
+| `INFRA_CLAUDE_CODE_OAUTH_TOKEN` | `claude login` then read the OAuth token. |
+| `INFRA_OPENOBSERVE_ROOT_USER_EMAIL` | Your operator email — receives OO alerts. |
+
+**The 5 `AUTOGEN_INFRA_*` keys you DON'T populate** — Tofu mints them on first apply via `random_password` resources (`infra/tofu/secrets.tf`) and write-throughs to BWS for human lookup:
+
+- `AUTOGEN_INFRA_POSTGRES_PASSWORD`
+- `AUTOGEN_INFRA_BACKUP_PASSPHRASE`
+- `AUTOGEN_INFRA_ZITADEL_MASTERKEY` (lifecycle.prevent_destroy guards it)
+- `AUTOGEN_INFRA_ZITADEL_FIRST_ADMIN_PASSWORD` (look it up in BWS for the first Zitadel login)
+- `AUTOGEN_INFRA_OPENOBSERVE_ROOT_USER_PASSWORD`
 
 > **Why classic for GHCR.** Every other PAT is fine-grained; `INFRA_GHCR_TOKEN` stays classic because fine-grained + personal account + GHCR is GitHub's worst-supported combination — the Packages permission only reliably surfaces for org-scoped tokens with org-owned packages. Revisit if iedora moves into a GH org.
 

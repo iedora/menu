@@ -132,10 +132,22 @@ build-backup:
     docker buildx build --platform linux/amd64 \
       --tag "ghcr.io/$GHCR_USER/iedora-backup:18" --push backup
 
-# Rotate one BWS secret. Usage: just rotate-secret INFRA_POSTGRES_PASSWORD
+# Rotate one BWS secret. Usage: just rotate-secret INFRA_HCLOUD_TOKEN
+#
+# For AUTOGEN_INFRA_* secrets (Tofu-minted): DON'T edit them in BWS.
+# Instead: `bin/with-secrets tofu -chdir=tofu apply -replace=random_password.<name>`
+# triggers a fresh random_password, and the null_resource.bws_sync_autogen
+# write-through pushes the new value to BWS. Read the constraints below
+# before rotating any AUTOGEN_INFRA_* key.
 rotate-secret key:
     #!/usr/bin/env bash
     set -euo pipefail
+    if [[ "{{key}}" == AUTOGEN_* ]]; then
+      echo "{{key}} is Tofu-minted. Rotate via:"
+      echo "  bin/with-secrets tofu -chdir=tofu apply -replace=random_password.<name>"
+      echo "Names: postgres, backup_passphrase, zitadel_masterkey, zitadel_first_admin, openobserve_password"
+      exit 1
+    fi
     SECRET_ID=$(bws secret list "$BWS_PROJECT_ID" -o json | jq -r '.[] | select(.key=="{{key}}") | .id')
     [ -n "$SECRET_ID" ] || { echo "No BWS secret named {{key}} in project"; exit 1; }
     printf "New value for {{key}} (no echo): "
@@ -143,11 +155,11 @@ rotate-secret key:
     [ -n "$NEW" ] || { echo "Empty value, aborting"; exit 1; }
     bws secret edit "$SECRET_ID" --value "$NEW" -o none
     echo "✓ {{key}} rotated in BWS"
-    echo "→ INFRA_POSTGRES_PASSWORD: 'just infra::deploy' recreates infra-postgres + zitadel + backups with new password; menu needs its own redeploy"
-    echo "→ INFRA_BACKUP_PASSPHRASE: invalidates ALL historical dumps; don't rotate casually"
-    echo "→ INFRA_OPENOBSERVE_ROOT_USER_PASSWORD: 'just infra::deploy' recreates infra-openobserve; every product needs a redeploy (OTEL_EXPORTER_OTLP_HEADERS depends on it)"
-    echo "→ INFRA_ZITADEL_MASTERKEY: requires 32-char value EXACTLY; rotating renders the encrypted projection table unreadable — DO NOT ROTATE without the documented re-key flow"
-    echo "→ INFRA_ZITADEL_FIRST_ADMIN_PASSWORD: only used on FIRST boot; rotate the live password via the Zitadel UI instead"
+    echo "→ AUTOGEN_INFRA_POSTGRES_PASSWORD: tofu apply -replace recreates infra-postgres + zitadel + backups with new password; menu needs its own redeploy"
+    echo "→ AUTOGEN_INFRA_BACKUP_PASSPHRASE: invalidates ALL historical dumps; don't rotate casually — see docs/secrets.md for the dual-passphrase window"
+    echo "→ AUTOGEN_INFRA_OPENOBSERVE_ROOT_USER_PASSWORD: tofu apply recreates infra-openobserve; every product needs a redeploy (OTEL_EXPORTER_OTLP_HEADERS depends on it)"
+    echo "→ AUTOGEN_INFRA_ZITADEL_MASTERKEY: lifecycle.prevent_destroy guards it; rotating renders the encrypted projection table unreadable — only via the documented re-key flow"
+    echo "→ AUTOGEN_INFRA_ZITADEL_FIRST_ADMIN_PASSWORD: only used on FIRST boot; rotate the live password via the Zitadel UI instead"
     echo "→ INFRA_HCLOUD_TOKEN: regenerate in Hetzner console + push; 'just infra::deploy' next run uses the new token. Zero-downtime."
 
 # Fetch the zitadel-admin-sa JSON key minted by FirstInstance and upload

@@ -70,16 +70,24 @@ Cloudflare credentials follow a two-tier pattern, deliberately:
 | `INFRA_SSH_PRIVATE_KEY` | Private SSH key Tofu uses to reach the Hetzner Docker daemon. Tofu pushes it to GH as `INFRA_SSH_PRIVATE_KEY` | SSH as root to the VPS | Generate new keypair → `ssh-copy-id root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4)` → BWS edit → `just infra::deploy` → remove old pubkey from `/root/.ssh/authorized_keys` |
 | `BWS_ACCESS_TOKEN` (operator shell env — e.g. `~/.secrets`, NOT in BWS) | Unlocks BWS itself | Read every other secret | **Blue/green** — see below |
 
-### App secrets
+### AUTOGEN_INFRA_* — Tofu-minted, no operator action needed
+
+`infra/tofu/secrets.tf` declares 5 `random_password` resources. On first apply they generate fresh values, `null_resource.bws_sync_autogen` write-throughs them to BWS under the `AUTOGEN_INFRA_*` keys for human lookup (psql, Zitadel first-login, etc.). The `AUTOGEN_` prefix is the visual marker: operator doesn't populate these by hand.
 
 | Key | Purpose | Impact of leak | Rotation |
 |---|---|---|---|
-| `INFRA_POSTGRES_PASSWORD` | Postgres root + app DB password | Full DB read/write for menu + zitadel | **Dual-role pattern** — see below. Without it: ~5–10s window where in-flight transactions on the old container fail |
-| `INFRA_BACKUP_PASSPHRASE` | GPG passphrase for Postgres dumps in R2 | Attacker with R2 access can decrypt past dumps | **Keep old as `INFRA_BACKUP_PASSPHRASE_OLD`** when rotating; never GC until the last dump it protected has aged out of R2 lifecycle |
-| `INFRA_ZITADEL_MASTERKEY` | 32-char masterkey encrypting Zitadel's internal secrets (signing keys, OAuth client secrets) | Attacker can decrypt the projection table | **Do NOT rotate casually.** Documented re-key flow only. Generate once via `openssl rand -base64 24 \| head -c 32` |
-| `INFRA_ZITADEL_FIRST_ADMIN_PASSWORD` | Bootstrap password for the `zitadel-admin` user on FIRST boot | Attacker who reaches `auth.iedora.com` with this gets `IAM_OWNER` | Rotate the live password in Zitadel UI — this BWS entry is only honored on the very first init |
-| `INFRA_OPENOBSERVE_ROOT_USER_PASSWORD` | OpenObserve admin login | Attacker can read every trace + metric | Rotate in OpenObserve UI; redeploy each product so the ingest header in env updates |
+| `AUTOGEN_INFRA_POSTGRES_PASSWORD` | Postgres root + app DB password | Full DB read/write for menu + zitadel | `tofu apply -replace=random_password.postgres` — BWS auto-syncs. Brief downtime while containers recreate |
+| `AUTOGEN_INFRA_BACKUP_PASSPHRASE` | GPG passphrase for Postgres dumps in R2 | Attacker with R2 access can decrypt past dumps | **Manual dual-passphrase window** — see below. Don't `tofu apply -replace` directly without preserving the old passphrase for in-flight dumps |
+| `AUTOGEN_INFRA_ZITADEL_MASTERKEY` | 32-char masterkey encrypting Zitadel's internal secrets | Attacker can decrypt the projection table | **`lifecycle.prevent_destroy = true` guards it.** Documented re-key flow only — rotating it brick the projection table |
+| `AUTOGEN_INFRA_ZITADEL_FIRST_ADMIN_PASSWORD` | Bootstrap password for `zitadel-admin` on FIRST boot | Attacker with this + reach to `auth.iedora.com` gets IAM_OWNER | Look up in BWS, log in once, change via Zitadel UI immediately. The BWS entry is only honored on FirstInstance |
+| `AUTOGEN_INFRA_OPENOBSERVE_ROOT_USER_PASSWORD` | OpenObserve admin login | Attacker can read every trace + metric | `tofu apply -replace=random_password.openobserve_password`; redeploy each product so OTEL_EXPORTER_OTLP_HEADERS picks up the new password |
+
+### App secrets — manually populated
+
+| Key | Purpose | Impact of leak | Rotation |
+|---|---|---|---|
 | `INFRA_CLAUDE_CODE_OAUTH_TOKEN` | Claude Code Action's Pro/Max OAuth token; Tofu pushes to GH as `CLAUDE_CODE_OAUTH_TOKEN` | Attacker can run the Action against your subscription | `claude setup-token` → BWS edit → `just infra::deploy`. Revoke in Anthropic account if leaked. See `docs/ai.md` |
+| `INFRA_OPENOBSERVE_ROOT_USER_EMAIL` | OO root account email (receives alerts) | Username disclosure | BWS edit + `tofu apply` recreates infra-openobserve |
 
 > **Auth/OIDC secrets are not in BWS.** Menu's session-cookie key, Zitadel
 > OIDC client_id/secret, and the menu_sa management PAT all live in TF
@@ -116,13 +124,21 @@ Cost: one extra round-trip. Benefit: pause/revert at any phase boundary without 
 
 ## "I think it leaked — what now?"
 
-For most secrets:
+For operator-populated `INFRA_*` secrets (CF API token, Hetzner token, etc.):
 
 ```bash
-just infra::rotate-secret INFRA_POSTGRES_PASSWORD   # or whatever
+just infra::rotate-secret INFRA_HCLOUD_TOKEN   # or whatever
 ```
 
 Prompts for new value (no echo), updates BWS, reminds you to `just infra::deploy`. `bin/with-secrets` re-reads BWS on every apply.
+
+For `AUTOGEN_INFRA_*` secrets (Tofu-minted):
+
+```bash
+bin/with-secrets tofu -chdir=infra/tofu apply -replace=random_password.<name>
+```
+
+Where `<name>` is `postgres`, `backup_passphrase`, `zitadel_first_admin`, or `openobserve_password`. The replace generates a fresh value; `null_resource.bws_sync_autogen` write-throughs the new value to BWS automatically. `random_password.zitadel_masterkey` is guarded by `lifecycle.prevent_destroy = true` — rotating it requires removing the lifecycle block and goes through the documented re-key flow.
 
 For `INFRA_CLOUDFLARE_API_TOKEN` rotation: sub-tokens are independent credentials, they keep working when the master rotates. Only rotate sub-tokens if individually compromised:
 
@@ -154,8 +170,8 @@ No code changes — `bin/with-secrets` reads it at runtime.
 | `INFRA_GHCR_TOKEN` (classic) | 1 year | GitHub emails 1 week before |
 | `INFRA_SSH_PRIVATE_KEY` | Annually (CIS for ed25519) | Manual; Q1 calendar event |
 | `INFRA_STATE_PASSPHRASE` | Decades (NIST: "up to several years"); rotate on incident | Manual |
-| `INFRA_POSTGRES_PASSWORD` | 90 days (PCI-DSS 8.3.9) | Manual |
-| `INFRA_BACKUP_PASSPHRASE` | Annually — archive `_OLD` forever | Manual |
+| `AUTOGEN_INFRA_POSTGRES_PASSWORD` | 90 days (PCI-DSS 8.3.9) — `tofu apply -replace=random_password.postgres` | Manual |
+| `AUTOGEN_INFRA_BACKUP_PASSPHRASE` | Annually — archive `_OLD` forever before `-replace` | Manual |
 | Menu session-cookie key (TF) | Annually — `tofu apply -replace=random_password.menu_session_secret` (rotate forces re-login) | Manual |
 | Menu OIDC client_secret (TF) | On suspicion of leak — `tofu apply -replace=zitadel_application_oidc.menu` | Manual |
 | Menu management PAT (TF) | On suspicion of leak — `tofu apply -replace=zitadel_personal_access_token.menu_sa` | Manual |
@@ -187,8 +203,8 @@ the cookie wire format.
 Run two app roles (`menu_app` + `menu_app_rotate`); apps connect under one at a time; rotation alternates:
 
 1. `ALTER USER menu_app_rotate PASSWORD 'new-password'` — immediately live for new connections.
-2. BWS edit `INFRA_POSTGRES_PASSWORD` → what the app's DATABASE_URL points at.
-3. `just infra::deploy` — Tofu recreates `docker_container.menu_web` with the new env.
+2. `bin/with-secrets tofu -chdir=infra/tofu apply -replace=random_password.postgres` — mints a fresh value; the new value flows into `docker_container.menu_web.env` AND into BWS via the autogen write-through.
+3. Existing menu container recreates with the new env on the same apply.
 
 Existing connections on the old role remain authenticated until they reconnect; no blips.
 

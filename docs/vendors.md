@@ -17,7 +17,7 @@ Vendors that process customer data or hold the keys. Each must have a current SO
 | | |
 |---|---|
 | **Service** | DNS + R2 object storage (3 buckets: backups, observability, menu assets) + Workers Static Assets (iedora.com). TLS is terminated by Caddy on the VPS — Cloudflare proxies are NOT in front of `menu.iedora.com`, `auth.iedora.com`, or `obs.iedora.com` (grey-cloud A records direct to the VPS IPv4). |
-| **Data they touch** | DNS records and R2 contents. Backup data at rest is GPG-encrypted with `INFRA_BACKUP_PASSPHRASE` (CF sees ciphertext only). |
+| **Data they touch** | DNS records and R2 contents. Backup data at rest is GPG-encrypted with `AUTOGEN_INFRA_BACKUP_PASSPHRASE` (CF sees ciphertext only). |
 | **SOC 2 status** | Type II — current. https://www.cloudflare.com/trust-hub/compliance-resources/ |
 | **Other compliance** | ISO 27001, ISO 27018, PCI DSS, FedRAMP Moderate |
 | **DPA** | Standard CF DPA accepted at account-setup |

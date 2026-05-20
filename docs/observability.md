@@ -100,17 +100,12 @@ Cluster mode (multiple replicas, PG meta store) is a Phase-2+ concern.
 
 ### Bootstrap secrets
 
-| BWS key | Value |
-|---|---|
-| `INFRA_OPENOBSERVE_ROOT_USER_EMAIL` | Admin email — UI login |
-| `INFRA_OPENOBSERVE_ROOT_USER_PASSWORD` | Strong random — `openssl rand -base64 32` |
-| `INFRA_OPENOBSERVE_INGEST_HEADER` | Pre-baked `Authorization=Basic%20<base64(email:password)>` |
+| BWS key | Value | Origin |
+|---|---|---|
+| `INFRA_OPENOBSERVE_ROOT_USER_EMAIL` | Admin email — UI login | Operator populates |
+| `AUTOGEN_INFRA_OPENOBSERVE_ROOT_USER_PASSWORD` | 32-char random | Tofu mints via `random_password.openobserve_password` and write-throughs to BWS |
 
-Build the ingest header:
-
-```bash
-echo -n "$EMAIL:$PASSWORD" | base64 -w0 | xargs -I{} echo "Authorization=Basic%20{}"
-```
+The Basic-auth ingest header is computed inline in `infra/tofu/containers.tf::module.menu_env` (`base64encode("${email}:${password}")`) — no separate BWS key needed.
 
 For better posture, create a dedicated `iedora-ingest@iedora.com` user with ingest-only role after first boot; rotate the header to use those credentials.
 
@@ -132,7 +127,7 @@ For better posture, create a dedicated `iedora-ingest@iedora.com` user with inge
 ```
 just infra::deploy                # provisions R2 + boots accessory
 just infra::logs openobserve      # tail container logs
-just infra::rotate-secret INFRA_OPENOBSERVE_ROOT_USER_PASSWORD
+bin/with-secrets tofu -chdir=infra/tofu apply -replace=random_password.openobserve_password
 ```
 
 ## Querying — common recipes

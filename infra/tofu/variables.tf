@@ -214,18 +214,6 @@ variable "hetzner_location" {
 # Tofu inputs that flow into the docker_container env arrays in
 # containers.tf. bin/with-secrets exports each as TF_VAR_* from its BWS key.
 
-variable "infra_postgres_password" {
-  description = "Postgres superuser password (shared accessory). TF_VAR_infra_postgres_password (from BWS INFRA_POSTGRES_PASSWORD)."
-  type        = string
-  sensitive   = true
-}
-
-variable "infra_backup_passphrase" {
-  description = "GPG passphrase the backups container uses to encrypt Postgres dumps before R2 upload. TF_VAR_infra_backup_passphrase (from BWS INFRA_BACKUP_PASSPHRASE)."
-  type        = string
-  sensitive   = true
-}
-
 variable "infra_ghcr_token" {
   description = <<-EOT
     Classic GitHub PAT (write:packages) used to pull `ghcr.io/eduvhc/iedora-backup`
@@ -239,29 +227,6 @@ variable "infra_ghcr_token" {
 
 variable "infra_openobserve_root_user_email" {
   description = "OpenObserve root login email. TF_VAR_infra_openobserve_root_user_email (from BWS INFRA_OPENOBSERVE_ROOT_USER_EMAIL)."
-  type        = string
-  sensitive   = true
-}
-
-variable "infra_openobserve_root_user_password" {
-  description = "OpenObserve root login password. TF_VAR_infra_openobserve_root_user_password (from BWS INFRA_OPENOBSERVE_ROOT_USER_PASSWORD)."
-  type        = string
-  sensitive   = true
-}
-
-variable "infra_zitadel_masterkey" {
-  description = "Zitadel masterkey (exactly 32 chars). TF_VAR_infra_zitadel_masterkey (from BWS INFRA_ZITADEL_MASTERKEY)."
-  type        = string
-  sensitive   = true
-
-  validation {
-    condition     = length(var.infra_zitadel_masterkey) == 32
-    error_message = "infra_zitadel_masterkey must be EXACTLY 32 chars; Zitadel rejects anything else with `invalid key length`."
-  }
-}
-
-variable "infra_zitadel_first_admin_password" {
-  description = "Bootstrap password for Zitadel's `zitadel-admin` human user. Used only on first init. TF_VAR_infra_zitadel_first_admin_password (from BWS INFRA_ZITADEL_FIRST_ADMIN_PASSWORD)."
   type        = string
   sensitive   = true
 }
