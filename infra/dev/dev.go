@@ -219,25 +219,63 @@ func main() {
 		warn("zitadel opted out — products/menu/.env.local is NOT updated. Make sure ZITADEL_OAUTH_CLIENT_ID/SECRET/MANAGEMENT_TOKEN point at a real IdP, or auth flows will 500.")
 	}
 
-	printNextSteps(selected)
+	printNextSteps(selected, repoRoot, devInfraDir)
 }
 
 // printNextSteps tells the user where their selected products are
-// reachable. Products that need a host-side `bun run dev` (menu, for
-// HMR) get instructions; products that run in the compose stack
-// (house) just get the URL.
-func printNextSteps(selected []string) {
+// reachable. URLs are NEVER hardcoded here — they're pulled from the
+// canonical source so the script can't drift away from the actual
+// config (menu's URL = MENU_PUBLIC_URL in the env file the TF module
+// just rendered; house's URL = the runtime port mapping reported by
+// docker compose).
+func printNextSteps(selected []string, repoRoot, infraDir string) {
 	fmt.Println()
 	fmt.Println("[dev] infra is up.")
 	if contains(selected, "menu") {
-		fmt.Println("  host:      cd products/menu && bun run dev   # Next.js on :3000")
+		url := readEnvVar(filepath.Join(repoRoot, "products/menu/.env"), "MENU_PUBLIC_URL")
+		fmt.Printf("  host:      cd products/menu && bun run dev   # %s\n", url)
 	}
 	if contains(selected, "house") {
-		fmt.Println("  container: http://localhost:3002              # Astro static (busybox httpd)")
+		fmt.Printf("  container: %s              # Astro static (busybox httpd)\n", composePort(infraDir, "house", "80"))
 	}
 	if !contains(selected, "menu") && !contains(selected, "house") {
 		fmt.Println("  (no product selected — compose stack stays running for ad-hoc work)")
 	}
+}
+
+// readEnvVar pulls a single KEY=value entry out of a dotenv-style file.
+// Returns "" if the file or key isn't found — the caller decides whether
+// that's fatal or a soft missing-value display.
+func readEnvVar(path, key string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	prefix := key + "="
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimPrefix(line, prefix)
+		}
+	}
+	return ""
+}
+
+// composePort asks docker compose what host port a container's internal
+// port maps to. `docker compose port <service> <internal>` prints
+// `0.0.0.0:<port>` or similar. We rewrite that to `http://localhost:<port>`
+// so the URL is clickable in a terminal.
+func composePort(infraDir, service, internal string) string {
+	cmd := exec.Command("docker", "compose", "port", service, internal)
+	cmd.Dir = infraDir
+	out, err := cmd.Output()
+	if err != nil {
+		return "(docker compose port " + service + " " + internal + " failed)"
+	}
+	raw := strings.TrimSpace(string(out))
+	if idx := strings.LastIndex(raw, ":"); idx >= 0 {
+		return "http://localhost" + raw[idx:]
+	}
+	return raw
 }
 
 // ── Selection: flags + interactive ──────────────────────────────────────────
