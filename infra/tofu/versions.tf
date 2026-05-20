@@ -99,15 +99,13 @@ provider "hcloud" {
 
 # Docker — talks to the Hetzner box's Docker daemon over SSH. The IP comes
 # from `hcloud_server.iedora.ipv4_address` (output of the hcloud provider),
-# so the docker provider is implicitly downstream of the Hetzner one. Same
-# SSH key `INFRA_SSH_PRIVATE_KEY` (name kept as a tombstone from the
-# Kamal era; registered as `hcloud_ssh_key.operator` so cloud-init drops it
-# into root's authorized_keys).
+# so the docker provider is implicitly downstream of the Hetzner one.
+# `INFRA_SSH_PRIVATE_KEY` is registered as `hcloud_ssh_key.operator` so
+# cloud-init drops it into root's authorized_keys.
 #
 # `registry_auth` covers ghcr.io because the self-built backup image
 # (ghcr.io/eduvhc/iedora-backup) is private. Everything else
-# (postgres, openobserve, zitadel, cloudflared, caddy) is on public
-# registries and needs no auth.
+# (postgres, openobserve, zitadel, caddy) is on public registries.
 provider "docker" {
   host = "ssh://root@${hcloud_server.iedora.ipv4_address}"
 

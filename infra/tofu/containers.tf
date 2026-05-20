@@ -2,29 +2,26 @@
 # backups job, the cloudflared sidecars, and the menu app itself. One
 # `tofu apply` boots the lot.
 #
-# Network:
-#   `docker_network.kamal` keeps the legacy name "kamal" — renaming would
-#   force a recreate of every container on the box. Treat the network
-#   name as a tombstone. Container-DNS resolution (`infra-postgres`,
-#   `infra-openobserve`, `infra-zitadel`) is unaffected.
+# Network: `docker_network.iedora`. Container-DNS resolution
+# (`infra-postgres`, `infra-openobserve`, `infra-zitadel`) is by alias and
+# unaffected by the network name itself.
 
 # ── Network ──────────────────────────────────────────────────────────────────
 
-resource "docker_network" "kamal" {
-  name   = "kamal"
+resource "docker_network" "iedora" {
+  name   = "iedora"
   driver = "bridge"
-
-  lifecycle {
-    # Don't destroy the network on `tofu destroy` — containers may still
-    # be attached and Docker refuses. Manual cleanup if ever needed:
-    # `docker network rm kamal`.
-    prevent_destroy = true
-  }
 
   # Every other docker_* resource in this file references either this
   # network or the bootstrap volume, so chaining the docker readiness
   # barrier through these two foundational resources transitively gates
   # every container behind cloud-init finishing on the Hetzner box.
+  #
+  # No prevent_destroy lifecycle: every container attaching to this
+  # network depends on it in the TF graph, so `tofu destroy` tears
+  # them down first. The "Docker refuses because containers are
+  # attached" failure mode the guard was defending against can't
+  # happen through TF.
   depends_on = [null_resource.docker_ready]
 }
 
@@ -101,7 +98,7 @@ resource "docker_container" "postgres" {
   ]
 
   networks_advanced {
-    name    = docker_network.kamal.name
+    name    = docker_network.iedora.name
     aliases = ["infra-postgres"]
   }
 
@@ -147,7 +144,7 @@ resource "docker_container" "openobserve" {
   ]
 
   networks_advanced {
-    name    = docker_network.kamal.name
+    name    = docker_network.iedora.name
     aliases = ["infra-openobserve"]
   }
 
@@ -190,7 +187,7 @@ resource "docker_container" "backups" {
   ]
 
   networks_advanced {
-    name = docker_network.kamal.name
+    name = docker_network.iedora.name
   }
 
   log_opts = {
@@ -291,7 +288,7 @@ resource "docker_container" "zitadel" {
   ]
 
   networks_advanced {
-    name    = docker_network.kamal.name
+    name    = docker_network.iedora.name
     aliases = ["infra-zitadel"]
   }
 
@@ -330,7 +327,7 @@ resource "docker_container" "zitadel_login" {
   ]
 
   networks_advanced {
-    name    = docker_network.kamal.name
+    name    = docker_network.iedora.name
     aliases = ["infra-zitadel-login"]
   }
 
@@ -441,7 +438,7 @@ resource "docker_container" "menu_web" {
   ]
 
   networks_advanced {
-    name    = docker_network.kamal.name
+    name    = docker_network.iedora.name
     aliases = ["infra-menu-web"]
   }
 
@@ -470,7 +467,7 @@ resource "docker_container" "caddy" {
   }
 
   networks_advanced {
-    name    = docker_network.kamal.name
+    name    = docker_network.iedora.name
     aliases = ["infra-caddy"]
   }
 
@@ -520,7 +517,7 @@ resource "docker_container" "caddy" {
       ${var.observability_hostname} {
         # OpenObserve UI + OTLP-HTTP receiver. HTTP/1.1 backend; OTLP/gRPC
         # is on a different port and not exposed publicly (products talk to
-        # infra-openobserve:5081 via the kamal network only).
+        # infra-openobserve:5081 via the iedora network only).
         reverse_proxy http://infra-openobserve:5080
       }
     EOT

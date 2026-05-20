@@ -57,17 +57,12 @@ variable "observability_hostname" {
 
 variable "zitadel_hostname" {
   description = <<-EOT
-    Public FQDN for the self-hosted ZITADEL IdP (issue #19). Tunneled from
-    the homelab via Cloudflare; cloudflared terminates inside the `kamal`
-    network at `http://infra-zitadel:8080`. End users hit
-    `https://auth.iedora.com/ui/v2/login`; OIDC clients use it as the issuer.
-
-    NOTE (2026-05-19): the official `zitadel/zitadel` Tofu provider is NOT
-    used during the homelab era — Cloudflare's free plan blocks
-    `application/grpc` at the edge (no zone-level toggle, Pro+ feature), so
-    Zitadel orgs/projects/OIDC apps are managed via the Console UI for now.
-    When IPv4 arrives (new ISP or Hetzner), we drop the CF Tunnel for this
-    hostname and switch back to declarative TF management.
+    Public FQDN for the self-hosted ZITADEL IdP. Direct A record into the
+    Hetzner VPS (grey-cloud, no Cloudflare in path); Caddy terminates TLS
+    on the box and proxies into `http://infra-zitadel:8080`. End users
+    hit `https://auth.iedora.com/ui/v2/login`; OIDC clients use it as the
+    issuer. The official `zitadel/zitadel` Tofu provider works against
+    this because gRPC isn't gated by CF — see `infra/tofu/zitadel.tf`.
   EOT
   type        = string
   default     = "auth.iedora.com"

@@ -203,7 +203,7 @@ After the infra code changes from #19 Phase 1 land:
    create/start semantics:
    - Cloudflare resources land (R2 buckets, grey-cloud A records for
      auth/menu/obs).
-   - `docker_network.kamal` + `docker_volume.zitadel_bootstrap` come up
+   - `docker_network.iedora` + `docker_volume.zitadel_bootstrap` come up
      (the volume's chmod init container fixes perms so non-root
      container users can write).
    - `docker_container.postgres` boots; init.sql is auto-uploaded and
@@ -308,9 +308,8 @@ ssh root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4) 'docker restart infr
 ```
 
 Zitadel reboots independently of the menu app — `docker restart`
-works without disturbing other containers on the `kamal` Docker network
-(name kept as tombstone; see `infra/CLAUDE.md`). The menu app
-re-establishes OIDC sessions on the next request.
+works without disturbing other containers on the `iedora` Docker network.
+The menu app re-establishes OIDC sessions on the next request.
 
 ## OIDC client integration
 

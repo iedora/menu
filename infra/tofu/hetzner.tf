@@ -128,7 +128,7 @@ resource "hcloud_server" "iedora" {
 # The kreuzwerker/docker provider tries to connect during graph evaluation,
 # so without a barrier the first apply races and fails ("connect: connection
 # refused" or "cannot connect to docker daemon"). This null_resource SSHes
-# in and waits until `docker info` succeeds, then docker_network.kamal +
+# in and waits until `docker info` succeeds, then docker_network.iedora +
 # docker_volume.zitadel_bootstrap depend on it (every container depends on
 # one of those, so the wait is transitive).
 

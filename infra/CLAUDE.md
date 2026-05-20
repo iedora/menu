@@ -22,7 +22,7 @@ The single deploy entry point. One Tofu root provisions the Hetzner VPS, every C
 
 Container names are deliberately `infra-*` for everything that serves both products / lives across cutovers. The menu app is `menu_web`.
 
-> **Why the network is still called `kamal`** — `docker_network.kamal` is a tombstone from the pre-2026-05-20 Kamal era. Renaming would recreate every container on the box; the upside is zero. Leave it.
+Containers attach to `docker_network.iedora` (`name = "iedora"`); container-DNS is by alias (`infra-postgres`, `infra-zitadel`, …) and the network name itself is internal.
 
 **Self-built images (`infra/backup/`):** Dockerfile + `backup.sh` / `restore.sh` / `run.sh`. Rebuilt only when bumping Postgres major.
 
@@ -48,7 +48,7 @@ infra/
     hetzner.tf                          hcloud_server.iedora + firewall + SSH key
     main.tf                             R2 buckets + DNS (menu/auth/obs) + zitadel_tunnel-equivalent
                                         only if needed (obs.iedora.com is direct now)
-    containers.tf                       docker_network.kamal + docker_volume.zitadel_bootstrap +
+    containers.tf                       docker_network.iedora + docker_volume.zitadel_bootstrap +
                                         every docker_container (postgres, backups, openobserve,
                                         zitadel, zitadel-login, caddy, menu_web)
     github.tf                           Tofu-managed GH Actions secrets + variables
