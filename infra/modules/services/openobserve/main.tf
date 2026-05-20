@@ -23,7 +23,7 @@ variable "network_name" {
 
 variable "image" {
   type    = string
-  default = "public.ecr.aws/zinclabs/openobserve:v0.80.3"
+  default = "public.ecr.aws/zinclabs/openobserve:v0.90.0"
 }
 
 variable "data_path" {

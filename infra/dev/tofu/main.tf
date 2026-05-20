@@ -173,6 +173,74 @@ module "openobserve" {
 
 locals {
   bootstrap_host_path = abspath("${path.module}/../.zitadel-bootstrap")
+  repo_root           = abspath("${path.module}/../../..")
+}
+
+# ── Image-build change detection ────────────────────────────────────────────
+# `docker_image.{menu,house}` with a `build {}` block only run the
+# build on FIRST create. Without `triggers`, TF treats the cached
+# image (e.g. `iedora-menu:dev`) as fresh on every subsequent apply,
+# so a touched source file in products/menu/src/** would go unnoticed
+# until you `docker rmi iedora-menu:dev`.
+#
+# We hash the inputs that actually go into each Dockerfile's build
+# context. A touched file → hash changes → triggers map changes →
+# docker_image gets REPLACED → fresh `docker build` runs.
+#
+# Hashing ~100 small files takes <100ms per plan. node_modules,
+# .next/, dist/, test-results/ are excluded — they're build outputs
+# or regenerated from bun.lock, not inputs to the build.
+
+locals {
+  menu_tracked_files = sort(tolist(setunion(
+    fileset(local.repo_root, "products/menu/src/**"),
+    fileset(local.repo_root, "products/menu/scripts/**"),
+    fileset(local.repo_root, "products/menu/public/**"),
+    fileset(local.repo_root, "products/menu/drizzle/**"),
+    fileset(local.repo_root, "packages/*/src/**"),
+    fileset(local.repo_root, "packages/*/package.json"),
+    toset([
+      "bun.lock",
+      "package.json",
+      "tsconfig.base.json",
+      "products/menu/Dockerfile",
+      "products/menu/package.json",
+      "products/menu/next.config.ts",
+      "products/menu/tsconfig.json",
+      "products/menu/tsconfig.build.json",
+      "products/menu/instrumentation.ts",
+      "products/menu/instrumentation.node.ts",
+      "products/menu/drizzle.config.ts",
+      "products/menu/postcss.config.mjs",
+      # menu's Dockerfile COPYs products/house/package.json to satisfy
+      # the workspace glob during `bun install`. Treat it as an input.
+      "products/house/package.json",
+    ]),
+  )))
+  menu_source_hash = sha1(join("", [
+    for f in local.menu_tracked_files : filesha1("${local.repo_root}/${f}")
+  ]))
+
+  house_tracked_files = sort(tolist(setunion(
+    fileset(local.repo_root, "products/house/src/**"),
+    fileset(local.repo_root, "packages/*/src/**"),
+    fileset(local.repo_root, "packages/*/package.json"),
+    toset([
+      "bun.lock",
+      "package.json",
+      "tsconfig.base.json",
+      "products/house/Dockerfile",
+      "products/house/package.json",
+      "products/house/astro.config.mjs",
+      "products/house/tsconfig.json",
+      # house's Dockerfile mirrors menu's — needs menu's package.json
+      # for the workspace install.
+      "products/menu/package.json",
+    ]),
+  )))
+  house_source_hash = sha1(join("", [
+    for f in local.house_tracked_files : filesha1("${local.repo_root}/${f}")
+  ]))
 }
 
 module "zitadel" {
@@ -227,8 +295,11 @@ resource "docker_image" "house" {
   count = var.enable_house ? 1 : 0
   name  = "iedora-house:dev"
   build {
-    context    = abspath("${path.module}/../../..")
+    context    = local.repo_root
     dockerfile = "products/house/Dockerfile"
+  }
+  triggers = {
+    source = local.house_source_hash
   }
 }
 
@@ -375,11 +446,11 @@ locals {
     otel_headers                = "Authorization=Basic%20${base64encode("dev@iedora.local:dev-password")}"
     # Browser-facing URLs — same in both variants (browser only ever
     # talks to host-published ports).
-    menu_public_url             = "http://localhost:3000"
-    zitadel_issuer_url          = "http://localhost:8080"
-    s3_public_url               = "http://localhost:4566/iedora-assets"
+    menu_public_url    = "http://localhost:3000"
+    zitadel_issuer_url = "http://localhost:8080"
+    s3_public_url      = "http://localhost:4566/iedora-assets"
     } : {
-    menu_session_secret = ""
+    menu_session_secret         = ""
     zitadel_oauth_client_id     = ""
     zitadel_oauth_client_secret = ""
     zitadel_management_token    = ""
@@ -451,8 +522,11 @@ resource "docker_image" "menu" {
   count = var.enable_menu ? 1 : 0
   name  = "iedora-menu:dev"
   build {
-    context    = abspath("${path.module}/../../..")
+    context    = local.repo_root
     dockerfile = "products/menu/Dockerfile"
+  }
+  triggers = {
+    source = local.menu_source_hash
   }
 }
 

@@ -331,7 +331,7 @@ resource "docker_container" "menu_web" {
 
 resource "docker_container" "caddy" {
   name    = "infra-caddy"
-  image   = "caddy:2.10-alpine"
+  image   = "caddy:2.11-alpine"
   restart = "unless-stopped"
 
   # Public 80/443 bound to all host interfaces (firewall already opens these).
