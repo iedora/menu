@@ -159,6 +159,18 @@
   }
 }
 
+/* Brand anchor — the `<Link>` that wraps `<Wordmark word="menu">`
+ * inside `<NavBrand>`. Shared by the landing nav and the dashboard
+ * chrome so both navs render the same brand mark with the same anchor
+ * reset (no underline, ink color, baseline alignment). The wordmark
+ * itself owns the typography. */
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  color: var(--ink);
+  text-decoration: none;
+}
+
 /* Editorial section eyebrow — JBMono uppercase, ink-55, kerned wide.
  * Use as: <span class="eyebrow">/ 01 SECTION</span>
  */

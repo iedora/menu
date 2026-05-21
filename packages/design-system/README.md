@@ -88,7 +88,7 @@ Omitting `weight` keeps both fonts as variable (full wght range). Adding a weigh
 | **Stroke** | `--hairline` (1px) · `--rule-line` (1.5px) · `--thick` (2px) |
 | **Motion** | `--ease` `--ease-soft` `--ease-open` `--ease-close` · `--d-1` (120ms) → `--d-6` (1400ms) |
 
-Six principles thread through every primitive:
+Seven principles thread through every primitive:
 
 1. **Hairlines, not boxes.** Sections divide by 1px `--ink-14` rules. Card edges are seams, not containers.
 2. **Italics carry emphasis.** Wrap a word in `<em>` inside a headline to mark it; close statements with a cinnabar `.` (the wordmark dot pattern).
@@ -96,6 +96,7 @@ Six principles thread through every primitive:
 4. **No animations gating LCP.** Above-the-fold content — headlines, brand wordmarks, hero CTAs, primary illustrations — renders synchronously with full opacity at first paint. Decorative reveal/fade-in animations live only below the fold (`.reveal` + `IntersectionObserver`) and are gated on `body.ds-loaded` so no-JS readers still see content. The wordmark letter-by-letter animation is opt-in via the `ds-wordmark--reveal` class — pin it statically when the wordmark is above-the-fold; toggle it post-paint only on quiet brand surfaces where the LCP candidate is something else.
 5. **Editorial primitives forward `data-test-id`.** Every interactive element (Button, NavLink, Combobox trigger, FieldInput, FieldTextarea, …) accepts a `data-test-id` and forwards it to its root via the standard prop-spread. Consumers target by intent (`page.getByTestId('qr-codes-create-button')`), never by visible text or class — both drift with i18n and Tailwind refactors. Playwright is wired with `testIdAttribute: 'data-test-id'`.
 6. **Slot composition over `props` configuration.** Chrome primitives (`Nav`, `Card`, `Field`, `Dialog`) accept children in named slots rather than configuration props. A nav with no links is a `<Nav>` with no `<NavLinks>` child — not a `<Nav showLinks={false}>`. Layout primitives use CSS `:has()` to react to slot presence.
+7. **Framework-agnostic primitives, app-side composition for routing.** No primitive imports `next/link`, `react-router`, or any framework router — they all render plain `<a>` by default and accept `asChild` (Radix `Slot`) when a router-aware link is needed. Active-route detection (`usePathname()`, route loaders) and prefetch behavior live in the host app, not the design system. The recipe: one tiny client island per nav (not per link) that reads the current path once and maps to `<NavLink asChild active>…<Link/></NavLink>`. See `docs/components.md` §Nav — Routing & active state.
 
 ## What's in the package
 

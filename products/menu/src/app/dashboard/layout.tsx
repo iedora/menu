@@ -3,8 +3,6 @@ import {
   Nav,
   NavActions,
   NavBrand,
-  NavLink,
-  NavLinks,
   Wordmark,
 } from '@iedora/design-system'
 import {
@@ -16,6 +14,7 @@ import {
 import { getOrganizationPlan, planHas } from '@/features/plans'
 import { LogoutButton } from '@/features/dashboard-home/ui/logout-button'
 import { UserLocaleSwitcher } from '@/features/dashboard-home/ui/user-locale-switcher'
+import { ActiveNavLinks } from '@/shared/ui/active-nav-links'
 
 export default async function DashboardLayout({
   children,
@@ -51,7 +50,7 @@ export default async function DashboardLayout({
         <NavBrand>
           <Link
             href="/dashboard"
-            className="inline-flex items-baseline no-underline"
+            className="brand"
             aria-label="Menu home"
             data-test-id="dashboard-home-link"
           >
@@ -59,20 +58,12 @@ export default async function DashboardLayout({
           </Link>
         </NavBrand>
 
-        <NavLinks aria-label="Dashboard">
-          {navItems.map((item) => (
-            // `asChild` so navigation goes through Next's <Link> —
-            // client-side routing + prefetch on hover. A plain <a> would
-            // trigger a full reload on every nav click.
-            <NavLink
-              key={item.href}
-              asChild
-              data-test-id={item.testId}
-            >
-              <Link href={item.href}>{item.label}</Link>
-            </NavLink>
-          ))}
-        </NavLinks>
+        {/* `ActiveNavLinks` is a tiny client island over `<NavLinks>` —
+            reads `usePathname()` once and maps to `<NavLink asChild
+            active=…><Link/></NavLink>` so client-side routing +
+            prefetch stay intact AND the cinnabar active underline
+            lights the right tab. */}
+        <ActiveNavLinks ariaLabel="Dashboard" items={navItems} />
 
         <NavActions>
           <UserLocaleSwitcher />

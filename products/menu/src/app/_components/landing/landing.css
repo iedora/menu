@@ -89,14 +89,9 @@
 /* ── nav — chrome shell comes from `<Nav>` in @iedora/design-system.
    Only the custom brand mark + action chips below are landing-local.   */
 
-/* Brand wraps the iedora `<Wordmark word="menu">` primitive. Anchor
-   reset only — typography comes from the design-system rules. */
-.landing-root .brand {
-  display: inline-flex;
-  align-items: baseline;
-  color: var(--ink);
-  text-decoration: none;
-}
+/* Brand anchor reset lives in app/globals.css so both the landing nav
+   AND the dashboard chrome (both compose `<NavBrand><Link className="brand">`)
+   share one rule. Kept out of landing-scoped CSS on purpose. */
 
 .landing-root .nav-link {
   font-family: var(--mono);

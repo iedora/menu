@@ -76,11 +76,15 @@ Editorial chrome shared by every product surface (menu landing, menu dashboard, 
 ```tsx
 <Nav sticky data-test-id="dashboard-chrome">
   <NavBrand>
-    <Link href="/dashboard"><Wordmark word="menu" variant="inline" className="ds-wordmark--reveal" /></Link>
+    <Link href="/dashboard" className="brand"><Wordmark word="menu" variant="inline" className="ds-wordmark--reveal" /></Link>
   </NavBrand>
   <NavLinks aria-label="Dashboard">
-    <NavLink href="/dashboard/analytics" active data-test-id="dashboard-nav-analytics">Analytics</NavLink>
-    <NavLink href="/dashboard/billing" data-test-id="dashboard-nav-billing">Billing</NavLink>
+    <NavLink asChild active data-test-id="dashboard-nav-analytics">
+      <Link href="/dashboard/analytics">Analytics</Link>
+    </NavLink>
+    <NavLink asChild data-test-id="dashboard-nav-billing">
+      <Link href="/dashboard/billing">Billing</Link>
+    </NavLink>
   </NavLinks>
   <NavActions>
     <LangSwitcher />
@@ -94,7 +98,38 @@ Layout (mobile-first, no hamburger — every link reachable at every width):
 - Omitting `<NavLinks>` collapses the link row to zero height via `:has(.ds-nav__links)`.
 - `<NavLink active>` paints the cinnabar underline + sets `aria-current="page"` + exposes `data-active="true"`.
 
-Props: `Nav { sticky?, ...HTMLAttributes }`, `NavLink { active?, ...AnchorHTMLAttributes }`. All slots forward `data-test-id` via HTML attribute spread.
+#### Routing & active state
+The design system stays framework-agnostic. **`<NavLink asChild>`** composes with whatever link primitive the host app already uses (`next/link`, `react-router-dom`, `<a>` for static sites) via Radix `Slot` — className, `data-active`, `aria-current`, and any `data-*` test id merge onto the child:
+```tsx
+<NavLink asChild active={isActive(pathname, item.href)} data-test-id={item.testId}>
+  <Link href={item.href}>{item.label}</Link>          {/* keeps client routing + prefetch */}
+</NavLink>
+```
+Idiomatic recipe per framework (one client island per nav, not per link):
+- **Next.js (App Router)** — a tiny client wrapper that reads `usePathname()` once and renders the full `<NavLinks>` block:
+```tsx
+'use client'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { NavLink, NavLinks } from '@iedora/design-system'
+
+export function ActiveNavLinks({ items, ariaLabel }: { items: Item[]; ariaLabel: string }) {
+  const pathname = usePathname() ?? '/'
+  const isActive = (i: Item) => pathname === i.href || pathname.startsWith(i.href + '/')
+  return (
+    <NavLinks aria-label={ariaLabel}>
+      {items.map((i) => (
+        <NavLink key={i.href} asChild active={isActive(i)} data-test-id={i.testId}>
+          <Link href={i.href}>{i.label}</Link>
+        </NavLink>
+      ))}
+    </NavLinks>
+  )
+}
+```
+- **Astro / static HTML** — set `active` based on the current page's path at build time and render `<NavLink href="…" active>…</NavLink>` directly.
+
+Props: `Nav { sticky?, ...HTMLAttributes }`, `NavLink { active?, asChild?, ...AnchorHTMLAttributes }`. All slots forward `data-test-id` via HTML attribute spread.
 
 ---
 
