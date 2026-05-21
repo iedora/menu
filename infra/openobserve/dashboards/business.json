@@ -372,9 +372,9 @@
           "field": "tenant_restaurant_id",
           "max_record_size": null
         },
-        "value": "r_load_test1,r_load_test2",
+        "value": "r_load_test1",
         "options": [],
-        "multi_select": true
+        "multiSelect": true
       }
     ]
   },
