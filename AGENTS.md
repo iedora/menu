@@ -108,7 +108,7 @@ Menu's `infra/` owns a Dockerfile (built by CI into the GHCR image) plus a tiny 
 - `just dev` — boots the local dev stack (`just dev --destroy` wipes it).
 - `just doctor` — preflight on the operator's machine (PATH, BWS auth, bootstrap secrets).
 - `just menu::infra` — applies the menu-local Tofu (R2 assets bucket + `assets.iedora.com`). Rare.
-- `just house::deploy` / `house::destroy` — manage iedora.com via wrangler.
+- House (iedora.com) deploys via its own CI workflow on push to main. For ad-hoc local deploys: `cd products/house/infra && just deploy` (or `just destroy`).
 - Day-2 ops (logs / psql / backup / restore / rotate / wipe / zitadel-rebootstrap) are raw SSH against the Hetzner box — boilerplate in the root `justfile` header.
 
 `just` is a Rust task runner — `brew install just` (or `cargo install just`).

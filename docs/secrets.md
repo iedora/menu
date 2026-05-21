@@ -100,7 +100,7 @@ Minted by Tofu in encrypted state, pushed to BWS by `just deploy` so other syste
 
 | Key | Source | Rotation |
 |---|---|---|
-| `INFRA_HOUSE_WORKERS_TOKEN` | `cloudflare_api_token.workers_deploy` | `just house::rotate-token` (atomic `-replace` + BWS write-through) |
+| `INFRA_HOUSE_WORKERS_TOKEN` | `cloudflare_api_token.workers_deploy` | `cd products/house/infra && bin/with-secrets tofu -chdir=tofu apply -replace=cloudflare_api_token.workers_deploy` (atomic `-replace` + BWS write-through) |
 
 ## Expand–Contract for permission / token changes
 

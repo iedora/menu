@@ -209,7 +209,7 @@ Every GH Actions secret + variable is Tofu-managed via `infra/tofu/github.tf` (`
 
 The VPS IPv4 is NOT a GH variable. CI reads it directly inside the runner with `tofu output -raw hetzner_ipv4` after `tofu init` decrypts the state. The `GHCR_USER` falls back to `github.repository_owner` and isn't materialized either.
 
-**House workload token is auto-populated.** `just house::deploy` mints the narrow Workers token via Tofu and write-throughs to BWS as `INFRA_HOUSE_WORKERS_TOKEN`. Rotate via `just house::rotate-token` (never bare `tofu apply -replace=...`, or BWS goes stale).
+**House workload token is auto-populated.** The house deploy (CI on push to main, or `cd products/house/infra && just deploy` locally) mints the narrow Workers token via Tofu and write-throughs to BWS as `INFRA_HOUSE_WORKERS_TOKEN`. Rotate by running `cd products/house/infra && bin/with-secrets tofu -chdir=tofu apply -replace=cloudflare_api_token.workers_deploy` (never bare `tofu apply -replace=...` without the write-through, or BWS goes stale).
 
 ### Manual operations
 

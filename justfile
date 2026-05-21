@@ -25,7 +25,11 @@
 #   ssh root@$HOST docker exec infra-backups sh /backup.sh         # pg_dump now
 #   ssh -t root@$HOST docker exec -it infra-backups sh /restore.sh # restore
 
-mod house 'products/house/infra'
+# `just deploy` runs the shared infra Tofu root which OWNS the menu app
+# container. House (Astro on Cloudflare Workers) deploys via its own CI
+# workflow (`.github/workflows/house-deploy.yml`) on push to main — no
+# root-level recipe needed. For ad-hoc local house deploys, work from
+# its own justfile: `cd products/house/infra && just deploy`.
 
 # Default: list recipes.
 [private]

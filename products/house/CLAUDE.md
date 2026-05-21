@@ -6,5 +6,4 @@ No code-level hard rules. If you ever need server-side behaviour, use Astro Serv
 
 See:
 - `products/house/README.md` — what it is + how to deploy.
-- `products/house/infra/justfile` — `deploy` recipe (Astro build + `tofu apply`; the Cloudflare TF provider 5.11+ uploads `dist/` natively, no wrangler).
-- Root `AGENTS.md` for `just house::deploy`.
+- `products/house/infra/justfile` — `deploy` recipe (Astro build + `tofu apply`; the Cloudflare TF provider 5.11+ uploads `dist/` natively, no wrangler). Run via `cd products/house/infra && just deploy`. CI does this on push to main.

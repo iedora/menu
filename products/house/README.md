@@ -30,7 +30,7 @@ products/house/
 ├── dist/                       build output — what Tofu uploads to CF
 ├── site-legacy/                the previous 1789-line static site, kept for ref
 └── infra/                      Tofu root + justfile (NOT shipped to CF)
-    ├── justfile        `just house::deploy` lives here
+    ├── justfile        `just deploy` lives here (run from products/house/infra/)
     ├── tofu/           cloudflare_workers_script + cloudflare_workers_custom_domain
     └── bin/with-secrets BWS env wrapper
 ```
@@ -46,9 +46,9 @@ From the repo root:
 
 ## Deploy
 
-From the repo root:
+CI handles it on push to main (`.github/workflows/house-deploy.yml`). For ad-hoc local deploys:
 
-    just house::deploy
+    cd products/house/infra && just deploy
 
 That recipe runs:
 
