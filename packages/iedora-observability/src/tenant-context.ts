@@ -51,16 +51,46 @@ const tenantStorage = new AsyncLocalStorage<TenantAttrs>();
 export const tenantContext = {
   /**
    * Set tenant on the active scope and run `fn` inside it. Returns
-   * whatever `fn` returns (Promise or value).
+   * whatever `fn` returns (Promise or value). The scope is only active
+   * inside `fn` — outer code after the call sees the previous tenant
+   * (or undefined).
    */
   run<T>(attrs: TenantAttrs, fn: () => T): T {
     return tenantStorage.run(attrs, fn);
   },
 
   /**
+   * Set tenant on the current async chain WITHOUT a callback. The store
+   * persists through every subsequent async hop in the same execution
+   * — perfect for the "set once at the auth boundary, propagate through
+   * the rest of the request" pattern used by `requireRestaurantAccess`.
+   *
+   *   export async function requireRestaurantAccess(...) {
+   *     // ... auth check ...
+   *     tenantContext.enterWith({ restaurantId, organizationId })
+   *     return { session, organizationId, restaurantId }
+   *   }
+   *
+   * Returns the previous store (or undefined) so callers can manually
+   * restore it later if they need to. In practice, restoration is
+   * unnecessary: Next.js spawns each request in its own ALS root, so
+   * `enterWith` in one request can never leak into another.
+   *
+   * Use this OVER `run` when the entrypoint returns a value the caller
+   * needs to consume — wrapping the entire request in `run(...)` would
+   * require an inversion-of-control rewrite of every route handler.
+   */
+  enterWith(attrs: TenantAttrs): TenantAttrs | undefined {
+    const previous = tenantStorage.getStore();
+    tenantStorage.enterWith(attrs);
+    return previous;
+  },
+
+  /**
    * Read tenant from the currently-active scope. Returns undefined if
-   * no `run` is in flight. Tests and diagnostics; production code
-   * rarely needs this — the span processor handles the common case.
+   * no `run` or `enterWith` is in flight. Tests and diagnostics;
+   * production code rarely needs this — the span processor handles
+   * the common case.
    */
   get(): TenantAttrs | undefined {
     return tenantStorage.getStore();
@@ -69,7 +99,7 @@ export const tenantContext = {
   /**
    * Internal — exposed so TenantContextSpanProcessor can read the store
    * during onStart without having to re-import the singleton. NOT part
-   * of the public API; callers should use `.get()` or `.run()`.
+   * of the public API; callers should use `.get()` / `.run()` / `.enterWith()`.
    */
   _store: tenantStorage,
 } as const;

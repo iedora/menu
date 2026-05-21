@@ -5,6 +5,8 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { SpanStatusCode } from '@opentelemetry/api'
+import { meter, tracer } from '@iedora/observability'
 import {
   StorageError,
   type PresignedUpload,
@@ -12,6 +14,81 @@ import {
   type StoredObject,
   type Storage,
 } from '../types'
+
+/**
+ * Per-operation latency histogram for outbound S3 (R2/MinIO) calls.
+ * User-facing operations: presign on upload-start, head on commit,
+ * delete on clear. The fetch instrumentation already emits a span for
+ * each underlying HTTPS call; this histogram surfaces them grouped by
+ * logical operation so dashboards can SLO each independently.
+ */
+const storageOpDuration = meter.createHistogram(
+  'iedora.storage.operation_duration_ms',
+  {
+    description:
+      'Latency of S3-compatible storage operations (presign-put | head | delete).',
+    unit: 'ms',
+  },
+)
+
+/**
+ * Outcome counter — `success` / `not-found` (404 from head/delete) /
+ * `failed` (any other StorageError). Tracks "are we getting 4xx/5xx from
+ * R2" without parsing trace exceptions.
+ */
+const storageOps = meter.createCounter('iedora.storage.operations_total', {
+  description:
+    'Outbound storage operations, grouped by operation name and outcome.',
+  unit: 'call',
+})
+
+type StorageOp = 'presign-put' | 'head' | 'delete'
+type StorageOutcome = 'success' | 'not-found' | 'failed'
+
+async function tracedStorageOp<T>(
+  op: StorageOp,
+  key: string,
+  fn: () => Promise<{ value: T; outcome: StorageOutcome }>,
+): Promise<T> {
+  return tracer.startActiveSpan(`storage.${op}`, async (span) => {
+    span.setAttribute('iedora.storage.operation', op)
+    // Key is `r/{restaurantId}/...` (asset hard rule #9). The restaurant
+    // segment is the tenant attribution; recording it here also lets
+    // dashboards filter storage spans by tenant even when the operation
+    // is called outside a tenantContext.run block (e.g. bootstrap).
+    const restaurantSegment = key.match(/^r\/([^/]+)\//)?.[1]
+    if (restaurantSegment) {
+      span.setAttribute('iedora.restaurant_id', restaurantSegment)
+    }
+    span.setAttribute('iedora.storage.key', key)
+    const startedAt = performance.now()
+    let outcome: StorageOutcome = 'failed'
+    try {
+      const { value, outcome: o } = await fn()
+      outcome = o
+      span.setAttribute('iedora.storage.outcome', outcome)
+      if (outcome === 'failed') {
+        span.setStatus({ code: SpanStatusCode.ERROR })
+      }
+      return value
+    } catch (err) {
+      span.recordException(err as Error)
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      })
+      throw err
+    } finally {
+      const labels = {
+        'iedora.storage.operation': op,
+        'iedora.storage.outcome': outcome,
+      }
+      storageOpDuration.record(performance.now() - startedAt, labels)
+      storageOps.add(1, labels)
+      span.end()
+    }
+  })
+}
 
 export type S3StorageConfig = {
   endpoint: string
@@ -47,46 +124,59 @@ export class S3Storage implements Storage {
     key: string,
     req: PresignedUploadRequest,
   ): Promise<PresignedUpload> {
-    try {
-      const cmd = new PutObjectCommand({
-        Bucket: this.config.bucket,
-        Key: key,
-        ContentType: req.contentType,
-        ContentLength: req.contentLengthBytes,
-      })
-      const uploadUrl = await getSignedUrl(this.client, cmd, {
-        expiresIn: DEFAULT_EXPIRES,
-        // Browser PUT must send Content-Length and Content-Type, so they are
-        // signed in. Do not strip them when calling fetch from the client.
-        signableHeaders: new Set(['content-type', 'content-length']),
-      })
-      const publicUrl = `${this.config.publicBaseUrl.replace(/\/$/, '')}/${key}`
-      return {
-        uploadUrl,
-        publicUrl,
-        key,
-        expiresInSeconds: DEFAULT_EXPIRES,
+    return tracedStorageOp('presign-put', key, async () => {
+      try {
+        const cmd = new PutObjectCommand({
+          Bucket: this.config.bucket,
+          Key: key,
+          ContentType: req.contentType,
+          ContentLength: req.contentLengthBytes,
+        })
+        const uploadUrl = await getSignedUrl(this.client, cmd, {
+          expiresIn: DEFAULT_EXPIRES,
+          // Browser PUT must send Content-Length and Content-Type, so they are
+          // signed in. Do not strip them when calling fetch from the client.
+          signableHeaders: new Set(['content-type', 'content-length']),
+        })
+        const publicUrl = `${this.config.publicBaseUrl.replace(/\/$/, '')}/${key}`
+        return {
+          value: {
+            uploadUrl,
+            publicUrl,
+            key,
+            expiresInSeconds: DEFAULT_EXPIRES,
+          } satisfies PresignedUpload,
+          outcome: 'success',
+        }
+      } catch (cause) {
+        throw new StorageError('Failed to presign upload', cause)
       }
-    } catch (cause) {
-      throw new StorageError('Failed to presign upload', cause)
-    }
+    })
   }
 
   async head(key: string): Promise<StoredObject | null> {
-    try {
-      const res = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.config.bucket, Key: key }),
-      )
-      return {
-        contentLength: typeof res.ContentLength === 'number' ? res.ContentLength : 0,
-        contentType: res.ContentType,
+    return tracedStorageOp('head', key, async () => {
+      try {
+        const res = await this.client.send(
+          new HeadObjectCommand({ Bucket: this.config.bucket, Key: key }),
+        )
+        return {
+          value: {
+            contentLength:
+              typeof res.ContentLength === 'number' ? res.ContentLength : 0,
+            contentType: res.ContentType,
+          } satisfies StoredObject,
+          outcome: 'success',
+        }
+      } catch (cause) {
+        // 404 → object isn't there yet (client never completed PUT, or the
+        // presigned URL leaked but was never used). Bubble anything else.
+        if (isNotFound(cause)) {
+          return { value: null as StoredObject | null, outcome: 'not-found' }
+        }
+        throw new StorageError('Failed to head object', cause)
       }
-    } catch (cause) {
-      // 404 → object isn't there yet (client never completed PUT, or the
-      // presigned URL leaked but was never used). Bubble anything else.
-      if (isNotFound(cause)) return null
-      throw new StorageError('Failed to head object', cause)
-    }
+    })
   }
 
   keyFromPublicUrl(url: string): string | null {
@@ -95,16 +185,21 @@ export class S3Storage implements Storage {
   }
 
   async delete(key: string): Promise<void> {
-    try {
-      await this.client.send(
-        new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }),
-      )
-    } catch (cause) {
-      // Deletes are best-effort: a missing key shouldn't fail the calling action.
-      // Real errors still bubble so callers can log/monitor.
-      if (isNoSuchKey(cause)) return
-      throw new StorageError('Failed to delete object', cause)
-    }
+    return tracedStorageOp('delete', key, async () => {
+      try {
+        await this.client.send(
+          new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }),
+        )
+        return { value: undefined as void, outcome: 'success' }
+      } catch (cause) {
+        // Deletes are best-effort: a missing key shouldn't fail the calling action.
+        // Real errors still bubble so callers can log/monitor.
+        if (isNoSuchKey(cause)) {
+          return { value: undefined as void, outcome: 'not-found' }
+        }
+        throw new StorageError('Failed to delete object', cause)
+      }
+    })
   }
 
   // Used by bootstrap.ts only — keeps the SDK access scoped to this module.

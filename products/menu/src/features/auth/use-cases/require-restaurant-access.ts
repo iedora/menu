@@ -1,5 +1,6 @@
 import 'server-only'
 import { redirect } from 'next/navigation'
+import { tenantContext, tracer } from '@iedora/observability'
 import type { IdentityGateway } from '@/features/identity'
 import type { AuthGateway } from '../ports'
 import { requireActiveOrganization } from './require-active-organization'
@@ -10,20 +11,46 @@ import { requireActiveOrganization } from './require-active-organization'
  * /dashboard when the restaurant doesn't belong to one of the caller's
  * orgs. Returns the session, organizationId, and restaurantId for
  * downstream queries.
+ *
+ * Seeds `tenantContext` with the resolved (restaurantId, organizationId)
+ * via `enterWith`. The store persists through the remainder of the
+ * request's async chain — every span started downstream (Drizzle
+ * adapters, S3 calls, fetch instrumentations) gets stamped with the
+ * tenant attributes by TenantContextSpanProcessor automatically.
+ *
+ * Pattern modeled on Trigger.dev's `attributesFromAuthenticatedEnv`
+ * (apps/webapp/app/v3/tracer.server.ts) — set once at the boundary,
+ * propagate through context.
  */
 export async function requireRestaurantAccess(
   auth: AuthGateway,
   identity: IdentityGateway,
   restaurantId: string,
 ) {
-  const { session, organizationId } = await requireActiveOrganization(
-    auth,
-    identity,
-  )
-  const row = await auth.findRestaurantByIdInOrg({
-    restaurantId,
-    organizationId,
+  return tracer.startActiveSpan('auth.require-restaurant-access', async (span) => {
+    span.setAttribute('iedora.restaurant_id', restaurantId)
+    try {
+      const { session, organizationId } = await requireActiveOrganization(
+        auth,
+        identity,
+      )
+      const row = await auth.findRestaurantByIdInOrg({
+        restaurantId,
+        organizationId,
+      })
+      if (!row) {
+        span.setAttribute('iedora.auth.outcome', 'forbidden')
+        redirect('/dashboard')
+      }
+      // Seed the ALS store for the rest of the request's async chain.
+      // Every downstream span (auto-instrumented or manual) picks up
+      // tenant.restaurant_id / tenant.organization_id from here on.
+      tenantContext.enterWith({ restaurantId, organizationId })
+      span.setAttribute('iedora.organization_id', organizationId)
+      span.setAttribute('iedora.auth.outcome', 'allowed')
+      return { session, organizationId, restaurantId }
+    } finally {
+      span.end()
+    }
   })
-  if (!row) redirect('/dashboard')
-  return { session, organizationId, restaurantId }
 }

@@ -70,6 +70,35 @@ describe("tenantContext", () => {
     });
   });
 
+  it("enterWith sets tenant for the rest of the async chain without a callback", async () => {
+    // The pattern requireRestaurantAccess uses: function returns the
+    // tenant attribution AND seeds the ALS store. The caller (route
+    // handler) then sees the tenant in every downstream call.
+    async function authBoundary() {
+      tenantContext.enterWith({ restaurantId: "r_entered" });
+      return { restaurantId: "r_entered" };
+    }
+    async function downstream() {
+      // Simulates a Drizzle adapter call that has no idea it's in a
+      // tenant scope. The span processor would stamp tenant.* on
+      // spans started here.
+      return tenantContext.get();
+    }
+    await tenantContext.run({ restaurantId: "r_outer" }, async () => {
+      await authBoundary();
+      const observed = await downstream();
+      expect(observed).toEqual({ restaurantId: "r_entered" });
+    });
+  });
+
+  it("enterWith returns the previous tenant so callers can restore manually", () => {
+    tenantContext.run({ restaurantId: "r_outer" }, () => {
+      const previous = tenantContext.enterWith({ restaurantId: "r_new" });
+      expect(previous).toEqual({ restaurantId: "r_outer" });
+      expect(tenantContext.get()).toEqual({ restaurantId: "r_new" });
+    });
+  });
+
   it("isolates concurrent run() calls — parallel calls do not bleed into each other", async () => {
     // The bug we're guarding against: a global mutable variable
     // pretending to be context. Two concurrent requests each in their

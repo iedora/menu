@@ -10,20 +10,27 @@
 import { registerIedoraOtel } from '@iedora/observability'
 
 export async function registerNode() {
+  // Register OTel FIRST — the pino instrumentation registers a
+  // require-hook around `pino`, and that hook must be in place BEFORE
+  // any pino logger is constructed. Importing the shared logger after
+  // registerIedoraOtel guarantees the bridge picks up the instance.
   registerIedoraOtel({ serviceName: 'iedora-menu' })
 
-  const { closeDb } = await import('@/shared/db/client')
+  const [{ closeDb }, { log }] = await Promise.all([
+    import('@/shared/db/client'),
+    import('@/shared/log'),
+  ])
 
   let shuttingDown = false
   const shutdown = async (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
-    console.log(`[instrumentation] ${signal} received, draining DB…`)
+    log.info({ signal, module: 'instrumentation' }, 'shutdown signal received, draining DB')
     try {
       await closeDb({ timeout: 5 })
-      console.log('[instrumentation] DB drained')
+      log.info({ module: 'instrumentation' }, 'DB drained')
     } catch (err) {
-      console.error('[instrumentation] DB drain failed:', err)
+      log.error({ err, module: 'instrumentation' }, 'DB drain failed')
     }
   }
 

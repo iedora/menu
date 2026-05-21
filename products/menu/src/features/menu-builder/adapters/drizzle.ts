@@ -1,11 +1,52 @@
 import 'server-only'
 import { and, asc, eq, inArray, max, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
+import { SpanStatusCode } from '@opentelemetry/api'
+import { meter, tracer } from '@iedora/observability'
 import { db } from '@/shared/db/client'
 import * as schema from '@/shared/db/schema'
 import { category, item, menu, restaurant } from '@/shared/db/schema'
 import type { LanguageCode, LocalizedText } from '@/features/i18n'
 import type { MenuReadPort, MenuWritePort } from '../ports'
+
+/**
+ * Reorder transaction latency, labeled by entity. Tail latency here is
+ * the SLI for dnd-kit responsiveness — if the histogram p95 climbs, the
+ * admin builder feels janky. Tenant attribution is auto-stamped by the
+ * TenantContextSpanProcessor (the action shell calls
+ * requireRestaurantAccess first, which seeds tenantContext via enterWith).
+ */
+const reorderDuration = meter.createHistogram(
+  'iedora.menu_builder.reorder_duration_ms',
+  {
+    description:
+      'Latency of single-statement reorder transactions (categories or items).',
+    unit: 'ms',
+  },
+)
+
+/** Small helper to wrap a Drizzle adapter call in a named span. */
+async function tracedAdapterOp<T>(
+  name: string,
+  attrs: Record<string, string | number>,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return tracer.startActiveSpan(name, async (span) => {
+    for (const [k, v] of Object.entries(attrs)) span.setAttribute(k, v)
+    try {
+      return await fn()
+    } catch (err) {
+      span.recordException(err as Error)
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      })
+      throw err
+    } finally {
+      span.end()
+    }
+  })
+}
 
 // Generic over the driver — accepts both postgres-js (prod) and PGLite (tests).
 type AdapterDb = PgDatabase<PgQueryResultHKT, typeof schema>
@@ -32,32 +73,58 @@ function only<T>(rows: T[], op: string): T {
 export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
   return {
   async findMenuInRestaurant(menuId, restaurantId) {
-    const rows = await db
-      .select({ id: menu.id })
-      .from(menu)
-      .where(and(eq(menu.id, menuId), eq(menu.restaurantId, restaurantId)))
-      .limit(1)
-    return rows[0] ?? null
+    return tracedAdapterOp(
+      'db.find-menu-in-restaurant',
+      { 'iedora.restaurant_id': restaurantId, 'iedora.menu_id': menuId },
+      async () => {
+        const rows = await db
+          .select({ id: menu.id })
+          .from(menu)
+          .where(and(eq(menu.id, menuId), eq(menu.restaurantId, restaurantId)))
+          .limit(1)
+        return rows[0] ?? null
+      },
+    )
   },
 
   async findCategoryInRestaurant(categoryId, restaurantId) {
-    const rows = await db
-      .select({ id: category.id, menuId: category.menuId })
-      .from(category)
-      .where(
-        and(eq(category.id, categoryId), eq(category.restaurantId, restaurantId)),
-      )
-      .limit(1)
-    return rows[0] ?? null
+    return tracedAdapterOp(
+      'db.find-category-in-restaurant',
+      {
+        'iedora.restaurant_id': restaurantId,
+        'iedora.category_id': categoryId,
+      },
+      async () => {
+        const rows = await db
+          .select({ id: category.id, menuId: category.menuId })
+          .from(category)
+          .where(
+            and(
+              eq(category.id, categoryId),
+              eq(category.restaurantId, restaurantId),
+            ),
+          )
+          .limit(1)
+        return rows[0] ?? null
+      },
+    )
   },
 
   async findItemInRestaurant(itemId, restaurantId) {
-    const rows = await db
-      .select({ id: item.id, categoryId: item.categoryId })
-      .from(item)
-      .where(and(eq(item.id, itemId), eq(item.restaurantId, restaurantId)))
-      .limit(1)
-    return rows[0] ?? null
+    return tracedAdapterOp(
+      'db.find-item-in-restaurant',
+      { 'iedora.restaurant_id': restaurantId, 'iedora.item_id': itemId },
+      async () => {
+        const rows = await db
+          .select({ id: item.id, categoryId: item.categoryId })
+          .from(item)
+          .where(
+            and(eq(item.id, itemId), eq(item.restaurantId, restaurantId)),
+          )
+          .limit(1)
+        return rows[0] ?? null
+      },
+    )
   },
 
   async insertCategoryAtEnd(menuId, restaurantId, name) {
@@ -112,21 +179,41 @@ export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
     // already verified ownership, but tight WHERE protects against a stale
     // client id slipping across tenants). AGENTS.md hard rule #7.
     if (orderedIds.length === 0) return
-    const values = sql.join(
-      orderedIds.map((id, i) => sql`(${id}, ${i})`),
-      sql`, `,
-    )
-    // Casts: VALUES columns come back as text by default; position is int.
-    // Without the casts, Postgres returns 42804 "column "position" is of
-    // type integer but expression is of type text".
-    await db.execute(sql`
-      UPDATE ${category}
-      SET position = v.position::int
-      FROM (VALUES ${values}) AS v(id, position)
-      WHERE ${category.id} = v.id::text
-        AND ${category.menuId} = ${menuId}
-        AND ${category.restaurantId} = ${restaurantId}
-    `)
+    return tracer.startActiveSpan('db.reorder-categories', async (span) => {
+      span.setAttribute('iedora.restaurant_id', restaurantId)
+      span.setAttribute('iedora.menu_id', menuId)
+      span.setAttribute('iedora.reorder.batch_size', orderedIds.length)
+      const startedAt = performance.now()
+      try {
+        const values = sql.join(
+          orderedIds.map((id, i) => sql`(${id}, ${i})`),
+          sql`, `,
+        )
+        // Casts: VALUES columns come back as text by default; position is int.
+        // Without the casts, Postgres returns 42804 "column "position" is of
+        // type integer but expression is of type text".
+        await db.execute(sql`
+          UPDATE ${category}
+          SET position = v.position::int
+          FROM (VALUES ${values}) AS v(id, position)
+          WHERE ${category.id} = v.id::text
+            AND ${category.menuId} = ${menuId}
+            AND ${category.restaurantId} = ${restaurantId}
+        `)
+      } catch (err) {
+        span.recordException(err as Error)
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: err instanceof Error ? err.message : String(err),
+        })
+        throw err
+      } finally {
+        reorderDuration.record(performance.now() - startedAt, {
+          'iedora.reorder.entity': 'category',
+        })
+        span.end()
+      }
+    })
   },
 
   async updateMenu(menuId, fields) {
@@ -187,18 +274,38 @@ export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
   async reorderItems(categoryId, restaurantId, orderedIds) {
     // Same shape as reorderCategories — single UPDATE FROM VALUES with casts.
     if (orderedIds.length === 0) return
-    const values = sql.join(
-      orderedIds.map((id, i) => sql`(${id}, ${i})`),
-      sql`, `,
-    )
-    await db.execute(sql`
-      UPDATE ${item}
-      SET position = v.position::int
-      FROM (VALUES ${values}) AS v(id, position)
-      WHERE ${item.id} = v.id::text
-        AND ${item.categoryId} = ${categoryId}
-        AND ${item.restaurantId} = ${restaurantId}
-    `)
+    return tracer.startActiveSpan('db.reorder-items', async (span) => {
+      span.setAttribute('iedora.restaurant_id', restaurantId)
+      span.setAttribute('iedora.category_id', categoryId)
+      span.setAttribute('iedora.reorder.batch_size', orderedIds.length)
+      const startedAt = performance.now()
+      try {
+        const values = sql.join(
+          orderedIds.map((id, i) => sql`(${id}, ${i})`),
+          sql`, `,
+        )
+        await db.execute(sql`
+          UPDATE ${item}
+          SET position = v.position::int
+          FROM (VALUES ${values}) AS v(id, position)
+          WHERE ${item.id} = v.id::text
+            AND ${item.categoryId} = ${categoryId}
+            AND ${item.restaurantId} = ${restaurantId}
+        `)
+      } catch (err) {
+        span.recordException(err as Error)
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: err instanceof Error ? err.message : String(err),
+        })
+        throw err
+      } finally {
+        reorderDuration.record(performance.now() - startedAt, {
+          'iedora.reorder.entity': 'item',
+        })
+        span.end()
+      }
+    })
   },
 
   async getRestaurantLanguageConfig(restaurantId) {
