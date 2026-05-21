@@ -47,17 +47,22 @@ function jsonRes(body: unknown, init: ResponseInit = {}): Response {
   })
 }
 
+/** base64 of the utf-8 bytes — matches what Zitadel returns for metadata values. */
+function b64(s: string): string {
+  return Buffer.from(s, 'utf8').toString('base64')
+}
+
 describe('zitadelHttpIdentity.listOrganizations', () => {
-  it('POSTs the v2 memberships search with the menu-sa bearer and maps org rows', async () => {
+  it('reads the user-metadata primary org, then fetches that one org', async () => {
     nextResponses.push(
       jsonRes({
-        details: { totalResult: '2' },
-        result: [
-          { orgId: 'org-1', orgName: 'House Tavern' },
-          // IAM-level row — must be filtered out (no orgId).
-          { iam: { name: 'IAM' } },
-          { orgId: 'org-2', orgName: 'Pizza Cosmica' },
-        ],
+        metadata: [{ key: 'primaryOrgId', value: b64('org-1') }],
+      }),
+    )
+    nextResponses.push(
+      jsonRes({
+        details: { totalResult: '1' },
+        result: [{ id: 'org-1', name: 'House Tavern' }],
       }),
     )
 
@@ -65,16 +70,33 @@ describe('zitadelHttpIdentity.listOrganizations', () => {
 
     expect(orgs).toEqual([
       { id: 'org-1', name: 'House Tavern', slug: 'house-tavern' },
-      { id: 'org-2', name: 'Pizza Cosmica', slug: 'pizza-cosmica' },
     ])
-    const call = calls[0]!
-    expect(call.url).toBe('https://auth.test.local/v2/users/u-7/memberships/_search')
-    expect(call.init.method).toBe('POST')
-    const headers = new Headers(call.init.headers)
-    expect(headers.get('authorization')).toBe('Bearer test-pat')
+    expect(calls).toHaveLength(2)
+
+    const meta = calls[0]!
+    expect(meta.url).toBe(
+      'https://auth.test.local/zitadel.user.v2.UserService/ListUserMetadata',
+    )
+    expect(meta.init.method).toBe('POST')
+    expect(JSON.parse(meta.init.body as string)).toEqual({ userId: 'u-7' })
+    expect(new Headers(meta.init.headers).get('authorization')).toBe(
+      'Bearer test-pat',
+    )
+
+    const search = calls[1]!
+    expect(search.url).toBe('https://auth.test.local/v2/organizations/_search')
+    expect(JSON.parse(search.init.body as string)).toEqual({
+      queries: [{ idQuery: { id: 'org-1' } }],
+    })
   })
 
-  it('returns an empty list on a non-2xx response', async () => {
+  it('returns an empty list when the user has no primary-org metadata', async () => {
+    nextResponses.push(jsonRes({ metadata: [] }))
+    expect(await zitadelHttpIdentity.listOrganizations('u-7')).toEqual([])
+    expect(calls).toHaveLength(1) // never reaches the org search
+  })
+
+  it('returns an empty list when the metadata call returns a non-2xx', async () => {
     nextResponses.push(new Response('nope', { status: 500 }))
     expect(await zitadelHttpIdentity.listOrganizations('u-7')).toEqual([])
   })
@@ -85,12 +107,22 @@ describe('zitadelHttpIdentity.listOrganizations', () => {
     }) as typeof fetch
     expect(await zitadelHttpIdentity.listOrganizations('u-7')).toEqual([])
   })
+
+  it('returns an empty list when the referenced org is missing (deleted upstream)', async () => {
+    nextResponses.push(
+      jsonRes({
+        metadata: [{ key: 'primaryOrgId', value: b64('org-ghost') }],
+      }),
+    )
+    nextResponses.push(jsonRes({ details: { totalResult: '0' }, result: [] }))
+    expect(await zitadelHttpIdentity.listOrganizations('u-7')).toEqual([])
+  })
 })
 
 describe('zitadelHttpIdentity.createOrganization', () => {
-  it('creates the org, then adds the user as ORG_OWNER, then returns it', async () => {
-    nextResponses.push(jsonRes({ id: 'org-new' }))
-    nextResponses.push(jsonRes({ details: {} }))
+  it('creates the org via v2 with admins[] and stashes primaryOrgId metadata', async () => {
+    nextResponses.push(jsonRes({ organizationId: 'org-new' }))
+    nextResponses.push(jsonRes({ setDate: '2026-05-21T00:00:00Z' }))
 
     const result = await zitadelHttpIdentity.createOrganization(
       'u-7',
@@ -102,28 +134,32 @@ describe('zitadelHttpIdentity.createOrganization', () => {
     expect(calls).toHaveLength(2)
 
     const create = calls[0]!
-    expect(create.url).toBe('https://auth.test.local/admin/v1/orgs')
+    expect(create.url).toBe('https://auth.test.local/v2/organizations')
     expect(create.init.method).toBe('POST')
-    expect(JSON.parse(create.init.body as string)).toEqual({ name: 'Café Apex' })
+    expect(JSON.parse(create.init.body as string)).toEqual({
+      name: 'Café Apex',
+      admins: [{ userId: 'u-7', roles: ['ORG_OWNER'] }],
+    })
 
-    const member = calls[1]!
-    expect(member.url).toBe('https://auth.test.local/management/v1/orgs/org-new/members')
-    expect(member.init.method).toBe('POST')
-    expect(new Headers(member.init.headers).get('x-zitadel-orgid')).toBe('org-new')
-    expect(JSON.parse(member.init.body as string)).toEqual({
+    const meta = calls[1]!
+    expect(meta.url).toBe(
+      'https://auth.test.local/zitadel.user.v2.UserService/SetUserMetadata',
+    )
+    expect(meta.init.method).toBe('POST')
+    expect(JSON.parse(meta.init.body as string)).toEqual({
       userId: 'u-7',
-      roles: ['ORG_OWNER'],
+      metadata: [{ key: 'primaryOrgId', value: b64('org-new') }],
     })
   })
 
   it('returns null when org creation itself fails', async () => {
     nextResponses.push(new Response('{}', { status: 409 }))
     expect(await zitadelHttpIdentity.createOrganization('u-7', 'X', 'x')).toBeNull()
-    expect(calls).toHaveLength(1) // never calls members endpoint
+    expect(calls).toHaveLength(1) // never reaches metadata
   })
 
-  it('still returns the org when add-member fails (orphan-empty-org is the lesser evil)', async () => {
-    nextResponses.push(jsonRes({ id: 'org-new' }))
+  it('still returns the org when the metadata write fails (recoverable on next sign-in)', async () => {
+    nextResponses.push(jsonRes({ organizationId: 'org-new' }))
     nextResponses.push(new Response('{}', { status: 500 }))
 
     const result = await zitadelHttpIdentity.createOrganization('u-7', 'X', 'x')
@@ -132,11 +168,28 @@ describe('zitadelHttpIdentity.createOrganization', () => {
 })
 
 describe('zitadelHttpIdentity.setActiveOrganization', () => {
-  it('is a no-op that returns true (Zitadel does not model an active org)', async () => {
-    // No fetch responses queued — proves it never calls out.
+  it('writes primaryOrgId metadata to Zitadel via v2 UserService', async () => {
+    nextResponses.push(jsonRes({ setDate: '2026-05-21T00:00:00Z' }))
+
     expect(
       await zitadelHttpIdentity.setActiveOrganization('u-7', 'org-1'),
     ).toBe(true)
-    expect(calls).toHaveLength(0)
+
+    expect(calls).toHaveLength(1)
+    const call = calls[0]!
+    expect(call.url).toBe(
+      'https://auth.test.local/zitadel.user.v2.UserService/SetUserMetadata',
+    )
+    expect(JSON.parse(call.init.body as string)).toEqual({
+      userId: 'u-7',
+      metadata: [{ key: 'primaryOrgId', value: b64('org-1') }],
+    })
+  })
+
+  it('returns false when the metadata write fails', async () => {
+    nextResponses.push(new Response('{}', { status: 500 }))
+    expect(
+      await zitadelHttpIdentity.setActiveOrganization('u-7', 'org-1'),
+    ).toBe(false)
   })
 })

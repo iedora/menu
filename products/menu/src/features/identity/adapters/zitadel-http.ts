@@ -40,8 +40,30 @@ const zitadelCalls = meter.createCounter('iedora.zitadel.calls_total', {
   unit: 'call',
 })
 
-type ZitadelEndpoint = 'list-orgs' | 'create-org' | 'add-member'
+type ZitadelEndpoint =
+  | 'list-orgs'
+  | 'create-org'
+  | 'get-primary-org-meta'
+  | 'set-primary-org-meta'
 type ZitadelOutcome = 'success' | 'empty' | 'failed'
+
+/**
+ * Zitadel v2 user metadata stores bytes (base64-encoded on the wire). We
+ * use the `primaryOrgId` key to remember which org a user "lives in" so
+ * subsequent dashboard renders can resolve it in a single call — Zitadel's
+ * mgmt-API membership search is org-scoped (only sees memberships within
+ * the requester's current org context), so iterating every org per page
+ * load would be the alternative and doesn't scale.
+ */
+const PRIMARY_ORG_ID_META_KEY = 'primaryOrgId'
+
+function encodeMetaValue(value: string): string {
+  return Buffer.from(value, 'utf8').toString('base64')
+}
+
+function decodeMetaValue(value: string): string {
+  return Buffer.from(value, 'base64').toString('utf8')
+}
 
 /**
  * Run `fn` under a named span and record (latency, outcome) per call.
@@ -93,34 +115,31 @@ async function recordZitadelCall<T>(
  * `zitadel_personal_access_token.menu_sa`).
  *
  * Why the PAT and not the user's own access_token: a standard OIDC user
- * token doesn't carry the management-scope claims required to
- * `_search` memberships across orgs or create a new org at onboarding.
- * The PAT carries the menu_sa machine user's IAM_OWNER role.
+ * token doesn't carry the management-scope claims required to create an
+ * org or read user metadata across the instance. The PAT carries the
+ * menu_sa machine user's IAM_OWNER role.
  *
  * Errors are coerced to friendly return values (null / empty list / false)
  * because the call sites are server actions and DAL guards — they already
  * branch on missing data. We log unexpected failures so they show up in
  * the container logs.
  *
- * Endpoint set (subject to Zitadel deprecation watch — both v1 endpoints
- * still work in 4.15.x as of 2026-05):
- *   - POST /v2/users/{userId}/memberships/_search  (list memberships)
- *   - POST /admin/v1/orgs                          (create org)
- *   - POST /management/v1/orgs/{orgId}/members    (add user as ORG_OWNER)
+ * Endpoint set (Zitadel v4 — the older `/admin/v1/orgs` and
+ * `/v2/users/.../memberships/_search` routes from v2.x are 404 in v4):
+ *   - POST /v2/organizations                                  (create org + add admins in one call)
+ *   - POST /v2/organizations/_search                          (lookup org by id)
+ *   - POST /zitadel.user.v2.UserService/ListUserMetadata      (read primaryOrgId)
+ *   - POST /zitadel.user.v2.UserService/SetUserMetadata       (set primaryOrgId)
  */
+type OrganizationRow = {
+  id?: string
+  name?: string
+  primaryDomain?: string
+}
+
 type SearchResponse<T> = { result?: T[]; details?: { totalResult?: string } }
 
-type ZitadelMembership = {
-  userId?: string
-  // Exactly one of these is populated per row:
-  iam?: { name?: string }
-  orgId?: string
-  orgName?: string
-  projectId?: string
-  projectGrantId?: string
-  // Display fields, only populated for org-level rows in 2.x+
-  displayName?: string
-}
+type MetadataEntry = { key?: string; value?: string }
 
 function slugify(name: string): string {
   // NFD splits accented chars into base + combining-mark; stripping the
@@ -180,36 +199,96 @@ async function call<T>(
   }
 }
 
+async function readPrimaryOrgId(userId: string): Promise<string | null> {
+  return recordZitadelCall(
+    'get-primary-org-meta',
+    { 'iedora.zitadel.user_id': userId },
+    async () => {
+      const data = await call<{ metadata?: MetadataEntry[] }>(
+        `/zitadel.user.v2.UserService/ListUserMetadata`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ userId }),
+        },
+      )
+      if (!data) return { value: null as string | null, outcome: 'failed' }
+      const entry = data.metadata?.find(
+        (m) => m.key === PRIMARY_ORG_ID_META_KEY && m.value,
+      )
+      if (!entry?.value) {
+        return { value: null as string | null, outcome: 'empty' }
+      }
+      return { value: decodeMetaValue(entry.value), outcome: 'success' }
+    },
+  )
+}
+
+async function writePrimaryOrgId(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  return recordZitadelCall(
+    'set-primary-org-meta',
+    {
+      'iedora.zitadel.user_id': userId,
+      'iedora.zitadel.org_id': organizationId,
+    },
+    async () => {
+      const result = await call<unknown>(
+        `/zitadel.user.v2.UserService/SetUserMetadata`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            userId,
+            metadata: [
+              {
+                key: PRIMARY_ORG_ID_META_KEY,
+                value: encodeMetaValue(organizationId),
+              },
+            ],
+          }),
+        },
+      )
+      return {
+        value: result !== null,
+        outcome: (result === null ? 'failed' : 'success') as ZitadelOutcome,
+      }
+    },
+  )
+}
+
 export const zitadelHttpIdentity: IdentityGateway = {
   async listOrganizations(userId) {
     return recordZitadelCall(
       'list-orgs',
       { 'iedora.zitadel.user_id': userId },
       async () => {
-        const data = await call<SearchResponse<ZitadelMembership>>(
-          `/v2/users/${encodeURIComponent(userId)}/memberships/_search`,
+        // Resolve the user's primary org via metadata (set by
+        // createOrganization / setActiveOrganization). Zitadel's mgmt-API
+        // membership search is org-scoped, so we keep our own pointer.
+        const primaryOrgId = await readPrimaryOrgId(userId)
+        if (!primaryOrgId) {
+          return { value: [] as Organization[], outcome: 'empty' }
+        }
+
+        const data = await call<SearchResponse<OrganizationRow>>(
+          `/v2/organizations/_search`,
           {
             method: 'POST',
             body: JSON.stringify({
-              query: { offset: '0', limit: 100, asc: true },
+              queries: [{ idQuery: { id: primaryOrgId } }],
             }),
           },
         )
         if (!data) return { value: [] as Organization[], outcome: 'failed' }
-        if (!data.result || data.result.length === 0) {
+        const row = data.result?.[0]
+        if (!row?.id) {
           return { value: [] as Organization[], outcome: 'empty' }
         }
-        // Filter to org-level memberships. IAM-level / project-level rows are
-        // visible in this list too but don't represent a tenant for menu.
-        const out: Organization[] = []
-        for (const row of data.result) {
-          if (!row.orgId) continue
-          const name = row.orgName ?? row.displayName ?? row.orgId
-          out.push({ id: row.orgId, name, slug: slugify(name) })
-        }
+        const name = row.name ?? row.id
         return {
-          value: out,
-          outcome: out.length === 0 ? 'empty' : 'success',
+          value: [{ id: row.id, name, slug: slugify(name) }],
+          outcome: 'success',
         }
       },
     )
@@ -220,76 +299,52 @@ export const zitadelHttpIdentity: IdentityGateway = {
       'create-org',
       { 'iedora.zitadel.user_id': userId },
       async () => {
-        // 1. Create the org.
-        const created = await call<{ id?: string }>(`/admin/v1/orgs`, {
-          method: 'POST',
-          body: JSON.stringify({ name }),
-        })
-        if (!created?.id) {
+        // v2 OrganizationService.CreateOrganization: creates the org AND
+        // attaches `admins[]` in a single transactional call. Eliminates
+        // the v2.x split where add-member could fail and orphan an org.
+        const created = await call<{ organizationId?: string }>(
+          `/v2/organizations`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              name,
+              admins: [{ userId, roles: ['ORG_OWNER'] }],
+            }),
+          },
+        )
+        if (!created?.organizationId) {
           return { value: null as Organization | null, outcome: 'failed' }
         }
 
-        // 2. Add the user as ORG_OWNER of the new org. The header switches
-        //    the management API's org context to the freshly minted one.
-        // Nested inside its own span so the two-step transaction is
-        // visible in OO — the cascade view will show create-org →
-        // add-member as parent → child.
-        const added = await recordZitadelCall(
-          'add-member',
-          {
-            'iedora.zitadel.user_id': userId,
-            'iedora.zitadel.org_id': created.id,
-          },
-          async () => {
-            const result = await call<unknown>(
-              `/management/v1/orgs/${encodeURIComponent(created.id!)}/members`,
-              {
-                method: 'POST',
-                headers: { 'x-zitadel-orgid': created.id! },
-                body: JSON.stringify({ userId, roles: ['ORG_OWNER'] }),
-              },
-            )
-            return {
-              value: result,
-              outcome: (result === null ? 'failed' : 'success') as ZitadelOutcome,
-            }
-          },
-        )
-        if (added === null) {
+        // Stash the org id as the user's primary so subsequent dashboard
+        // renders find it via listOrganizations. Best-effort — a failure
+        // here is recoverable (next setActiveOrganization call will retry).
+        const stored = await writePrimaryOrgId(userId, created.organizationId)
+        if (!stored) {
           log.error(
             {
               module: 'identity',
-              organizationId: created.id,
+              organizationId: created.organizationId,
               userId,
-              event: 'org_created_member_add_failed',
+              event: 'primary_org_meta_write_failed',
             },
-            'org created but member add failed — manual recovery may be needed',
+            'org created but primary-org metadata write failed — dashboard will fall back to onboarding until re-auth',
           )
-          // Don't roll back — leaking an empty org on the IdP is preferable
-          // to leaving the user without a tenant on second-try. Pre-customer.
         }
 
         return {
           value: {
-            id: created.id,
+            id: created.organizationId,
             name,
             slug: slugify(name),
           } as Organization,
-          // Outer outcome: success only when BOTH calls succeeded. The
-          // member-add failure path is visible separately via the
-          // nested span's own outcome label.
-          outcome: added === null ? 'failed' : 'success',
+          outcome: 'success',
         }
       },
     )
   },
 
-  async setActiveOrganization(_userId, _organizationId) {
-    // Zitadel doesn't model "the user's active org" — a user can be a
-    // member of N orgs and the choice is client-side. Menu's identity
-    // slice picks the first membership today. Future multi-membership
-    // would back this with a tiny `user_preferences` table or a Zitadel
-    // user metadata write. Today: no-op.
-    return true
+  async setActiveOrganization(userId, organizationId) {
+    return writePrimaryOrgId(userId, organizationId)
   },
 }
