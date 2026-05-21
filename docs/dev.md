@@ -140,3 +140,9 @@ The orchestrator is one Go package at `infra/dev/`, split by concern:
 Waits use TCP-dial + HTTP probe (`net.DialTimeout` then `http.Get`) instead of `time.Sleep` polling — typical detect time is ~50ms past the moment Zitadel actually starts answering `/debug/ready`.
 
 State lives at `infra/dev/tofu/terraform.tfstate` (plaintext, gitignored). Throwaway — `just dev --destroy` wipes it.
+
+---
+
+## See also
+
+- [`dev-credentials.md`](dev-credentials.md) — every login + token the local stack hands out: the `Password1!` master password, the Zitadel admin user, what's in `.env`, how to grant `iedora-admin`.
