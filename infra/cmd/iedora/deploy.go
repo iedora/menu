@@ -13,13 +13,18 @@ import (
 	"github.com/eduvhc/iedora/infra/internal/tlsprobe"
 )
 
-// runDeploy is the Go port of the `just infra::deploy` bash recipe. The
-// pipeline is intentionally the same Pass 1 / Pass 2 / Pass 3 dance as
-// before; the brief was clear that the shape is right, only the
-// fragility around DNS + cert lag + SSH host-key churn needs hardening.
+// runDeploy is the Go entry point for both `just deploy` and
+// `just deploy --destroy` — the same subcommand, the flag picks
+// direction. The pipeline is intentionally the same Pass 1 / Pass 2 /
+// Pass 3 dance as the original bash recipe; the brief was clear that
+// the shape is right, only the fragility around DNS + cert lag + SSH
+// host-key churn needs hardening.
 //
 // Flags:
 //
+//	-d, --destroy      tear down instead of applying. Delegates to
+//	                   runDestroy at the top of the function — no other
+//	                   flag affects destroy (it's a single-pass operation).
 //	--skip-init        skip the leading `tofu init` (CI prefers this when
 //	                   it has already run init manually in a prior step,
 //	                   to keep the upload-artifact step's runtime predictable).
@@ -29,13 +34,19 @@ import (
 //	                   Zitadel migrations + ~30s for ACME challenge).
 //
 // All flags are optional. Defaults match production CI; the operator
-// usually just runs `bin/iedora deploy` with no args.
+// usually just runs `just deploy` with no args.
 func runDeploy(ctx context.Context, argv []string) error {
 	fs := flag.NewFlagSet("deploy", flag.ContinueOnError)
+	destroy := fs.Bool("destroy", false, "tear down instead of applying")
+	fs.BoolVar(destroy, "d", false, "alias for --destroy")
 	skipInit := fs.Bool("skip-init", false, "skip leading tofu init")
 	readyBudget := fs.Duration("ready-budget", 6*time.Minute, "max wait for Zitadel /debug/ready + LE cert")
 	if err := fs.Parse(argv); err != nil {
 		return err
+	}
+
+	if *destroy {
+		return runDestroy(ctx, fs.Args())
 	}
 
 	if !*skipInit {

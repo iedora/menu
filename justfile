@@ -1,44 +1,67 @@
 # Iedora monorepo — root entry point.
 #
-# Each product is self-contained under products/<name>/, with its own
-# justfile, Tofu root, and .env. This file exposes them as just modules:
+# Three flat recipes for everything you do day-to-day:
 #
-#   just infra::deploy          → cd infra/ && just deploy (shared Postgres + backups)
-#   just menu::deploy           → cd products/menu/infra/ && just deploy
-#   just menu::logs             → docker logs for the menu container
-#   just house::deploy          → cd products/house/infra/ && just deploy
-#   just menu                   → list menu's recipes
-#   just                        → list this file (and the modules below)
+#   just deploy [FLAGS]       apply the infra estate (Pass 1/2/3 via Go orchestrator)
+#   just deploy --destroy     tear it down (flag handled in Go — same binary, same code)
+#   just deploy -d            short form of --destroy
+#   just dev [FLAGS]          bring up the local dev stack (OpenTofu, no docker-compose)
+#   just dev --destroy        tear the dev stack down
+#   just doctor               preflight: PATH, BWS auth, bootstrap secrets present
 #
-# `infra::` MUST be applied before any product's deploy on a fresh box
-# — products' apps connect to `infra-postgres:5432`, which infra owns.
+# Single dispatch point per axis: the justfile passes flags straight to
+# the Go binary; Go decides what to do with --destroy. No bash branching.
 #
-# Add a 3rd product:
-#   1. mkdir products/<name>/
-#   2. cp products/house/infra/{justfile,bin/with-secrets} into it.
-#      The wrapper auto-discovers BWS_PROJECT_ID + CLOUDFLARE_ACCOUNT_ID;
-#      operator only needs BWS_ACCESS_TOKEN in shell.
-#   3. echo "mod <name> 'products/<name>/infra'" appended to this file
+# Per-product modules below (`just house::…`). Menu has no module — its
+# deploy (container + R2 + DNS) lives entirely in the shared `infra/tofu/`
+# root, the dev loop lives in `infra/cmd/dev/`. Per-product Tofu
+# disappeared with the iedora-data / iedora-assets bucket merge.
+#
+# Day-2 ops on the Hetzner box — operator-side ad-hoc SSH:
+#
+#   HOST=$(cd infra && bin/with-secrets tofu -chdir=tofu output -raw hetzner_ipv4)
+#   ssh root@$HOST docker logs -f --tail=200 infra-<svc>           # logs
+#   ssh -t root@$HOST docker exec -it infra-postgres psql -U postgres
+#   ssh root@$HOST docker exec infra-backups sh /backup.sh         # pg_dump now
+#   ssh -t root@$HOST docker exec -it infra-backups sh /restore.sh # restore
 
-mod infra 'infra'
 mod house 'products/house/infra'
-# No `mod menu` — menu's deploy (container + R2 + DNS) lives entirely in
-# the shared `infra/tofu/` root since the R2 consolidation. The dev loop
-# lives at `infra/dev/`. Per-product Tofu disappeared with the
-# iedora-data / iedora-assets bucket merge.
 
-# Default: list modules + recipes.
+# Default: list recipes.
 [private]
 _default:
     @just --list
 
-# Boot the dev stack — everything (or a subset, via -i / --only / --except).
+# Apply (or, with --destroy, tear down) every infra resource: Hetzner VPS
+# + Cloudflare R2 + DNS + GitHub Actions config + every Docker container.
+# Thin shim over the Go orchestrator at `infra/cmd/iedora` — every Pass
+# 1/2/3 detail, the cert-ready probe, the DNS-override CONNECT proxy
+# that sidesteps the macOS NXDOMAIN cache, and the BWS write-through of
+# INFRA_HOST_IP live there.
+#
+# Flags pass straight through to `bin/iedora deploy`:
+#   -d, --destroy         tear down (same binary handles both directions)
+#       --skip-init       skip leading `tofu init` (CI flag)
+#       --ready-budget    cap the Zitadel /debug/ready + LE cert wait (default 6m)
+[doc("apply the infra estate (--destroy / -d to tear it down)")]
+deploy *FLAGS:
+    @cd infra && bin/iedora deploy {{FLAGS}}
+
+# Boot the local dev stack — everything (or a subset, via -i / --only / --except).
 # Pure OpenTofu — `infra/dev/tofu/` calls the shared `infra/modules/services/*`
 # modules with dev inputs (local docker daemon, host-published ports,
 # LocalStack instead of R2). No docker-compose.
 #
-# Single entry point. `just dev --destroy` tears the stack down (was the
-# old `just dev-down` recipe; folded into the Go orchestrator).
+# `just dev --destroy` tears the dev stack down (was the old `just dev-down`
+# recipe; folded into the Go orchestrator at `infra/cmd/dev/`).
 [doc("boot the dev stack via OpenTofu (--destroy to wipe everything)")]
-dev *ARGS:
-    @cd infra && go run ./cmd/dev {{ARGS}}
+dev *FLAGS:
+    @cd infra && go run ./cmd/dev {{FLAGS}}
+
+# Preflight check — runs locally, no mutation. Verifies bws + tofu + ssh
+# are on PATH, BWS auth works, and every required bootstrap secret is in
+# the iedora-deploy project. Cheap to run before `deploy` if you're not
+# sure the environment is set up.
+[doc("preflight check: PATH, BWS auth, bootstrap secrets present")]
+doctor:
+    @cd infra && bin/iedora doctor

@@ -182,7 +182,7 @@ App secrets.
 
 ## Bootstrap (first-time-only flow)
 
-1. **Deploy** — `just infra::deploy` runs one `tofu apply` that does
+1. **Deploy** — `just deploy` runs one `tofu apply` that does
    everything in order via `depends_on` and the docker provider's
    create/start semantics:
    - Cloudflare resources land (R2 buckets, grey-cloud A records for
@@ -274,15 +274,16 @@ don't work.
 ## Day-2 operations
 
 ```sh
-# Tail logs (any infra-* container; `just infra::logs zitadel` etc.).
-just infra::logs zitadel
+# Tail logs (any infra-* container).
+HOST=$(cd infra && bin/with-secrets tofu -chdir=tofu output -raw hetzner_ipv4)
+ssh root@$HOST docker logs -f --tail=200 infra-zitadel
 
 # Drop into the Zitadel container — debug only; image has no shell,
 # so use `docker exec` against the binary directly if you need a one-shot.
 ssh root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4) 'docker exec infra-zitadel /zitadel --help'
 
 # psql into the zitadel database.
-just infra::console        # then: \c zitadel
+ssh -t root@$HOST docker exec -it infra-postgres psql -U postgres   # then: \c zitadel
 
 # Reboot zitadel (e.g. to pick up a rotated AUTOGEN_INFRA_POSTGRES_PASSWORD).
 ssh root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4) 'docker restart infra-zitadel infra-zitadel-login'
@@ -325,7 +326,7 @@ Phase 2 of #19.
   cadence, zero-downtime patterns. The two new Zitadel secrets are
   listed there.
 - **[`docs/deploy.md`](../deploy.md)** — overall deploy flow;
-  `just infra::deploy` runs one `tofu apply` that brings up the
+  `just deploy` runs one `tofu apply` that brings up the
   auth.iedora.com tunnel + the Zitadel containers in the right order.
 - **[`infra/CLAUDE.md`](../../infra/CLAUDE.md)** — what the shared
   `infra/` workspace owns, the six hard rules (declarative-first,

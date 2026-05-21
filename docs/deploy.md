@@ -126,7 +126,7 @@ done
 ## Step 6 — Deploy
 
 ```bash
-just infra::deploy
+just deploy
 ```
 
 A 3-pass dance, automated:
@@ -144,17 +144,29 @@ Verify: `https://menu.iedora.com/up` → `{"ok":true,"db":"ok"}`.
 ## Day-2 commands
 
 ```bash
-just infra::deploy           # idempotent
-just infra::logs <svc>       # tail logs (defaults to backups; `just infra::logs menu_web` for app)
-just infra::console          # psql shell into Postgres
-just infra::backup           # force a pg_dump now
-just infra::restore          # restore latest dump (interactive)
-just infra::deploy -d        # tear down VPS + every resource (-d / --destroy)
-just infra::wipe-postgres    # destructive — drops the data dir
-just infra::rotate-secret X  # prompt-driven BWS rotation
+just deploy                  # idempotent apply
+just deploy --destroy        # tear down VPS + every resource (-d works too)
+just doctor                  # preflight check
 ```
 
-All wrappers around `tofu` or direct `ssh`. Each recipe runs through `bin/with-secrets`, which needs only `BWS_ACCESS_TOKEN` in your shell — `BWS_PROJECT_ID` is discovered via `bws project list`, `CLOUDFLARE_ACCOUNT_ID` via CF's `/accounts` API, and every BWS secret is exported as a `TF_VAR_*` alias.
+Everything else is raw SSH. Resolve the host once, then re-use:
+
+```bash
+HOST=$(cd infra && bin/with-secrets tofu -chdir=tofu output -raw hetzner_ipv4)
+
+ssh root@$HOST docker logs -f --tail=200 infra-backups            # or infra-zitadel / menu_web / …
+ssh -t root@$HOST docker exec -it infra-postgres psql -U postgres # psql shell
+ssh root@$HOST docker exec infra-backups sh /backup.sh            # force a pg_dump
+ssh -t root@$HOST docker exec -it infra-backups sh /restore.sh    # restore latest dump
+ssh root@$HOST 'docker rm -f infra-postgres; rm -rf /root/infra-postgres'  # wipe (then re-deploy)
+```
+
+For secret rotation see [`docs/secrets.md`](secrets.md) — non-AUTOGEN keys
+are a `bws secret edit` directly; AUTOGEN_* sub-tokens regenerate via
+`bin/with-secrets tofu -chdir=tofu apply -replace=random_password.<name>`
+from `infra/`.
+
+`bin/iedora` and `bin/with-secrets` (in `infra/bin/`) hide the BWS dance — only `BWS_ACCESS_TOKEN` needs to live in your shell. `BWS_PROJECT_ID` is discovered via `bws project list`, `CLOUDFLARE_ACCOUNT_ID` via CF's `/accounts` API, and every BWS secret is exported as a `TF_VAR_*` alias.
 
 **No `migrate` recipe.** Migrations run on container start via the menu container's `cmd`. Drizzle's migrator takes a `pg_advisory_lock` so multiple replicas don't race.
 
@@ -181,7 +193,7 @@ CI builds + pushes; Tofu pulls from GHCR on the box. The only SSH path in CI is 
 
 ### Tofu-managed GH config
 
-Every GH Actions secret + variable is Tofu-managed via `infra/tofu/github.tf` (`integrations/github`'s `for_each` over a locals map). Set the BWS source, `just infra::deploy` reconciles GH from BWS.
+Every GH Actions secret + variable is Tofu-managed via `infra/tofu/github.tf` (`integrations/github`'s `for_each` over a locals map). Set the BWS source, `just deploy` reconciles GH from BWS.
 
 | GH Secret | BWS source | Notes |
 |---|---|---|
@@ -207,7 +219,7 @@ gh workflow run menu.yml --ref <branch>           # re-trigger menu CI on a bran
 gh run watch                                      # tail the latest run
 ```
 
-Rollback: `INFRA_MENU_IMAGE_TAG=<previous-good-sha> just infra::deploy` from a laptop.
+Rollback: `INFRA_MENU_IMAGE_TAG=<previous-good-sha> just deploy` from a laptop.
 
 ### Supply-chain verification
 
@@ -253,13 +265,13 @@ Cost: ~30 lines duplicated per root (versions.tf, credentials, `data.cloudflare_
 
 ## Troubleshooting
 
-> **Where the deploy logic lives.** The `just infra::deploy`/`destroy`/`doctor` recipes are 1-line shims into `infra/cmd/iedora/` — a Go orchestrator with unit tests under `*_test.go`. Pass 1/2/3 logic, the DNS-override CONNECT proxy that sidesteps the macOS NXDOMAIN cache, and the Let's-Encrypt-vs-internal-CA cert probe all live there. For the catalogue of every failure mode the recipe has tripped over (with detection signature + fix), see [`tasks/deploy-fluency/failure-modes.md`](../tasks/deploy-fluency/failure-modes.md).
+> **Where the deploy logic lives.** The `just deploy`/`doctor` recipes at the repo root are 1-line shims into `infra/cmd/iedora/` — a Go orchestrator with unit tests under `*_test.go`. `just deploy --destroy` is the same shim with a flag; the Go binary dispatches deploy vs destroy on the flag, no bash branching. Pass 1/2/3 logic, the DNS-override CONNECT proxy that sidesteps the macOS NXDOMAIN cache, and the Let's-Encrypt-vs-internal-CA cert probe all live there. For the catalogue of every failure mode the recipe has tripped over (with detection signature + fix), see [`tasks/deploy-fluency/failure-modes.md`](../tasks/deploy-fluency/failure-modes.md).
 
-**Run `just infra::doctor` first.** It validates PATH, BWS auth, and every required bootstrap secret before mutating anything — catches 90% of the bad-environment foot-guns below in <1s.
+**Run `just doctor` first.** It validates PATH, BWS auth, and every required bootstrap secret before mutating anything — catches 90% of the bad-environment foot-guns below in <1s.
 
-**`just infra::deploy` errors with `BWS_ACCESS_TOKEN missing`** — export it in your shell (e.g. `source ~/.secrets`) before running. That's the only env var the wrapper requires; everything else self-discovers (see Step 5).
+**`just deploy` errors with `BWS_ACCESS_TOKEN missing`** — export it in your shell (e.g. `source ~/.secrets`) before running. That's the only env var the wrapper requires; everything else self-discovers (see Step 5).
 
-**`just infra::deploy` errors with `INFRA_X missing in BWS`** — that secret hasn't been populated. Add it with `bws secret create INFRA_X <value> $(bws project list -o json | jq -r '.[]|select(.name=="iedora-deploy")|.id') -o none`.
+**`just deploy` errors with `INFRA_X missing in BWS`** — that secret hasn't been populated. Add it with `bws secret create INFRA_X <value> $(bws project list -o json | jq -r '.[]|select(.name=="iedora-deploy")|.id') -o none`.
 
 **Tofu plan fails with "unable to parse docker host"** — the Hetzner box hasn't been provisioned yet; the `kreuzwerker/docker` provider is connecting too early. Pass 1 of the recipe handles this. If you hit it directly: `tofu apply -target=hcloud_server.iedora` first.
 
@@ -267,14 +279,14 @@ Cost: ~30 lines duplicated per root (versions.tf, credentials, `data.cloudflare_
 
 **GHCR push returns "denied"** — `gh auth status` must show `write:packages`. Re-run step 2. Or `INFRA_GHCR_TOKEN` in BWS is expired — regenerate the classic PAT and `bws secret edit` it.
 
-**`menu.iedora.com` returns 530 / connection refused** — A record resolves but TLS fails. Either `infra-caddy` is down (`just infra::logs caddy`) or `menu_web` is unhealthy (`just infra::logs menu_web`). The healthcheck is canonical — `docker inspect menu_web --format '{{.State.Health.Status}}'` over SSH.
+**`menu.iedora.com` returns 530 / connection refused** — A record resolves but TLS fails. Either `infra-caddy` is down (`ssh root@$HOST docker logs -f infra-caddy`) or `menu_web` is unhealthy (`ssh root@$HOST docker logs -f menu_web`). The healthcheck is canonical — `docker inspect menu_web --format '{{.State.Health.Status}}'` over SSH.
 
 **Healthcheck flaps on first deploy** — app starts slower than the configured `interval`. Raise it in `infra/tofu/containers.tf` (the `healthcheck` block on `docker_container.menu_web`).
 
 **`unable to find image` on the server** — GHCR pull failed. `INFRA_GHCR_TOKEN` in BWS is wrong; regenerate.
 
-**`Environment validation failed` on container start** — `SKIP_ENV_VALIDATION=1` is set during `next build` so Zod's `MENU_SESSION_SECRET` / `ZITADEL_*` checks don't fire on placeholder values. Runtime env on `docker_container.menu_web` is populated directly from TF resources in the same root (`random_password.menu_session_secret`, `zitadel_application_oidc.menu`, `zitadel_personal_access_token.menu_sa`). If `local.zitadel_bootstrapped` is false (no SA key in BWS yet), the menu container is gated to `count = 0`. Check `just infra::logs menu_web` for the offending name.
+**`Environment validation failed` on container start** — `SKIP_ENV_VALIDATION=1` is set during `next build` so Zod's `MENU_SESSION_SECRET` / `ZITADEL_*` checks don't fire on placeholder values. Runtime env on `docker_container.menu_web` is populated directly from TF resources in the same root (`random_password.menu_session_secret`, `zitadel_application_oidc.menu`, `zitadel_personal_access_token.menu_sa`). If `local.zitadel_bootstrapped` is false (no SA key in BWS yet), the menu container is gated to `count = 0`. Check `ssh root@$HOST docker logs -f menu_web` for the offending name.
 
 **`tofu destroy` prints `Warning: Resource Destruction Considerations` for `cloudflare_r2_bucket_cors`** — harmless. Cloudflare doesn't expose a separate delete endpoint; the subresource goes when its parent does. Tofu only removes it from local state.
 
-**Zitadel `FirstInstance` never produces `zitadel-admin-sa.json`** — bootstrap volume has stale perms. `just infra::zitadel-rebootstrap` wipes + retries. Confirm via `just infra::logs zitadel`.
+**Zitadel `FirstInstance` never produces `zitadel-admin-sa.json`** — bootstrap volume has stale perms. Manual recovery: `bws secret delete` the `INFRA_ZITADEL_SA_KEY_JSON`, SSH in to `docker rm -f infra-zitadel{,-login}` + `psql -c 'DROP DATABASE zitadel WITH (FORCE); CREATE DATABASE zitadel;'` + `docker volume rm zitadel-bootstrap`, then `tofu state list | grep '^zitadel_' | xargs -n1 tofu state rm`, then `just deploy`. Confirm via `ssh root@$HOST docker logs -f infra-zitadel`.

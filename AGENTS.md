@@ -103,13 +103,13 @@ Menu's `infra/` owns a Dockerfile (built by CI into the GHCR image) plus a tiny 
 
 ### Deploy
 
-- `just infra::deploy` — one `tofu apply` provisions the Hetzner VPS, every Cloudflare resource, the GH Actions config, and every container (`infra-postgres`, `infra-backups`, `infra-openobserve`, `infra-zitadel`, `infra-zitadel-login`, `infra-caddy`, `menu_web`). Idempotent day-1 and day-N.
+- `just deploy` — one `tofu apply` provisions the Hetzner VPS, every Cloudflare resource, the GH Actions config, and every container (`infra-postgres`, `infra-backups`, `infra-openobserve`, `infra-zitadel`, `infra-zitadel-login`, `infra-caddy`, `menu_web`). Idempotent day-1 and day-N.
+- `just deploy --destroy` (or `-d`) — tears down the VPS + every Tofu-managed resource. Same Go binary, flag picks direction.
+- `just dev` — boots the local dev stack (`just dev --destroy` wipes it).
+- `just doctor` — preflight on the operator's machine (PATH, BWS auth, bootstrap secrets).
 - `just menu::infra` — applies the menu-local Tofu (R2 assets bucket + `assets.iedora.com`). Rare.
-- `just infra::logs <svc>` / `just infra::console` — tail logs / psql shell via SSH.
-- `just infra::backup` / `restore` — force a Postgres dump / restore latest.
-- `just infra::rotate-secret <KEY>` — prompt-driven BWS rotation; for Tofu-minted sub-tokens use `bin/with-secrets tofu -chdir=tofu apply -replace=<resource>`.
-- `just infra::deploy -d` (or `--destroy`) — tears down the VPS + every Tofu-managed resource.
 - `just house::deploy` / `house::destroy` — manage iedora.com via wrangler.
+- Day-2 ops (logs / psql / backup / restore / rotate / wipe / zitadel-rebootstrap) are raw SSH against the Hetzner box — boilerplate in the root `justfile` header.
 
 `just` is a Rust task runner — `brew install just` (or `cargo install just`).
 

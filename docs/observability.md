@@ -153,8 +153,8 @@ For better posture, create a dedicated `iedora-ingest@iedora.com` user with inge
 ### Day-to-day ops
 
 ```
-just infra::deploy                # provisions R2 + boots accessory
-just infra::logs openobserve      # tail container logs
+just deploy                # provisions R2 + boots accessory
+ssh root@$(cd infra && bin/with-secrets tofu -chdir=tofu output -raw hetzner_ipv4) docker logs -f --tail=200 infra-openobserve
 bin/with-secrets tofu -chdir=infra/tofu apply -replace=random_password.openobserve_password
 ```
 

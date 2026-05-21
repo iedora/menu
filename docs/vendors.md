@@ -46,7 +46,7 @@ Vendors that process customer data or hold the keys. Each must have a current SO
 | **Other compliance** | ISO 27001, GDPR, HIPAA, SOC 3 (public) |
 | **DPA** | Bitwarden DPA accepted |
 | **Compromise impact** | Attacker who steals the BWS access token + project ID gets every production secret. Token is on **one** FileVault-encrypted dev laptop. |
-| **Rotation / exit plan** | Access token via Bitwarden UI → update your shell-sourced secrets file (e.g. `~/.secrets`). Per-secret via `just infra::rotate-secret <KEY>`. Switching providers (Vault, AWS Secrets Manager, age-encrypted file) is a 1-day project. |
+| **Rotation / exit plan** | Access token via Bitwarden UI → update your shell-sourced secrets file (e.g. `~/.secrets`). Per-secret via `bws secret edit <id> --value <new>` (see `docs/secrets.md`). Switching providers (Vault, AWS Secrets Manager, age-encrypted file) is a 1-day project. |
 
 ---
 
@@ -59,8 +59,8 @@ Vendors that process customer data or hold the keys. Each must have a current SO
 | **Service** | Single CPX22 VPS (Falkenstein, public IPv4) running Docker + every iedora container |
 | **Data they touch** | All production data at rest (Postgres data dir on the box). Backup tarballs encrypted before R2 upload |
 | **SOC 2 status** | n/a — ISO 27001 certified, no public SOC 2. Compensating controls: SSH key-only auth, `ufw` allowlist (22 + 443 only), Caddy auto-TLS |
-| **Compromise impact** | Plaintext DB access. Mitigated by SSH key-only login, port allowlist, daily encrypted backups to R2 (RPO ≤ 24h), `just infra::restore` to a fresh box |
-| **Rotation / exit plan** | Restore on different host: stand up new VPS, install Docker, paste BWS token, `just infra::deploy && just infra::restore`. Switching cloud (DigitalOcean / OVH) is the same runbook — `INFRA_HCLOUD_TOKEN` swaps with the provider's |
+| **Compromise impact** | Plaintext DB access. Mitigated by SSH key-only login, port allowlist, daily encrypted backups to R2 (RPO ≤ 24h), `ssh root@$HOST docker exec -it infra-backups sh /restore.sh` to a fresh box |
+| **Rotation / exit plan** | Restore on different host: stand up new VPS, install Docker, paste BWS token, `just deploy` then SSH into the new box and run `docker exec -it infra-backups sh /restore.sh`. Switching cloud (DigitalOcean / OVH) is the same runbook — `INFRA_HCLOUD_TOKEN` swaps with the provider's |
 
 ---
 
