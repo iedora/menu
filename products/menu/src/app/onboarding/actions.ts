@@ -8,21 +8,15 @@ import {
   createOrganization,
   setActiveOrganization,
 } from '@/features/identity'
+import { nextAvailableSlug, slugify } from '@/features/restaurant-slug'
 import { signInUrl } from '@/shared/brand'
 import { db } from '@/shared/db/client'
 import { menu, restaurant } from '@/shared/db/schema'
 import { canAddRestaurant } from '@/features/plans'
 import { enforceRateLimit } from '@/features/rate-limit'
 
-const slugRegex = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/
-
 const onboardingSchema = z.object({
   restaurantName: z.string().trim().min(2).max(80),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(slugRegex, 'Use lowercase letters, numbers, and hyphens (2-40 chars)'),
 })
 
 export type OnboardingFormState =
@@ -58,7 +52,6 @@ export async function completeOnboarding(
 ): Promise<OnboardingFormState> {
   const parsed = onboardingSchema.safeParse({
     restaurantName: formData.get('restaurantName'),
-    slug: formData.get('slug'),
   })
 
   if (!parsed.success) {
@@ -70,7 +63,7 @@ export async function completeOnboarding(
     return { fieldErrors }
   }
 
-  const { restaurantName, slug } = parsed.data
+  const { restaurantName } = parsed.data
 
   const session = await getSession()
   if (!session?.user) redirect(signInUrl('/onboarding'))
@@ -81,6 +74,13 @@ export async function completeOnboarding(
   if (!decision.ok) {
     return { error: `Too many attempts. Try again in ${decision.retryAfterSec}s.` }
   }
+
+  // Allocate the public slug HERE so the same value is consistent
+  // across the menu DB insert AND the Zitadel org create call below.
+  // Generating in the form would push the collision-handling onto the
+  // client, which both adds complexity to onboarding UX and races
+  // against concurrent operators.
+  const slug = await nextAvailableSlug(slugify(restaurantName))
 
   // Existing org? Add the restaurant under it (gated by plan limit). Brand-new
   // user? Create org on Genkan + first restaurant locally. Plans are scoped
@@ -113,7 +113,7 @@ async function addRestaurantToOrg(
     )
   } catch (err) {
     console.error('[onboarding] restaurant creation under existing org failed', err)
-    return { error: 'Could not create restaurant. The slug may already be taken.' }
+    return { error: 'Could not create restaurant. Please try again.' }
   }
 
   revalidatePath('/dashboard')
@@ -131,7 +131,7 @@ async function createOrgAndFirstRestaurant(
   // need to roll anything back since nothing local was written yet.
   const orgResult = await createOrganization(userId, restaurantName, slug)
   if (!orgResult.ok) {
-    return { error: 'Could not create organization. Slug may already be taken.' }
+    return { error: 'Could not create organization. Please try again.' }
   }
   const organization = orgResult.organization
 

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRestaurantBySlug } from '@/features/auth'
 import { revalidateRestaurant } from '@/features/menu-publishing'
 import { enforceRateLimit } from '@/features/rate-limit'
+import { rename as runRenameSlug } from '@/features/restaurant-slug'
 import { drizzleIdentityWrite } from './adapters/drizzle'
 import { updateTheme as runUpdateTheme } from './use-cases/update-theme'
 import { updateLanguageSettings as runUpdateLanguageSettings } from './use-cases/update-language-settings'
@@ -78,4 +79,43 @@ export async function updateIdentity(
   revalidatePath(`/dashboard/r/${slug}/theme`)
   revalidateRestaurant(slug)
   return { ok: true }
+}
+
+/**
+ * Rename the public URL slug. The action returns the new slug on
+ * success so the client can `router.replace(/dashboard/r/<new>)` —
+ * the old dashboard URL would 404 on next render because the
+ * `requireRestaurantBySlug` guard no longer finds the row.
+ *
+ * Cache invalidation: both old and new slug-tag snapshots are
+ * invalidated. The old slug's public-menu cache is now orphaned (no
+ * row resolves to it); the next request to `/r/<old>` is a 404. The
+ * new slug's cache is empty until the next public render rebuilds it.
+ */
+export async function updateSlug(
+  currentSlug: string,
+  nextSlug: unknown,
+): Promise<{ ok: true; slug: string } | { ok: false; error: string }> {
+  const guarded = await gateIdentity(currentSlug)
+  if (!guarded.ok) return guarded
+  // The actual slug write lives in the restaurant-slug slice — this
+  // action just gates by tenant ownership, then delegates and routes
+  // cache invalidation.
+  const res = await runRenameSlug(
+    guarded.restaurantId,
+    typeof nextSlug === 'string' ? nextSlug : '',
+  )
+  if (!res.ok) return { ok: false, error: res.message }
+
+  // Invalidate BOTH tags — old slug's snapshot is now orphaned, new
+  // slug has none yet. `revalidatePath` covers dashboard surfaces;
+  // `revalidateRestaurant` covers the public menu's cache-tag.
+  revalidatePath(`/dashboard/r/${currentSlug}`)
+  revalidatePath(`/dashboard/r/${currentSlug}/theme`)
+  revalidatePath(`/dashboard/r/${res.slug}`)
+  revalidatePath(`/dashboard/r/${res.slug}/theme`)
+  revalidateRestaurant(currentSlug)
+  revalidateRestaurant(res.slug)
+
+  return { ok: true, slug: res.slug }
 }

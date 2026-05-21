@@ -12,19 +12,15 @@ import {
   FieldInput,
   FieldLabel,
 } from '@iedora/design-system'
-import { APP_HOSTNAME } from '@/shared/brand'
 import { completeOnboarding, type OnboardingFormState } from './actions'
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-}
-
+/**
+ * Onboarding takes ONE field — the restaurant name. The public URL
+ * (slug) is generated server-side from the name with collision suffixes
+ * ("sushi-place", "sushi-place-2", …) so the form isn't gating a
+ * brand-new operator on choosing a URL. Slug can be changed later from
+ * the restaurant settings page.
+ */
 export function OnboardingForm() {
   const t = useTranslations('Onboarding')
   const [state, action, pending] = useActionState<OnboardingFormState, FormData>(
@@ -32,8 +28,6 @@ export function OnboardingForm() {
     undefined,
   )
   const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [slugTouched, setSlugTouched] = useState(false)
 
   return (
     <Card>
@@ -54,36 +48,12 @@ export function OnboardingForm() {
               minLength={2}
               maxLength={80}
               value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (!slugTouched) setSlug(slugify(e.target.value))
-              }}
+              onChange={(e) => setName(e.target.value)}
               placeholder={t('restaurantNamePlaceholder')}
+              autoFocus
             />
             {state?.fieldErrors?.restaurantName && (
               <p className="text-sm text-destructive">{state.fieldErrors.restaurantName}</p>
-            )}
-          </Field>
-          <Field error={Boolean(state?.fieldErrors?.slug)}>
-            <FieldLabel htmlFor="slug">{t('slug')}</FieldLabel>
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-muted-foreground">{APP_HOSTNAME}/r/</span>
-              <FieldInput
-                id="slug"
-                name="slug"
-                type="text"
-                required
-                minLength={2}
-                maxLength={40}
-                value={slug}
-                onChange={(e) => {
-                  setSlugTouched(true)
-                  setSlug(e.target.value.toLowerCase())
-                }}
-              />
-            </div>
-            {state?.fieldErrors?.slug && (
-              <p className="text-sm text-destructive">{state.fieldErrors.slug}</p>
             )}
           </Field>
           {state?.error && (
