@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -55,6 +56,26 @@ func runDeploy(ctx context.Context, argv []string) error {
 			return fmt.Errorf("tofu init: %w", err)
 		}
 	}
+
+	// Fan out every product whose dependsOnCentral=false. They run
+	// concurrently with the multi-minute central Hetzner/Zitadel pass,
+	// effectively amortizing their wall time. Products with
+	// dependsOnCentral=true (none today; reserved for menu+others that
+	// will need Postgres/Zitadel up first) are fanned out AFTER central
+	// completes — see the second drain block near the end of this fn.
+	indepCh, indepCount := fanOutDeploy(ctx, false)
+
+	// Bump beyond OpenTofu's default parallelism=10. The Pass 2/3 plans
+	// have a wide leaf wave on the zitadel provider — six project_role,
+	// seven action_execution_event, two action_execution_function,
+	// machine_user + instance_member + PAT, plus the OIDC app — that all
+	// land after zitadel_project. Default 10 splits this into two waves
+	// of API round-trips; 20 collapses it to one. Safe ceiling for the
+	// other providers in the same apply: self-hosted zitadel handles it
+	// in-process, CF stays well under its rate limit (~30 drift calls in
+	// <2s), Docker-over-SSH stays under sshd's MaxStartups, Hetzner only
+	// drift-checks at this point.
+	parallel := "-parallelism=20"
 
 	// ── Pass 1: Hetzner box (UNCONDITIONAL) ─────────────────────────────
 	// Always run the targeted hcloud + docker-readiness apply. Why
@@ -125,7 +146,7 @@ func runDeploy(ctx context.Context, argv []string) error {
 	if !saKeyPresent {
 		// Cold deploy — bootstrap dance.
 		fmt.Fprintln(stderr, "→ Pass 2/3: apply (placeholder Zitadel mode, bootstrap)")
-		if err := runTofu(ctx, nil, "apply", "-auto-approve",
+		if err := runTofu(ctx, nil, "apply", "-auto-approve", parallel,
 			"-var", "infra_zitadel_sa_key_json=",
 		); err != nil {
 			return fmt.Errorf("pass 2 apply: %w", err)
@@ -154,14 +175,27 @@ func runDeploy(ctx context.Context, argv []string) error {
 			return fmt.Errorf("SA key still missing in BWS after fetch — check zitadel-bootstrap volume")
 		}
 
+		// Gate Pass 3 on menu.iedora.com being resolvable from inside
+		// the iedora docker network. Pass 2 just minted the CF DNS
+		// record, but Zitadel's container resolves through the Hetzner
+		// box's upstream resolver — which may still cache NXDOMAIN.
+		// Pass 3 creates zitadel_action_target.menu_{permissions,grants}
+		// with URLs at menu.iedora.com; Zitadel's URL validator rejects
+		// non-resolvable hostnames with Errors.Target.DeniedURL. Probe
+		// from a sidecar on the SAME network so the lookup uses the
+		// SAME resolver path Zitadel will use seconds later.
+		if err := waitForMenuDNS(ctx, hetznerIPv4, 90*time.Second); err != nil {
+			return fmt.Errorf("dns readiness: %w", err)
+		}
+
 		fmt.Fprintf(stderr, "→ Pass 3/3: apply (real Zitadel SA, via %s)\n", proxyURL)
-		if err := runTofu(ctx, extraEnv, "apply", "-auto-approve"); err != nil {
+		if err := runTofu(ctx, extraEnv, "apply", "-auto-approve", parallel); err != nil {
 			return fmt.Errorf("pass 3 apply: %w", err)
 		}
 	} else {
 		// Warm deploy — single apply with the real SA key.
 		fmt.Fprintf(stderr, "→ Pass 2/2: apply (real Zitadel SA, via %s)\n", proxyURL)
-		if err := runTofu(ctx, extraEnv, "apply", "-auto-approve"); err != nil {
+		if err := runTofu(ctx, extraEnv, "apply", "-auto-approve", parallel); err != nil {
 			return fmt.Errorf("apply: %w", err)
 		}
 	}
@@ -171,8 +205,87 @@ func runDeploy(ctx context.Context, argv []string) error {
 		return fmt.Errorf("bws upsert INFRA_HOST_IP: %w", err)
 	}
 
+	// Now central is up — fan out products that depend on it (none
+	// today). Combined with the indep set we kicked off at the start,
+	// every product is now either complete or in flight.
+	depCh, depCount := fanOutDeploy(ctx, true)
+
+	// Drain both fan-outs. Collect-and-report (not fail-fast): with N
+	// parallel products, a flaky CF call on one shouldn't hide whether
+	// the rest succeeded. Operator sees per-product status and an
+	// errors.Join at the end with the failed ones.
+	var prodErrs []error
+	for _, drain := range []struct {
+		ch    <-chan productResult
+		count int
+	}{{indepCh, indepCount}, {depCh, depCount}} {
+		for i := 0; i < drain.count; i++ {
+			r := <-drain.ch
+			if r.err != nil {
+				fmt.Fprintf(stderr, "  ! %s deploy failed: %v\n", r.name, r.err)
+				prodErrs = append(prodErrs, r.err)
+			} else {
+				fmt.Fprintf(stderr, "  - %s deploy complete\n", r.name)
+			}
+		}
+	}
+	if len(prodErrs) > 0 {
+		// Central succeeded; only product(s) failed. Operator can retry
+		// any failed product alone via its own `cd … && just deploy`.
+		return fmt.Errorf("product deploys failed (central succeeded): %w", errors.Join(prodErrs...))
+	}
+
 	fmt.Fprintln(stderr, "✓ deploy complete")
 	return nil
+}
+
+// waitForMenuDNS polls until menu.iedora.com resolves from inside the
+// iedora docker network — which is the resolver path Zitadel will use
+// moments later when it validates action_target URLs. We piggy-back on
+// the infra-caddy container (already up, alpine-based, has nslookup)
+// rather than spawning a sidecar, to keep the probe cheap.
+//
+// Why this gate exists: Pass 2 mints `cloudflare_dns_record.menu_iedora`
+// in the CF API; the record is globally readable from Cloudflare's
+// authoritative resolvers within ~1s, but the Hetzner box's upstream
+// resolver (whatever Docker inherits from /etc/resolv.conf) may have
+// cached NXDOMAIN from earlier in the deploy cycle. Without this wait,
+// Pass 3's zitadel_action_target creates intermittently fail with
+// `Errors.Target.DeniedURL` — observed in cold deploy #2 of the test
+// sequence. Resolver caches flush within ~30-60s; 90s budget is
+// comfortable.
+func waitForMenuDNS(ctx context.Context, host string, budget time.Duration) error {
+	const hostname = "menu.iedora.com"
+	fmt.Fprintf(stderr, "→ Waiting for %s to resolve from inside iedora network (budget %s)\n", hostname, budget)
+	start := time.Now()
+	deadline := start.Add(budget)
+
+	var lastErr error
+	for time.Now().Before(deadline) {
+		// `nslookup HOST` exits 0 when the name resolves to at least one
+		// answer. Alpine's busybox nslookup also exits 0 on SERVFAIL
+		// with no answers, so we additionally grep the output for an
+		// "Address" line to confirm an A/AAAA record actually came back.
+		out, err := sshCapture(ctx, host,
+			"docker exec infra-caddy nslookup "+hostname+" 2>&1 || true")
+		if err == nil && strings.Contains(out, "Address") &&
+			// The first "Address:" line is the resolver itself
+			// (e.g. "Address: 127.0.0.11"); we need at least one
+			// answer line AFTER the "Name:" header.
+			strings.Contains(out, "Name:") {
+			elapsed := time.Since(start).Round(time.Second)
+			fmt.Fprintf(stderr, "  ✓ %s resolves after %s\n", hostname, elapsed)
+			return nil
+		}
+		if err != nil {
+			lastErr = err
+		}
+		sleep(ctx, 3*time.Second)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no resolver answer in last attempt")
+	}
+	return fmt.Errorf("%s not resolvable from inside iedora network after %s: %w", hostname, budget, lastErr)
 }
 
 // fetchAndStoreSAKey runs the SSH + docker dance that was previously the

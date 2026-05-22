@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { Button } from '@iedora/design-system'
+import { Button, SectionHeader } from '@iedora/design-system'
 import { QrViewer } from './qr-viewer'
 
 /**
@@ -38,14 +38,10 @@ export function RestaurantQrShelf({
 
       {stickers.length > 0 && (
         <section className="space-y-4">
-          <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink-55)]">
-              Bound stickers ({stickers.length})
-            </h2>
-            <p className="text-[10.5px] font-[family-name:var(--mono)] uppercase tracking-[0.18em] text-[var(--ink-40)]">
-              read-only · manage via admin
-            </p>
-          </header>
+          <SectionHeader
+            title={`Bound stickers (${stickers.length})`}
+            hint="read-only · manage via admin"
+          />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {stickers.map((s) => (

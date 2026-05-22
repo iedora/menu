@@ -172,26 +172,27 @@ variable "infra_hcloud_token" {
 
 variable "hetzner_server_type" {
   description = <<-EOT
-    Hetzner SKU for the infra VPS. CPX22 (AMD EPYC x86_64, 2 vCPU / 4 GB
-    RAM / 80 GB SSD, €7.99/mo) is the default — picked because:
-      - Next.js menu image build chokes on ARM (CAX series) under Turbopack
-        (some transitive deps' native modules don't ship arm64)
-      - Postgres benefits from x86 (better kernel tooling, pg_stat semantics)
-      - 80 GB SSD doubles the headroom for Postgres growth pre-customer
-    Hetzner discontinued the cheaper CX (Intel shared) line in 2025; CPX
-    (AMD EPYC shared) is the new entry tier.
+    Hetzner SKU for the infra VPS. CX23 (x86_64 shared, 2 vCPU / 4 GB
+    RAM / 40 GB NVMe SSD, €3.99/mo) is the default — picked because:
+      - Cheapest AMD64 tier available; CPX22 (€7.99) was double the cost
+        for the same vCPU/RAM and only 2× the disk.
+      - ARM CAX SKUs are ruled out: Next.js/Turbopack transitive deps
+        lack arm64 native binaries, so builds fail on CAX.
+      - x86_64 keeps the Docker image compatible with the CI-built
+        linux/amd64 target (ghcr.io/eduvhc/menu:<sha>).
 
-    Scale path (in-place resize within the family):
-      cpx22 (current)  2/4GB/80GB   €7.99
-      cpx32            4/8GB/160GB  €13.99 — Phase 4 multi-tenant ramp
-      ccx13 dedicated  2/8GB/80GB   €16.99 — when noisy-neighbour matters
+    Scale path (in-place resize):
+      cx23  (current)  2/4GB/40GB    €3.99  — entry / pre-customer
+      cpx22            2/4GB/80GB    €7.99  — more disk headroom
+      cpx32            4/8GB/160GB   €13.99 — Phase 4 multi-tenant ramp
+      ccx13 dedicated  2/8GB/80GB    €16.99 — when noisy-neighbour matters
   EOT
   type        = string
-  default     = "cpx22"
+  default     = "cx23"
 
   validation {
-    condition     = contains(["cpx22", "cpx32", "cpx42", "ccx13", "ccx23"], var.hetzner_server_type)
-    error_message = "Use an x86_64 SKU (cpx* or ccx*). ARM CAX SKUs were tried and rejected — Next.js builds fail."
+    condition     = contains(["cx23", "cpx22", "cpx32", "cpx42", "ccx13", "ccx23"], var.hetzner_server_type)
+    error_message = "Use an x86_64 SKU (cx*, cpx* or ccx*). ARM CAX SKUs were tried and rejected — Next.js builds fail."
   }
 }
 

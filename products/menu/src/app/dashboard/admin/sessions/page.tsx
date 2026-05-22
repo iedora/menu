@@ -1,4 +1,4 @@
-import { getSession, requireIedoraAdmin } from '@/features/auth'
+import { BUNDLES, getSession, requireIedoraAdmin } from '@/features/auth'
 import { loadAdminPayload } from '@/features/sessions'
 import { SessionsAdmin } from '@/features/sessions/ui/sessions-admin'
 import { toSessionAdminRow } from '@/features/sessions/ui/to-row'
@@ -34,11 +34,12 @@ export default async function SessionsAdminPage() {
   )
 
   return (
-    <DashboardPage title="Sessions (admin)" data-test-id="sessions-admin">
+    <DashboardPage title="Sessions" data-test-id="sessions-admin">
       <SessionsAdmin
         rows={rows}
         stats={payload.stats}
         snapshotAt={payload.snapshotAt.toISOString()}
+        bundles={BUNDLES}
       />
     </DashboardPage>
   )

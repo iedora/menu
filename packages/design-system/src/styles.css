@@ -1064,6 +1064,156 @@
 .ds-tabs__tab--on { background: var(--ink); color: var(--paper); }
 .ds-tabs__tab:not(.ds-tabs__tab--on):hover { color: var(--ink); }
 
+/* Section Header — elegant editorial panels. Serif uppercase title
+   with generous spacing meets a quiet mono hint on the opposite flank. */
+.ds-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.ds-section-header__title {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: var(--t-sm);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-70);
+  margin: 0;
+}
+.ds-section-header__hint {
+  font-family: var(--mono);
+  font-size: var(--t-2xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+
+/* Admin stats — paper cards with mono labels for snapshot panels.
+   Stats sit in a 2/3/6-column responsive grid; histograms are 1/2
+   columns. Shared chrome between menu's qr-codes and sessions
+   surfaces — see <StatsPanel> in `admin-stats.tsx`. */
+.ds-stats-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ds-stats-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .ds-stats-panel__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .ds-stats-panel__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+.ds-stats-panel__histograms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .ds-stats-panel__histograms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.ds-stat {
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  padding: 12px;
+}
+.ds-stat__label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-55);
+}
+.ds-stat__value {
+  margin-top: 4px;
+  font-size: 24px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.ds-stat--warn .ds-stat__value { color: var(--cinnabar); }
+.ds-stat__hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-40);
+}
+
+.ds-histogram {
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  padding: 12px;
+}
+.ds-histogram__label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-55);
+}
+.ds-histogram__empty {
+  margin-top: 4px;
+  font-size: var(--t-sm);
+  color: var(--ink-40);
+}
+.ds-histogram__rows {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ds-histogram__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-xs);
+}
+.ds-histogram__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-55);
+}
+.ds-histogram__name {
+  width: 96px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ds-histogram__bar {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background: var(--ink-14);
+  overflow: hidden;
+}
+.ds-histogram__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink);
+}
+.ds-histogram__count {
+  width: 40px;
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-55);
+}
+
 /* Trail row — mono-caps ancestors flank a cinnabar `/`, current page
    breaks into italic serif at body size. The separator carries the
    iedora accent so the trail reads as a single editorial gesture. */
@@ -1827,6 +1977,200 @@
 .ds-nav__link:focus-visible {
   outline: 2px solid var(--cinnabar);
   outline-offset: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Sidebar — vertical editorial chrome, mobile-first.
+ *
+ * Mobile (default): off-canvas drawer that slides in from the left
+ * with a dim overlay. The companion `.ds-sidebar-mobile-bar` sticks
+ * to the top of the viewport and carries the trigger + brand.
+ *
+ * ≥lg (1024px): the drawer becomes a sticky 240px rail that sits to
+ * the left of the page content. The overlay, trigger, and mobile bar
+ * all `display: none` — the rail owns the chrome.
+ * ───────────────────────────────────────────────────────────── */
+
+.ds-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(86vw, 340px);
+  padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+  gap: 28px;
+  background: var(--paper);
+  border-right: 1px solid var(--ink-14);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform: translateX(-100%);
+  transition: transform 240ms var(--ease);
+  box-shadow: 0 0 0 transparent;
+}
+.ds-sidebar[data-open="true"] {
+  transform: translateX(0);
+  box-shadow: 8px 0 32px rgba(26, 24, 21, 0.12);
+}
+
+.ds-sidebar__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(26, 24, 21, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease);
+}
+.ds-sidebar__overlay[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ds-sidebar__brand {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.ds-sidebar__links {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-height: 0;
+}
+
+.ds-sidebar__link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition:
+    color var(--d-2) var(--ease),
+    background-color var(--d-2) var(--ease),
+    border-color var(--d-2) var(--ease);
+}
+.ds-sidebar__link:hover {
+  color: var(--ink);
+  background: var(--ink-04);
+}
+.ds-sidebar__link[data-active="true"] {
+  color: var(--ink);
+  border-left-color: var(--cinnabar);
+}
+.ds-sidebar__link:focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: -2px;
+}
+
+.ds-sidebar__section-label {
+  margin-top: 14px;
+  padding: 6px 14px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.ds-sidebar__section-label:first-child { margin-top: 0; }
+
+/* In-drawer close — absolute top-right, mobile-only. The sidebar is
+   `position: fixed` below `lg`, so absolute anchors to it. At `lg+`
+   we hide the close entirely; the rail is always visible. */
+.ds-sidebar__close {
+  appearance: none;
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid var(--ink-14);
+  color: var(--ink-55);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--d-2) var(--ease),
+    border-color var(--d-2) var(--ease);
+}
+.ds-sidebar__close:hover {
+  color: var(--ink);
+  border-color: var(--ink-24);
+}
+.ds-sidebar__close:focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: 2px;
+}
+
+.ds-sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ink-14);
+}
+
+/* Floating trigger — mobile-only. Sits in the top-RIGHT corner above
+   page content (left is reserved for the page heading; right is empty
+   on every dashboard page). No dedicated bar so the chrome doesn't eat
+   vertical real estate. Paper bg + hairline border keeps it readable
+   when content scrolls underneath. */
+.ds-sidebar-trigger {
+  appearance: none;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--paper);
+  border: 1px solid var(--ink-14);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(26, 24, 21, 0.06);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--d-2) var(--ease),
+    border-color var(--d-2) var(--ease);
+}
+.ds-sidebar-trigger:hover {
+  background: var(--ink-04);
+  border-color: var(--ink-24);
+}
+.ds-sidebar-trigger:focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
+  .ds-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    width: 240px;
+    transform: none;
+    border-right: 1px solid var(--ink-14);
+  }
+  .ds-sidebar__overlay,
+  .ds-sidebar-trigger,
+  .ds-sidebar__close {
+    display: none;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────

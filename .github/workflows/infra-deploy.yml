@@ -119,12 +119,6 @@ jobs:
           # known issue where the wrapper truncates very long plan output.
           tofu_wrapper: false
 
-      - name: Verify python3
-        # `bin/with-secrets` shells out to python3 to convert BWS JSON →
-        # POSIX-safe env file. ubuntu-24.04 ships python3 by default; this
-        # step is purely a fail-fast if the image ever changes.
-        run: python3 --version
-
       - name: Read Hetzner IP from Tofu output
         # Source of truth for the box's public IPv4 is the Tofu output
         # `hetzner_ipv4`. Tofu state lives encrypted in git (see infra/CLAUDE.md

@@ -118,7 +118,6 @@ export default async function DashboardPage() {
 
   return (
     <PageShell
-      root
       data-test-id="dashboard-home"
       title={t('title')}
       eyebrow={t('eyebrow')}

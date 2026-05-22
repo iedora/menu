@@ -55,6 +55,20 @@ export {
   type NavActionsProps,
 } from "./components/nav";
 
+// Editorial sidebar — vertical chrome with a mobile drawer.
+export {
+  Sidebar,
+  SidebarBrand,
+  SidebarLinks,
+  SidebarLink,
+  SidebarSectionLabel,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarClose,
+  SidebarProvider,
+  useSidebar,
+} from "./components/sidebar";
+
 export { Button, type ButtonProps } from "./components/button";
 export { Badge } from "./components/badge";
 export {
@@ -100,6 +114,22 @@ export {
   BreadcrumbLink,
   BreadcrumbHere,
 } from "./components/breadcrumb";
+export { SectionHeader } from "./components/section-header";
+
+// Admin stats — snapshot panels (Stat, Histogram, StatsPanel) shared
+// across cross-tenant admin surfaces (QR codes, sessions, …).
+export {
+  Stat,
+  Histogram,
+  StatsHeader,
+  StatsPanel,
+  type HistogramEntry,
+} from "./components/admin-stats";
+
+// Client-context icons — browser + OS vendor marks used by admin
+// histograms and session rows. Individual vendor glyphs stay
+// internal; consumers pick the right one by passing a name string.
+export { BrowserIcon, OsIcon } from "./components/client-icons";
 
 // Editorial form grid — kept for layouts that want a hairline-bordered
 // two-column field grid. New auth-style forms should reach for <Field>.

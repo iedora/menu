@@ -6,7 +6,7 @@ The single deploy entry point. One Tofu root provisions the Hetzner VPS, every C
 
 **Tofu state (`infra/tofu/`):**
 
-- **Hetzner VPS** (`hetzner.tf`) — `hcloud_server.iedora` (CPX22, Falkenstein, x86_64) + SSH key + firewall.
+- **Hetzner VPS** (`hetzner.tf`) — `hcloud_server.iedora` (CX23, Falkenstein, x86_64) + SSH key + firewall.
 - **Cloudflare resources** (`main.tf`) — 3 R2 buckets (`backups`, `observability`, menu assets minted in the menu-local root), their scoped tokens, DNS records for `menu.iedora.com` + `auth.iedora.com` + `obs.iedora.com` (all grey-cloud A records pointing directly at the VPS IPv4; Caddy terminates TLS on-box).
 - **GitHub Actions config** (`github.tf`) — `github_actions_secret.secrets[*]` + `github_actions_variable.vars[*]`, `for_each` over a locals map; values flow from BWS via `TF_VAR_*` aliases.
 - **Zitadel resources** (`zitadel.tf`) — `zitadel_org.iedora` + `zitadel_project.iedora`. Lands after the FirstInstance SA-key bootstrap.
@@ -33,6 +33,7 @@ Containers attach to `docker_network.iedora` (`name = "iedora"`); container-DNS 
 3. **Bootstrap order is BWS → Tofu → write-through.** Populate the bootstrap secrets in BWS, then `just deploy` provisions everything else AND writes any Tofu-minted credentials back to BWS. See `docs/deploy.md`.
 4. **Follow `docs/terraform-style.md` when editing any `.tf`.** Pessimistic `~>` pins, `for_each` over `count`, `validation` blocks, predictable naming.
 5. **State file is encrypted in git.** PBKDF2 + AES-GCM, passphrase from `INFRA_STATE_PASSPHRASE`. Rotation via the `fallback` block migration — see `docs/secrets.md`.
+6. **Run the deploy-validation runbook on every deploy-shape change.** Touching anything under `infra/cmd/iedora/`, `infra/cmd/with-secrets/`, `infra/cmd/bws-upsert/`, `infra/cmd/zitadel-grant/`, `infra/internal/{proxy,tlsprobe,r2,cloudflare,bws}/`, `infra/tofu/*.tf`, `infra/bin/*`, `products/*/infra/tofu/*.tf`, or `products/*/infra/justfile` requires running the 6-step sequence in [`docs/deploy-validation.md`](../docs/deploy-validation.md) before merge. Takes ~30–40 min and spins real cloud — but it's the only thing that catches the class of bugs (CWD trap, DNS races, R2 empty-then-delete, state-vs-cloud drift) that unit tests can't.
 
 ## File layout
 

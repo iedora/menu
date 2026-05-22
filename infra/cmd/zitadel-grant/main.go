@@ -31,6 +31,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
+	"sync"
 	"time"
 )
 
@@ -95,24 +97,68 @@ func run() error {
 	}
 
 	// 10s per request; retry layer above multiplies this across attempts.
+	// Single shared client — http.Transport pools + reuses connections
+	// across the per-email goroutines below.
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	for _, email := range cfg.Emails {
-		userID, err := lookupUser(client, cfg, email)
-		if err != nil {
-			return fmt.Errorf("lookup %q: %w", email, err)
-		}
-		if userID == "" {
-			fmt.Fprintf(os.Stderr, "skip    %s (no Zitadel user — sign in once via OIDC, then re-run)\n", email)
-			continue
-		}
-		status, err := grant(client, cfg, userID)
-		if err != nil {
-			return fmt.Errorf("grant %q (%s): %w", email, userID, err)
-		}
-		fmt.Fprintf(os.Stderr, "%-7s %s (%s)\n", status, email, userID)
+	// Each email is independent (separate user lookup + grant), so fan
+	// them out concurrently. Zitadel's HTTP gateway handles this fine
+	// (well under any rate limit on a self-hosted instance) and a
+	// bounded pool keeps us from fork-bombing if the admin list grows
+	// large. Cap at 8 — enough to fully amortize ~200ms-per-call
+	// latency, low enough to stay polite.
+	const maxParallel = 8
+	sem := make(chan struct{}, maxParallel)
+
+	type result struct {
+		idx     int
+		line    string // pre-formatted output line
+		hardErr error  // first hard failure aborts the whole run
 	}
-	return nil
+	results := make([]result, len(cfg.Emails))
+	var wg sync.WaitGroup
+
+	for i, email := range cfg.Emails {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int, email string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			userID, err := lookupUser(client, cfg, email)
+			if err != nil {
+				results[i] = result{idx: i, hardErr: fmt.Errorf("lookup %q: %w", email, err)}
+				return
+			}
+			if userID == "" {
+				results[i] = result{idx: i, line: fmt.Sprintf("skip    %s (no Zitadel user — sign in once via OIDC, then re-run)", email)}
+				return
+			}
+			status, err := grant(client, cfg, userID)
+			if err != nil {
+				results[i] = result{idx: i, hardErr: fmt.Errorf("grant %q (%s): %w", email, userID, err)}
+				return
+			}
+			results[i] = result{idx: i, line: fmt.Sprintf("%-7s %s (%s)", status, email, userID)}
+		}(i, email)
+	}
+	wg.Wait()
+
+	// Print in input order so the operator sees a stable log even
+	// though the goroutines finish out-of-order. Surface the
+	// lowest-index hard failure (closest to input order) so re-runs
+	// converge on the same diagnostic.
+	sort.Slice(results, func(a, b int) bool { return results[a].idx < results[b].idx })
+	var firstErr error
+	for _, r := range results {
+		if r.hardErr != nil && firstErr == nil {
+			firstErr = r.hardErr
+		}
+		if r.line != "" {
+			fmt.Fprintln(os.Stderr, r.line)
+		}
+	}
+	return firstErr
 }
 
 func loadConfig() (*config, error) {

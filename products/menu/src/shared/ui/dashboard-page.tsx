@@ -4,44 +4,41 @@ import {
   Breadcrumb,
   BreadcrumbHere,
   BreadcrumbLink,
+  Separator,
 } from '@iedora/design-system'
 
 /**
  * Standard shell for every dashboard page.
  *
  * Why one shell:
- *   - Every page was hand-rolling its own breadcrumb (inline `<h1>` with
- *     "Back" link) AND repeating its own `space-y-{6|8|10}` rhythm, which
- *     drifted from screen to screen. One primitive, one rhythm.
- *   - The first crumb is ALWAYS "Home" pointing at /dashboard — "Back"
- *     is contextual and confusing on routes accessed via shared link.
+ *   - Every page was hand-rolling its own heading + spacing rhythm,
+ *     which drifted from screen to screen. One primitive, one rhythm.
+ *   - The sidebar already tells the user where they are, so root and
+ *     1-level pages render just an `<h1>`. Breadcrumbs only show up
+ *     when there are intermediate hops worth surfacing (2+ levels).
  *   - `<BreadcrumbHere>` doubles as the page's `<h1>` (SEO + a11y) so
  *     the title slot writes one piece of text, not two.
  *
- * Shape:
+ * Shapes:
  *
- *   <DashboardPage
- *     title="QR codes (admin)"
- *     crumbs={[{ label: 'Admin', href: '/dashboard/admin' }]}
- *     actions={<Link href="…">New</Link>}
- *     data-test-id="qr-codes-admin"
- *   >
- *     {…sections…}
- *   </DashboardPage>
+ *   Flat page (Billing, Analytics, Home, …):
  *
- *   ↓
+ *     <DashboardPage title="Billing" data-test-id="billing">
+ *       …sections…
+ *     </DashboardPage>
+ *     ↓  Billing                          [actions]
  *
- *   HOME / ADMIN / *QR codes (admin)*                      [actions]
- *   (optional eyebrow + description)
+ *   Nested page with intermediate hops:
  *
- *   …children…
- *
- * Pass `crumbs={[]}` (or omit) when the page IS the root (e.g.
- * `/dashboard`). Then the title renders as a plain `<h1>` with no
- * trail above it — Home pointing at itself would be redundant.
+ *     <DashboardPage
+ *       title="Sessions (admin)"
+ *       crumbs={[{ label: 'Admin', href: '/dashboard/admin/qr-codes' }]}
+ *       data-test-id="sessions-admin"
+ *     >
+ *     ↓  ADMIN / *Sessions (admin)*       [actions]
  *
  * Mobile-first: the header row collapses (actions wrap below at narrow
- * widths), and the children rhythm stays consistent at `space-y-10`.
+ * widths) and the children rhythm stays consistent.
  */
 
 export type DashboardCrumb = {
@@ -53,17 +50,11 @@ export type DashboardCrumb = {
 
 export type DashboardPageProps = {
   /**
-   * Intermediate breadcrumb items between Home and the current page.
-   * Home is prepended automatically. Defaults to `[]` so a page like
-   * `/dashboard/billing` just renders `HOME / Billing`.
+   * Intermediate breadcrumb items between the sidebar and the current
+   * page title. Defaults to `[]` — when empty the title renders as a
+   * plain `<h1>` (the sidebar's active link is enough context).
    */
   crumbs?: ReadonlyArray<DashboardCrumb>
-  /**
-   * When true, no breadcrumb is rendered (the title becomes a plain
-   * `<h1>`). Use on the `/dashboard` root — a "Home" link that points
-   * at the current page would just be noise.
-   */
-  root?: boolean
   /** Renders as <BreadcrumbHere> (h1). The page heading. */
   title: React.ReactNode
   /** Optional mono-caps line above the heading row. */
@@ -72,7 +63,7 @@ export type DashboardPageProps = {
   description?: React.ReactNode
   /** Right-aligned slot for primary actions (links, buttons, filters). */
   actions?: React.ReactNode
-  /** Page sections. Spaced via the page's own `space-y-10` rhythm. */
+  /** Page sections. */
   children: React.ReactNode
   /** Forwarded to the outer wrapper + namespaces all auto test-ids. */
   'data-test-id'?: string
@@ -80,7 +71,6 @@ export type DashboardPageProps = {
 
 export function DashboardPage({
   crumbs = [],
-  root = false,
   title,
   eyebrow,
   description,
@@ -90,72 +80,80 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const ns = (suffix: string) => (testId ? `${testId}-${suffix}` : undefined)
   const showHeaderRow = Boolean(eyebrow || description || actions)
+  const hasTrail = crumbs.length > 0
 
   return (
-    <div className="space-y-10" data-test-id={testId}>
-      {root ? (
-        // Root page (`/dashboard`): no breadcrumb trail above the
-        // heading — a Home link pointing at the current page is noise.
-        // Render the title as `<h1>` styled like `BreadcrumbHere` so
-        // the typography matches the rest of the dashboard surfaces.
-        <h1
-          className="ds-breadcrumb__here"
-          data-test-id={ns('heading')}
-        >
-          {title}
-        </h1>
-      ) : (
-        <Breadcrumb data-test-id={ns('breadcrumbs')}>
-          <BreadcrumbLink asChild data-test-id={ns('breadcrumb-home')}>
-            <Link href="/dashboard">Home</Link>
-          </BreadcrumbLink>
-          {crumbs.map((c, i) => (
-            <BreadcrumbLink
-              key={c.href}
-              asChild
-              data-test-id={ns(`breadcrumb-${c.testId ?? i}`)}
-            >
-              <Link href={c.href}>{c.label}</Link>
-            </BreadcrumbLink>
-          ))}
-          <BreadcrumbHere data-test-id={ns('breadcrumb-current')}>
+    <div className="space-y-6" data-test-id={testId}>
+      {/* Below `lg` the sidebar trigger floats in the top-right corner
+          over this region — reserve 56px of right padding so long titles
+          don't slide under the button. At `lg+` the rail takes over and
+          the trigger is hidden, so the padding drops away. */}
+      <div className="space-y-4 pr-14 lg:pr-0">
+        {hasTrail ? (
+          <Breadcrumb data-test-id={ns('breadcrumbs')}>
+            {crumbs.map((c, i) => (
+              <BreadcrumbLink
+                key={c.href}
+                asChild
+                data-test-id={ns(`breadcrumb-${c.testId ?? i}`)}
+              >
+                <Link href={c.href}>{c.label}</Link>
+              </BreadcrumbLink>
+            ))}
+            <BreadcrumbHere data-test-id={ns('breadcrumb-current')}>
+              {title}
+            </BreadcrumbHere>
+          </Breadcrumb>
+        ) : (
+          // Flat page: the sidebar's active link tells the user where
+          // they are, so a one-hop "Home / X" trail would be noise.
+          // Title renders as `<h1>` styled like `BreadcrumbHere` so the
+          // typography matches.
+          <h1
+            className="ds-breadcrumb__here"
+            data-test-id={ns('heading')}
+          >
             {title}
-          </BreadcrumbHere>
-        </Breadcrumb>
-      )}
+          </h1>
+        )}
 
-      {showHeaderRow && (
-        <header
-          className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
-          data-test-id={ns('header')}
-        >
-          <div className="space-y-2 min-w-0">
-            {eyebrow ? (
-              <div className="eyebrow" data-test-id={ns('eyebrow')}>
-                {eyebrow}
+        {showHeaderRow && (
+          <header
+            className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+            data-test-id={ns('header')}
+          >
+            <div className="space-y-2 min-w-0">
+              {eyebrow ? (
+                <div className="eyebrow" data-test-id={ns('eyebrow')}>
+                  {eyebrow}
+                </div>
+              ) : null}
+              {description ? (
+                <p
+                  className="max-w-prose text-sm text-[var(--ink-70)]"
+                  data-test-id={ns('description')}
+                >
+                  {description}
+                </p>
+              ) : null}
+            </div>
+            {actions ? (
+              <div
+                className="flex flex-wrap items-center gap-3 sm:justify-end"
+                data-test-id={ns('actions')}
+              >
+                {actions}
               </div>
             ) : null}
-            {description ? (
-              <p
-                className="max-w-prose text-sm text-[var(--ink-70)]"
-                data-test-id={ns('description')}
-              >
-                {description}
-              </p>
-            ) : null}
-          </div>
-          {actions ? (
-            <div
-              className="flex flex-wrap items-center gap-3 sm:justify-end"
-              data-test-id={ns('actions')}
-            >
-              {actions}
-            </div>
-          ) : null}
-        </header>
-      )}
+          </header>
+        )}
+      </div>
 
-      {children}
+      <Separator />
+
+      <div className="space-y-8">
+        {children}
+      </div>
     </div>
   )
 }

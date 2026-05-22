@@ -9,8 +9,10 @@ export default defineConfig({
       'src/features/**/*.test.{ts,tsx}',
       'src/shared/**/*.test.{ts,tsx}',
     ],
-    // Playwright owns e2e — keep them out of Vitest.
-    exclude: ['node_modules', 'tests/e2e/**', '.next', 'dist'],
+    // Playwright owns e2e — keep them out of Vitest. `*.live.test.ts`
+    // hits real third-party APIs (Kimi, etc.) and only runs through the
+    // dedicated `test:ai-live` script.
+    exclude: ['node_modules', 'tests/e2e/**', '.next', 'dist', '**/*.live.test.ts'],
     environment: 'node',
     pool: 'forks', // PGLite is per-worker; forks isolate cleanly.
     // PGLite WASM init is slow on first hit; give each test a reasonable budget.

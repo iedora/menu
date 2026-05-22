@@ -45,7 +45,7 @@ export default async function QrCodesAdminPage() {
   const snapshotAt = new Date().toISOString()
 
   return (
-    <DashboardPage title="QR codes (admin)" data-test-id="qr-codes-admin">
+    <DashboardPage title="QR codes" data-test-id="qr-codes-admin">
       <QrCodesAdmin
         rows={rows}
         restaurants={restaurants}

@@ -45,6 +45,10 @@ export async function seedSampleMenu(
         },
         priceCents: it.priceCents,
         currency: 'EUR',
+        // Variants are plain strings on sample data — no localisation
+        // layer yet. Forward them as-is; the adapter writes null when
+        // the array is empty / missing.
+        variants: it.variants,
       })),
     })),
   }

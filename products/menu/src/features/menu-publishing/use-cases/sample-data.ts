@@ -8,10 +8,17 @@ import type { LanguageCode, LocalizedText } from '@/features/i18n'
 
 type LocalizedField = { en: string } & Partial<Record<LanguageCode, string>>
 
+type SampleVariantData = {
+  /** Plain label — variants don't carry i18n overrides yet. */
+  label: string
+  priceCents: number
+}
+
 type SampleItemData = {
   name: LocalizedField
   description: LocalizedField
   priceCents: number
+  variants?: ReadonlyArray<SampleVariantData>
 }
 
 type SampleCategoryData = {
@@ -73,6 +80,11 @@ export const SAMPLE_MENU: ReadonlyArray<SampleCategoryData> = [
           pt: 'Corte da casa, molho de pimenta',
         },
         priceCents: 1900,
+        // Demonstrates the variant pattern (very common on Portuguese
+        // menus). New restaurants seeded with the sample menu see one
+        // dish with `Meia dose` so the public-menu template surfaces the
+        // shape immediately.
+        variants: [{ label: 'Meia dose', priceCents: 1100 }],
       },
     ],
   },

@@ -1,7 +1,19 @@
 {
   "AppHeader": {
     "logout": "Terminar sessão",
-    "language": "Idioma"
+    "language": "Idioma",
+    "openNavigation": "Abrir navegação",
+    "closeNavigation": "Fechar navegação",
+    "brandHome": "Início do Menu"
+  },
+  "DashboardNav": {
+    "ariaLabel": "Painel",
+    "home": "Início",
+    "billing": "Faturação",
+    "analytics": "Estatísticas",
+    "admin": "Admin",
+    "qrCodes": "Códigos QR",
+    "sessions": "Sessões"
   },
   "Auth": {
     "signupEyebrow": "à mesa",
@@ -32,7 +44,14 @@
     "restaurantName": "Nome do restaurante",
     "restaurantNamePlaceholder": "O Bom Garfo",
     "create": "Criar restaurante",
-    "creating": "A criar…"
+    "creating": "A criar…",
+    "menu": {
+      "eyebrow": "segunda sala",
+      "title": "Monta o teu menu",
+      "subtitle": "Tira uma foto ao menu que já tens — extraímos pratos e preços em segundos. Revês e editas tudo antes de guardar.",
+      "skip": "Saltar — adiciono pratos manualmente",
+      "skipHint": "Podes importar uma foto a qualquer altura na página do restaurante."
+    }
   },
   "Dashboard": {
     "eyebrow": "as vossas salas",
@@ -86,6 +105,51 @@
     "menus": "Menus",
     "newMenu": "Novo menu",
     "sampleMenu": "Menu de exemplo",
+    "importMenu": "Importar da foto",
+    "importMenuTitle": "Importar menu a partir de foto",
+    "importMenuDescription": "Envia uma foto nítida do teu menu físico. A IA extrairá as categorias e pratos automaticamente.",
+    "importMenuPickFile": "Clica para escolher uma foto",
+    "importMenuPickFileHint": "JPEG, PNG ou WebP · até 10 MB",
+    "importMenuTakePhoto": "Tirar foto",
+    "importMenuTakePhotoHint": "Usa a câmara",
+    "importMenuUploadPhoto": "Carregar do dispositivo",
+    "importMenuUploadPhotoHint": "JPEG, PNG ou WebP · até 10 MB",
+    "importMenuCameraStarting": "A iniciar a câmara…",
+    "importMenuCameraCapture": "Capturar",
+    "importMenuCameraRetake": "Repetir",
+    "importMenuCameraUseThis": "Usar esta foto",
+    "importMenuCameraCancel": "Cancelar",
+    "importMenuCameraDenied": "Acesso à câmara negado. Podes carregar uma foto do dispositivo.",
+    "importMenuCameraUnavailable": "Não há câmara disponível neste dispositivo. Carrega uma foto.",
+    "importMenuBuilding1": "A ler o teu menu…",
+    "importMenuBuilding2": "A identificar categorias…",
+    "importMenuBuilding3": "A somar os preços…",
+    "importMenuBuilding4": "Quase pronto…",
+    "importMenuErrorQuota": "O nosso serviço de IA está sobrecarregado. Tenta novamente daqui a uns minutos — a tua foto não foi consumida.",
+    "importMenuErrorAuth": "O serviço de IA está indisponível. Contacta o suporte, por favor.",
+    "importMenuErrorNetwork": "Não conseguimos contactar o serviço de IA. Verifica a ligação e tenta novamente.",
+    "importMenuErrorParse": "Tivemos dificuldade a ler este menu. Tenta uma foto mais nítida com boa iluminação.",
+    "importMenuErrorTruncated": "Este menu é longo — ficámos sem espaço a meio. Tenta dividi-lo em secções (comida, bebidas, sobremesas) e importar cada uma à vez.",
+    "importMenuErrorUnknown": "Algo correu mal ao montar o menu. Tenta novamente.",
+    "importMenuAnalysing": "A analisar…",
+    "importMenuReviewTitle": "Rever o menu extraído",
+    "importMenuReviewDescription": "{items} itens selecionados em {categories} categorias.",
+    "importMenuName": "Nome do menu",
+    "importMenuBack": "← Tentar outra foto",
+    "importMenuConfirm": "Importar menu",
+    "importMenuImporting": "A importar…",
+    "importMenuSuccessTitle": "Menu importado",
+    "importMenuQuota": "Importações AI esta semana: {used} de {limit}",
+    "importMenuAddVariant": "+ Adicionar variante",
+    "importMenuVariantLabel": "Etiqueta da variante (ex. Meia dose)",
+    "importMenuVariantRemove": "Remover variante",
+    "importMenuDetected": "Sugerido: {language} · {currency}",
+    "importMenuApplyLanguage": "Usar {language} como idioma predefinido deste restaurante",
+    "importMenuApplyLanguageHint": "Só aplicado quando importares. Desmarca para manter a definição atual.",
+    "importMenuReviewMarker": "rever",
+    "importMenuReviewTooltip": "A IA não tinha a certeza desta linha — confirma o nome e o preço.",
+    "importMenuSuccessDescription": "O teu menu foi criado a partir da foto. Abre-o para adicionar fotos, ajustar preços e reordenar pratos.",
+    "importMenuSuccessOpen": "Abrir menu",
     "noMenus": "Ainda sem menus",
     "noMenusHint": "Cria um para começar a adicionar categorias.",
     "categoryCount": "{count, plural, =0 {Sem categorias} =1 {1 categoria} other {# categorias}}",
@@ -155,6 +219,7 @@
     "monthlyViewsCount": "{count, number} visualizações mensais",
     "unlimitedMonthlyViews": "Visualizações ilimitadas",
     "unlimitedTranslations": "Traduções ilimitadas",
+    "aiMenuGenerationsPerWeek": "{count, plural, =0 {Sem importações AI de menus} =1 {1 importação AI de menu por semana} other {# importações AI de menus por semana}}",
     "exportPdf": "Exportar menus como PDF para impressão",
     "customBranding": "Remover branding Menu",
     "invoicesTitle": "Faturas",
@@ -179,7 +244,8 @@
       "casa": {
         "name": "Casa",
         "tagline": "Tudo no Free, mais as ferramentas para crescer.",
-        "cta": "Subir para Casa"
+        "cta": "Subir para Casa",
+        "badge": "Recomendado"
       }
     }
   },
@@ -191,5 +257,63 @@
     "edit": "Editar",
     "translate": "Traduzir",
     "back": "Voltar"
+  },
+  "SessionsAdmin": {
+    "stats": {
+      "title": "Visão geral",
+      "sessions": "Sessões",
+      "users": "Utilizadores",
+      "new24h": "Novas 24h",
+      "stale24h": "Inativas > 24h",
+      "avgAge": "Idade média",
+      "avgAgeHint": "desde a última atividade",
+      "maxPermVersion": "Versão máx. perm.",
+      "maxPermVersionHint": "incrementos via webhook",
+      "loginsHint": "inícios de sessão",
+      "noneHint": "nenhuma",
+      "browsers": "Navegadores",
+      "operatingSystems": "Sistemas operativos"
+    },
+    "list": {
+      "activeCount": "Sessões ativas ({total} em {users, plural, =1 {# utilizador} other {# utilizadores}})",
+      "empty": "Sem sessões ativas."
+    },
+    "userCard": {
+      "thisDevice": "(este dispositivo)",
+      "unverified": "não verificado",
+      "roleTooltip": "Papel: {role}",
+      "sessionsCount": "{count, plural, =1 {# sessão} other {# sessões}}",
+      "toggleSessionsTitle": "Alternar detalhe das sessões ativas",
+      "revokeAll": "Revogar tudo",
+      "revokeAllConfirm": "Revogar TODAS as sessões ativas de {name} ({email})? Sai automaticamente em todos os dispositivos.",
+      "revokeAllStatus": "Revogadas {count, plural, =1 {# sessão} other {# sessões}}.",
+      "noMfa": "sem MFA",
+      "noMfaTitle": "Sem fator MFA registado"
+    },
+    "state": {
+      "unavailableLabel": "— estado",
+      "unavailableTitle": "Estado do Zitadel indisponível",
+      "title": "Estado do utilizador no Zitadel"
+    },
+    "session": {
+      "ipTooltip": "SHA-256 do IP do cliente, truncado",
+      "permissionsVersion": "permissões v{version}",
+      "lastSeen": "Visto: {when}",
+      "expires": "Exp: {when}",
+      "revoke": "Revogar",
+      "revokeOwnConfirm": "Esta é a TUA sessão. Revogar termina-te a sessão e força nova autenticação via OIDC. Continuar?",
+      "revokedStatus": "Revogada — a linha desaparece na próxima atualização."
+    },
+    "scopes": {
+      "empty": "Sem âmbitos concedidos",
+      "bundleEmpty": "Sem âmbitos agrupados neste papel",
+      "direct": "Âmbitos diretos / outros",
+      "roleBadge": "Papel",
+      "copyTitle": "Copiar âmbito",
+      "count": "{count, plural, =1 {# âmbito} other {# âmbitos}}"
+    },
+    "client": {
+      "toggleTitle": "Clica para alternar detalhes do cliente"
+    }
   }
 }

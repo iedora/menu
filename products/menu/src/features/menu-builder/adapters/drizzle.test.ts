@@ -161,3 +161,96 @@ describe('drizzleMenuWrite — batched reorder', () => {
     ).resolves.toBeUndefined()
   })
 })
+
+describe('drizzleMenuWrite.seedSampleMenu — variants persistence', () => {
+  it('writes variants on items that have them, leaves null otherwise', async () => {
+    const orgId = 'o-seed'
+    const restaurantId = 'r-seed'
+    await t.db.insert(restaurant).values({
+      id: restaurantId,
+      organizationId: orgId,
+      name: 'Place',
+      slug: 'place-seed',
+    })
+
+    await writer.seedSampleMenu(restaurantId, {
+      menuName: { default: 'Sample', i18n: null },
+      categories: [
+        {
+          name: { default: 'Mains', i18n: null },
+          items: [
+            // No variants — should land as NULL.
+            {
+              name: { default: 'Carbonara', i18n: null },
+              description: { default: 'Guanciale, pecorino', i18n: null },
+              priceCents: 1400,
+              currency: 'EUR',
+            },
+            // Variants — should round-trip as a jsonb array.
+            {
+              name: { default: 'Steak frites', i18n: null },
+              description: { default: 'House cut', i18n: null },
+              priceCents: 1900,
+              currency: 'EUR',
+              variants: [{ label: 'Meia dose', priceCents: 1100 }],
+            },
+          ],
+        },
+      ],
+    })
+
+    const rows = await t.db
+      .select({
+        name: item.name,
+        priceCents: item.priceCents,
+        variants: item.variants,
+      })
+      .from(item)
+      .where(eq(item.restaurantId, restaurantId))
+      .orderBy(asc(item.position))
+
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.name).toBe('Carbonara')
+    expect(rows[0]?.variants).toBeNull()
+
+    expect(rows[1]?.name).toBe('Steak frites')
+    expect(rows[1]?.variants).toEqual([
+      { label: 'Meia dose', priceCents: 1100 },
+    ])
+  })
+
+  it('writes null when the variants array is present but empty', async () => {
+    const orgId = 'o-empty'
+    const restaurantId = 'r-empty'
+    await t.db.insert(restaurant).values({
+      id: restaurantId,
+      organizationId: orgId,
+      name: 'Place',
+      slug: 'place-empty',
+    })
+
+    await writer.seedSampleMenu(restaurantId, {
+      menuName: { default: 'Sample', i18n: null },
+      categories: [
+        {
+          name: { default: 'Snacks', i18n: null },
+          items: [
+            {
+              name: { default: 'Olives', i18n: null },
+              description: { default: 'house brine', i18n: null },
+              priceCents: 300,
+              currency: 'EUR',
+              variants: [],
+            },
+          ],
+        },
+      ],
+    })
+
+    const [row] = await t.db
+      .select({ variants: item.variants })
+      .from(item)
+      .where(eq(item.restaurantId, restaurantId))
+    expect(row?.variants).toBeNull()
+  })
+})

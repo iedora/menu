@@ -4,6 +4,7 @@ import { requireActiveOrganization } from '@/features/auth'
 import { getInvoiceYears, getInvoicesForYear } from '@/features/billing'
 import { PLANS, getOrganizationPlan } from '@/features/plans'
 import { DashboardPage } from '@/shared/ui/dashboard-page'
+import { Badge } from '@iedora/design-system'
 import { UpgradeButton } from './upgrade-button'
 
 function formatMoney(amountCents: number, currency: string, locale: string) {
@@ -74,6 +75,9 @@ export default async function BillingPage({
               plan.limits.monthlyViews === Number.POSITIVE_INFINITY
                 ? t('unlimitedMonthlyViews')
                 : t('monthlyViewsCount', { count: plan.limits.monthlyViews })
+            const aiCopy = t('aiMenuGenerationsPerWeek', {
+              count: plan.limits.aiMenuGenerationsPerWeek,
+            })
 
             return (
               <div
@@ -87,8 +91,15 @@ export default async function BillingPage({
                 }
               >
                 <div>
-                  <div className="text-base font-semibold">
-                    {t(`plans.${plan.code}.name`)}
+                  <div className="flex items-center gap-3">
+                    <span className="text-base font-semibold">
+                      {t(`plans.${plan.code}.name`)}
+                    </span>
+                    {plan.code === 'casa' && (
+                      <Badge variant="live">
+                        {t(`plans.${plan.code}.badge`)}
+                      </Badge>
+                    )}
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {t(`plans.${plan.code}.tagline`)}
@@ -97,6 +108,7 @@ export default async function BillingPage({
                 <ul className="space-y-1.5 text-sm">
                   <li>· {restaurantsCopy}</li>
                   <li>· {viewsCopy}</li>
+                  <li>· {aiCopy}</li>
                   {/* Universal feature: only listed on the default plan so the
                     paid card stays focused on what's actually unlocked by
                     upgrading. */}

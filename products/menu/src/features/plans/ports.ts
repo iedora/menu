@@ -28,4 +28,20 @@ export interface PlansGateway {
    * the column type; the use-case enforces the registry membership.
    */
   updateOrgPlan(organizationId: string, code: PlanCode): Promise<boolean>
+
+  /**
+   * Counts AI menu-import generations for `organizationId` newer than
+   * `since`. Used by `canGenerateAiMenu` to compare against the plan's
+   * weekly limit.
+   */
+  countAiGenerationsSince(
+    organizationId: string,
+    since: Date,
+  ): Promise<number>
+
+  /**
+   * Records that an AI menu-import generation just ran for the org.
+   * One row per call — the weekly counter is derived, not stored.
+   */
+  recordAiGeneration(organizationId: string): Promise<void>
 }

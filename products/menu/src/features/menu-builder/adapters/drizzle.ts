@@ -408,6 +408,15 @@ export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
           priceCents: it.priceCents,
           currency: it.currency,
           position: itemIdx * 10,
+          // Persist variants when supplied; null otherwise so the
+          // column doesn't carry empty arrays for the common case.
+          variants:
+            it.variants && it.variants.length > 0
+              ? it.variants.map((v) => ({
+                  label: v.label,
+                  priceCents: v.priceCents,
+                }))
+              : null,
         }))
         if (itemRows.length > 0) await tx.insert(item).values(itemRows)
       }

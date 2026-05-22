@@ -12,6 +12,8 @@ Internet → Cloudflare DNS (grey-cloud A records, no proxy/tunnel)
 
 Reference target: Hetzner CPX22 (Falkenstein, x86_64, 2 vCPU / 4 GB / public IPv4). `infra/tofu/hetzner.tf` provisions it from scratch via the `hcloud` provider.
 
+**Modifying the deploy pipeline?** See [`deploy-validation.md`](deploy-validation.md) — the 6-step end-to-end runbook that must pass before merging any change to the orchestrator, the Tofu roots, or the BWS wrapper.
+
 ---
 
 ## Step 1 — Local prerequisites (one-time)

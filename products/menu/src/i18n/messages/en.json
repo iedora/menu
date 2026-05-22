@@ -1,7 +1,19 @@
 {
   "AppHeader": {
     "logout": "Log out",
-    "language": "Language"
+    "language": "Language",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "brandHome": "Menu home"
+  },
+  "DashboardNav": {
+    "ariaLabel": "Dashboard",
+    "home": "Home",
+    "billing": "Billing",
+    "analytics": "Analytics",
+    "admin": "Admin",
+    "qrCodes": "QR Codes",
+    "sessions": "Sessions"
   },
   "Auth": {
     "signupEyebrow": "at the table",
@@ -32,7 +44,14 @@
     "restaurantName": "Restaurant name",
     "restaurantNamePlaceholder": "O Bom Garfo",
     "create": "Create restaurant",
-    "creating": "Creating…"
+    "creating": "Creating…",
+    "menu": {
+      "eyebrow": "second course",
+      "title": "Build your menu",
+      "subtitle": "Snap a photo of your existing menu — we'll extract dishes and prices in seconds. You can review and edit everything before saving.",
+      "skip": "Skip — I'll add dishes manually",
+      "skipHint": "You can import a photo any time from the restaurant page."
+    }
   },
   "Dashboard": {
     "eyebrow": "your places",
@@ -86,6 +105,51 @@
     "menus": "Menus",
     "newMenu": "New menu",
     "sampleMenu": "Sample menu",
+    "importMenu": "Import from photo",
+    "importMenuTitle": "Import menu from photo",
+    "importMenuDescription": "Upload a clear photo of your physical menu. AI will extract categories and dishes automatically.",
+    "importMenuPickFile": "Click to select a photo",
+    "importMenuPickFileHint": "JPEG, PNG or WebP · up to 10 MB",
+    "importMenuTakePhoto": "Take a photo",
+    "importMenuTakePhotoHint": "Use the camera",
+    "importMenuUploadPhoto": "Upload from device",
+    "importMenuUploadPhotoHint": "JPEG, PNG or WebP · up to 10 MB",
+    "importMenuCameraStarting": "Starting the camera…",
+    "importMenuCameraCapture": "Capture",
+    "importMenuCameraRetake": "Retake",
+    "importMenuCameraUseThis": "Use this photo",
+    "importMenuCameraCancel": "Cancel",
+    "importMenuCameraDenied": "Camera access was denied. You can still upload a photo from your device.",
+    "importMenuCameraUnavailable": "No camera is available on this device. Upload a photo instead.",
+    "importMenuBuilding1": "Reading your menu…",
+    "importMenuBuilding2": "Finding categories…",
+    "importMenuBuilding3": "Tallying prices…",
+    "importMenuBuilding4": "Almost ready…",
+    "importMenuErrorQuota": "Our AI service is at capacity right now. Try again in a few minutes — your photo wasn't used.",
+    "importMenuErrorAuth": "The AI service is unavailable. Please contact support.",
+    "importMenuErrorNetwork": "We couldn't reach the AI service. Check your connection and try again.",
+    "importMenuErrorParse": "We had trouble reading this menu. Try a clearer photo with even lighting.",
+    "importMenuErrorTruncated": "This menu is on the long side — we ran out of room mid-way. Try splitting it into sections (food, drinks, desserts) and importing each separately.",
+    "importMenuErrorUnknown": "Something went wrong while building the menu. Try again.",
+    "importMenuAnalysing": "Analysing…",
+    "importMenuReviewTitle": "Review extracted menu",
+    "importMenuReviewDescription": "{items} items selected across {categories} categories.",
+    "importMenuName": "Menu name",
+    "importMenuBack": "← Try another photo",
+    "importMenuConfirm": "Import menu",
+    "importMenuImporting": "Importing…",
+    "importMenuSuccessTitle": "Menu imported",
+    "importMenuQuota": "AI imports this week: {used} of {limit}",
+    "importMenuAddVariant": "+ Add variant",
+    "importMenuVariantLabel": "Variant label (e.g. Meia dose)",
+    "importMenuVariantRemove": "Remove variant",
+    "importMenuDetected": "Suggested: {language} · {currency}",
+    "importMenuApplyLanguage": "Use {language} as this restaurant's default language",
+    "importMenuApplyLanguageHint": "Only applied when you import. Uncheck to keep your current setting.",
+    "importMenuReviewMarker": "review",
+    "importMenuReviewTooltip": "The AI was unsure about this row — double-check the name and price.",
+    "importMenuSuccessDescription": "Your menu has been created from the photo. Open it to add photos, adjust prices, and reorder dishes.",
+    "importMenuSuccessOpen": "Open menu",
     "noMenus": "No menus yet",
     "noMenusHint": "Create one to start adding categories.",
     "categoryCount": "{count, plural, =0 {No categories} =1 {1 category} other {# categories}}",
@@ -155,6 +219,7 @@
     "monthlyViewsCount": "{count, number} monthly views",
     "unlimitedMonthlyViews": "Unlimited monthly views",
     "unlimitedTranslations": "Unlimited translations",
+    "aiMenuGenerationsPerWeek": "{count, plural, =0 {No AI menu imports} =1 {1 AI menu import per week} other {# AI menu imports per week}}",
     "exportPdf": "Export menus as printable PDF",
     "customBranding": "Remove Menu branding",
     "invoicesTitle": "Invoices",
@@ -179,7 +244,8 @@
       "casa": {
         "name": "Casa",
         "tagline": "Everything in Free, plus the tools to grow.",
-        "cta": "Upgrade to Casa"
+        "cta": "Upgrade to Casa",
+        "badge": "Recommended"
       }
     }
   },
@@ -191,5 +257,63 @@
     "edit": "Edit",
     "translate": "Translate",
     "back": "Back"
+  },
+  "SessionsAdmin": {
+    "stats": {
+      "title": "Overview",
+      "sessions": "Sessions",
+      "users": "Users",
+      "new24h": "New 24h",
+      "stale24h": "Stale > 24h",
+      "avgAge": "Avg age",
+      "avgAgeHint": "since last seen",
+      "maxPermVersion": "Max perm. v",
+      "maxPermVersionHint": "webhook bumps",
+      "loginsHint": "logins",
+      "noneHint": "none",
+      "browsers": "Browsers",
+      "operatingSystems": "Operating systems"
+    },
+    "list": {
+      "activeCount": "Active sessions ({total} across {users, plural, =1 {# user} other {# users}})",
+      "empty": "No active sessions."
+    },
+    "userCard": {
+      "thisDevice": "(this device)",
+      "unverified": "unverified",
+      "roleTooltip": "Role: {role}",
+      "sessionsCount": "{count, plural, =1 {# session} other {# sessions}}",
+      "toggleSessionsTitle": "Toggle active sessions detail",
+      "revokeAll": "Revoke all",
+      "revokeAllConfirm": "Revoke EVERY active session for {name} ({email})? This logs them out on every device.",
+      "revokeAllStatus": "Revoked {count, plural, =1 {# session} other {# sessions}}.",
+      "noMfa": "no MFA",
+      "noMfaTitle": "No MFA factor enrolled"
+    },
+    "state": {
+      "unavailableLabel": "— state",
+      "unavailableTitle": "Zitadel state unavailable",
+      "title": "Zitadel user state"
+    },
+    "session": {
+      "ipTooltip": "SHA-256 of client IP, truncated",
+      "permissionsVersion": "permissions v{version}",
+      "lastSeen": "Seen: {when}",
+      "expires": "Exp: {when}",
+      "revoke": "Revoke",
+      "revokeOwnConfirm": "This is YOUR session. Revoking will log you out and bounce you through OIDC. Continue?",
+      "revokedStatus": "Revoked — row will disappear on next refresh."
+    },
+    "scopes": {
+      "empty": "No scopes granted",
+      "bundleEmpty": "No scopes bundled under this role",
+      "direct": "Direct / Other Scopes",
+      "roleBadge": "Role",
+      "copyTitle": "Copy scope",
+      "count": "{count, plural, =1 {# scope} other {# scopes}}"
+    },
+    "client": {
+      "toggleTitle": "Click to toggle client details"
+    }
   }
 }

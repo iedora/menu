@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { desc, eq } from 'drizzle-orm'
+import { asc, desc, eq } from 'drizzle-orm'
 import * as schema from '@/shared/db/schema'
 import { makeTestDb, type TestDb } from '@/shared/testing/pglite'
 import type { QrCodesGateway } from './ports'
@@ -97,7 +97,7 @@ function makeGateway(testDb: TestDb): QrCodesGateway {
           schema.restaurant,
           eq(schema.qrCode.restaurantId, schema.restaurant.id),
         )
-        .orderBy(desc(schema.qrCode.createdAt))
+        .orderBy(desc(schema.qrCode.createdAt), asc(schema.qrCode.code))
       return rows.map((r) => ({
         code: r.code,
         restaurantId: r.restaurantId,
@@ -219,6 +219,58 @@ describe('bulkGenerate', () => {
     expect((await bulkGenerate(gw, { count: 0 })).ok).toBe(false)
     expect((await bulkGenerate(gw, { count: 501 })).ok).toBe(false)
     expect((await bulkGenerate(gw, { count: 2.5 })).ok).toBe(false)
+  })
+
+  it('list orders by createdAt DESC with a stable `code` tiebreaker so re-fetches preserve the order', async () => {
+    const gw = makeGateway(t)
+    // Single bulk insert ⇒ every row shares the same createdAt. Without
+    // a tiebreaker, Postgres may return them in any order.
+    const res = await bulkGenerate(gw, { count: 20 })
+    if (!res.ok) throw new Error('expected ok')
+
+    const a = (await listCodes(gw)).map((r) => r.code)
+    const b = (await listCodes(gw)).map((r) => r.code)
+    expect(a).toEqual(b)
+
+    // Within a single createdAt group, codes come out in ASC order.
+    const sortedAsc = [...a].sort()
+    expect(a).toEqual(sortedAsc)
+  })
+
+  it('list keeps newer single-inserts at the top, older bulk-inserts beneath', async () => {
+    const gw = makeGateway(t)
+    const bulk = await bulkGenerate(gw, { count: 3 })
+    if (!bulk.ok) throw new Error('expected ok')
+    // PGLite + the test schema use millisecond-resolution timestamps;
+    // wait a tick so the next insert wins on createdAt.
+    await new Promise((r) => setTimeout(r, 5))
+    await createCode(gw, { code: 'zzz-newest' })
+
+    const rows = await listCodes(gw)
+    expect(rows[0]?.code).toBe('zzz-newest')
+    // The 3 older codes still come back in stable ASC order behind it.
+    const tail = rows.slice(1).map((r) => r.code)
+    expect(tail).toEqual([...tail].sort())
+  })
+
+  it('bind / unbind / updateLabel / delete do not shuffle the list order', async () => {
+    await seedRestaurant(t)
+    const gw = makeGateway(t)
+    const bulk = await bulkGenerate(gw, { count: 5 })
+    if (!bulk.ok) throw new Error('expected ok')
+
+    const before = (await listCodes(gw)).map((r) => r.code)
+
+    // Touch every mutation surface that operates on existing rows.
+    await bindCode(gw, { code: bulk.codes[0]!, restaurantId: 'r1' })
+    await updateLabel(gw, { code: bulk.codes[1]!, label: 'box A' })
+    await unbindCode(gw, bulk.codes[0]!)
+    await deleteCode(gw, bulk.codes[4]!)
+
+    const after = (await listCodes(gw)).map((r) => r.code)
+    // Surviving codes appear in the same relative order — none of these
+    // mutations touch `createdAt`, and `code` is a stable tiebreaker.
+    expect(after).toEqual(before.filter((c) => c !== bulk.codes[4]))
   })
 })
 

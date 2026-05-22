@@ -5,11 +5,13 @@ export type AssetTargetKind =
   | 'restaurant-logo'
   | 'restaurant-banner'
   | 'item-photo'
+  | 'menu-import-photo'
 
 export type AssetTarget =
   | { kind: 'restaurant-logo'; restaurantId: string }
   | { kind: 'restaurant-banner'; restaurantId: string }
   | { kind: 'item-photo'; restaurantId: string; itemId: string }
+  | { kind: 'menu-import-photo'; restaurantId: string }
 
 export type UploadConstraints = {
   maxBytes: number

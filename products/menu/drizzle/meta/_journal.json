@@ -29,6 +29,20 @@
       "when": 1779368043535,
       "tag": "0003_boring_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779467296200,
+      "tag": "0004_red_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779473614104,
+      "tag": "0005_bouncy_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

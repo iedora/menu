@@ -8,7 +8,12 @@
 
 set dotenv-load := true
 
-tofu := "bin/with-secrets tofu -chdir=tofu"
+# Use the central Go-based wrapper at infra/bin/with-secrets. Single
+# source of truth for BWS hydration + CF account discovery (the /zones
+# lookup the central wrapper uses dodges the /accounts transient 503s
+# that historically broke deploys here). Path is relative to this
+# justfile's directory (products/house/infra).
+tofu := "../../../infra/bin/with-secrets tofu -chdir=tofu"
 
 _default:
     @just --list --unsorted

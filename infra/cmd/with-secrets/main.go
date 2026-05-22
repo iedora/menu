@@ -62,6 +62,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Restore the operator's original cwd if the wrapper passed it.
+	// `bin/with-secrets` shells `go run -C INFRA_DIR …`, which
+	// inherits INFRA_DIR as the spawned binary's cwd — masking the
+	// operator's actual cwd. Tools like `tofu -chdir=tofu` then
+	// silently resolve against INFRA_DIR (= central) regardless of
+	// where the operator invoked us from. The bash wrapper forwards
+	// ORIG_PWD; we chdir back so the exec'd target sees the right cwd.
+	if origPWD := os.Getenv("ORIG_PWD"); origPWD != "" {
+		if err := os.Chdir(origPWD); err != nil {
+			fatal("restore ORIG_PWD %q: %v", origPWD, err)
+		}
+	}
+
 	bwsAccessToken := os.Getenv("BWS_ACCESS_TOKEN")
 	if bwsAccessToken == "" {
 		fatal("BWS_ACCESS_TOKEN missing — export it in your shell (e.g. source ~/.secrets)")

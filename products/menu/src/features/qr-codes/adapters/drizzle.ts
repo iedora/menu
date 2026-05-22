@@ -1,5 +1,5 @@
 import 'server-only'
-import { desc, eq } from 'drizzle-orm'
+import { asc, desc, eq } from 'drizzle-orm'
 import { db } from '@/shared/db/client'
 import { qrCode, restaurant } from '@/shared/db/schema'
 import type { QrCodesGateway } from '../ports'
@@ -82,7 +82,11 @@ export const drizzleQrCodesGateway: QrCodesGateway = {
       })
       .from(qrCode)
       .leftJoin(restaurant, eq(qrCode.restaurantId, restaurant.id))
-      .orderBy(desc(qrCode.createdAt))
+      // Newest first. `code` is a deterministic tiebreaker because bulk
+      // inserts share a single `now()` per statement — without it, ties
+      // are ordered by Postgres' physical layout and shuffle between
+      // re-fetches as the table is updated.
+      .orderBy(desc(qrCode.createdAt), asc(qrCode.code))
     return rows.map((r) => ({
       code: r.code,
       restaurantId: r.restaurantId,

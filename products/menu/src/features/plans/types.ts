@@ -27,6 +27,12 @@ export type PlanLimits = {
    * service. `Infinity` disables the meter entirely.
    */
   monthlyViews: number
+  /**
+   * Hard cap on AI menu-import generations per rolling 7-day window. Each
+   * `analyzeMenuImage` call (the Gemini vision request) consumes one slot.
+   * `0` disables the AI surface entirely; `Infinity` for unlimited.
+   */
+  aiMenuGenerationsPerWeek: number
 }
 
 export type Plan = {

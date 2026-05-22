@@ -4,9 +4,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { DashboardPage } from './dashboard-page'
 
 describe('DashboardPage', () => {
-  it('renders title as a plain <h1> when `root` is true (no breadcrumb)', () => {
+  it('renders title as a plain <h1> when no intermediate crumbs are passed', () => {
     const html = renderToStaticMarkup(
-      <DashboardPage root title="Menus" data-test-id="dashboard-root">
+      <DashboardPage title="Menus" data-test-id="dashboard-root">
         <div>content</div>
       </DashboardPage>,
     )
@@ -16,23 +16,21 @@ describe('DashboardPage', () => {
     expect(html).not.toContain('aria-label="Breadcrumb"')
   })
 
-  it('always renders Home + current breadcrumb on non-root pages, even with no intermediate crumbs', () => {
+  it('drops the redundant Home trail on flat pages — sidebar is the back-affordance now', () => {
     const html = renderToStaticMarkup(
       <DashboardPage title="Billing" data-test-id="billing">
         <div />
       </DashboardPage>,
     )
-    expect(html).toContain('aria-label="Breadcrumb"')
-    expect(html).toContain('data-test-id="billing-breadcrumbs"')
-    expect(html).toContain('data-test-id="billing-breadcrumb-home"')
-    expect(html).toContain('href="/dashboard"')
-    expect(html).toContain('>Home</a>')
-    expect(html).toContain('data-test-id="billing-breadcrumb-current"')
-    expect(html).toMatch(/<h1[^>]*aria-current="page"/)
+    // No breadcrumb chrome — the sidebar already says we're on Billing.
+    expect(html).not.toContain('aria-label="Breadcrumb"')
+    expect(html).not.toContain('data-test-id="billing-breadcrumbs"')
+    // h1 with heading test-id and the title text.
+    expect(html).toContain('data-test-id="billing-heading"')
     expect(html).toContain('>Billing</h1>')
   })
 
-  it('prepends Home, renders intermediates, and the current as h1', () => {
+  it('renders the breadcrumb trail when at least one intermediate crumb is supplied', () => {
     const html = renderToStaticMarkup(
       <DashboardPage
         title="QR Code"
@@ -44,7 +42,8 @@ describe('DashboardPage', () => {
         <div />
       </DashboardPage>,
     )
-    expect(html).toContain('data-test-id="qr-breadcrumb-home"')
+    expect(html).toContain('aria-label="Breadcrumb"')
+    expect(html).toContain('data-test-id="qr-breadcrumbs"')
     expect(html).toContain('data-test-id="qr-breadcrumb-restaurant"')
     expect(html).toContain('href="/dashboard/r/tasca"')
     expect(html).toContain('>Tasca do Avô</a>')
@@ -72,7 +71,6 @@ describe('DashboardPage', () => {
   it('renders eyebrow + description + actions in the header row only when supplied', () => {
     const html = renderToStaticMarkup(
       <DashboardPage
-        root
         title="Analytics"
         data-test-id="analytics"
         eyebrow="this month"
@@ -93,7 +91,7 @@ describe('DashboardPage', () => {
 
   it('omits the header row entirely when no eyebrow/description/actions are supplied', () => {
     const html = renderToStaticMarkup(
-      <DashboardPage root title="X" data-test-id="x">
+      <DashboardPage title="X" data-test-id="x">
         <div />
       </DashboardPage>,
     )
@@ -102,29 +100,20 @@ describe('DashboardPage', () => {
 
   it('forwards data-test-id to the outer wrapper', () => {
     const html = renderToStaticMarkup(
-      <DashboardPage root title="X" data-test-id="my-page">
+      <DashboardPage title="X" data-test-id="my-page">
         <div />
       </DashboardPage>,
     )
     expect(html).toMatch(/^<div[^>]*data-test-id="my-page"/)
   })
 
-  it('applies the standard space-y-10 rhythm', () => {
+  it('applies the standard spacing rhythm and separator', () => {
     const html = renderToStaticMarkup(
-      <DashboardPage root title="X">
+      <DashboardPage title="X">
         <div />
       </DashboardPage>,
     )
-    expect(html).toContain('class="space-y-10"')
-  })
-
-  it('first crumb always says Home, never Back (matches the new convention)', () => {
-    const html = renderToStaticMarkup(
-      <DashboardPage title="Whatever" data-test-id="x">
-        <div />
-      </DashboardPage>,
-    )
-    expect(html).toContain('>Home</a>')
-    expect(html).not.toContain('>Back</a>')
+    expect(html).toContain('class="space-y-6"')
+    expect(html).toContain('class="ds-separator"')
   })
 })

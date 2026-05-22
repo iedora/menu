@@ -1,0 +1,1 @@
+ALTER TABLE "menu"."item" ADD COLUMN "variants" jsonb;

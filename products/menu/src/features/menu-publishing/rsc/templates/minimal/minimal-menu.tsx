@@ -49,31 +49,59 @@ export function MinimalMenu({ restaurant: r, menus }: RenderProps) {
                     </p>
                   ) : (
                     <ul className="space-y-2">
-                      {c.items.map((it) => (
+                      {c.items.map((it) => {
+                        // Defensive against stale cached snapshots that
+                        // were serialised before the `variants` field
+                        // existed. The cache-key was bumped to v2 to
+                        // flush them; this guard is the second layer.
+                        const variants = it.variants ?? []
+                        return (
                         <li
                           key={it.id}
-                          className={
-                            'flex items-baseline gap-2 ' +
-                            (it.available ? '' : 'opacity-50')
-                          }
+                          className={it.available ? '' : 'opacity-50'}
                         >
-                          <span
-                            className={
-                              'font-normal ' + (it.available ? '' : 'line-through')
-                            }
-                          >
-                            {it.name}
-                          </span>
-                          <span
-                            aria-hidden
-                            className="flex-1 translate-y-[-3px] border-b border-dotted"
-                            style={{ borderColor: 'var(--menu-secondary)' }}
-                          />
-                          <span className="font-mono text-sm tabular-nums">
-                            {formatPrice(it.priceCents, it.currency)}
-                          </span>
+                          <div className="flex items-baseline gap-2">
+                            <span
+                              className={
+                                'font-normal ' +
+                                (it.available ? '' : 'line-through')
+                              }
+                            >
+                              {it.name}
+                            </span>
+                            <span
+                              aria-hidden
+                              className="flex-1 translate-y-[-3px] border-b border-dotted"
+                              style={{ borderColor: 'var(--menu-secondary)' }}
+                            />
+                            <span className="font-mono text-sm tabular-nums">
+                              {formatPrice(it.priceCents, it.currency)}
+                            </span>
+                          </div>
+                          {variants.length > 0 && (
+                            <dl className="mt-1 space-y-0.5 pl-3">
+                              {variants.map((v, vi) => (
+                                <div
+                                  key={`${v.label}-${vi}`}
+                                  className="flex items-baseline gap-2 text-xs"
+                                  style={{ color: 'var(--menu-secondary)' }}
+                                >
+                                  <dt>{v.label}</dt>
+                                  <dd
+                                    aria-hidden
+                                    className="flex-1 translate-y-[-3px] border-b border-dotted"
+                                    style={{ borderColor: 'var(--menu-secondary)' }}
+                                  />
+                                  <dd className="font-mono tabular-nums">
+                                    {formatPrice(v.priceCents, it.currency)}
+                                  </dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
                         </li>
-                      ))}
+                        )
+                      })}
                     </ul>
                   )}
                 </section>

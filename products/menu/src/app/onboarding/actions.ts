@@ -117,7 +117,7 @@ async function addRestaurantToOrg(
   }
 
   revalidatePath('/dashboard')
-  redirect('/dashboard')
+  redirect(`/onboarding/menu/${slug}`)
 }
 
 async function createOrgAndFirstRestaurant(
@@ -157,5 +157,7 @@ async function createOrgAndFirstRestaurant(
   }
 
   revalidatePath('/dashboard')
-  redirect('/dashboard')
+  // Hand off to the AI menu-setup step. The user can skip from there
+  // and land on /dashboard with an empty-shelled restaurant.
+  redirect(`/onboarding/menu/${slug}`)
 }

@@ -87,7 +87,11 @@ func Upsert(ctx context.Context, projectID, key, value string) error {
 		return err
 	}
 	if id, _, found := Find(secrets, key); found {
-		cmd := exec.CommandContext(ctx, "bws", "secret", "edit", id, "--value", value, "-o", "none")
+		// `--value=...` (single argv with `=`) instead of `--value <val>`:
+		// the bws CLI's clap parser rejects flag-like values in the
+		// space-separated form, and autogen passwords with special=true
+		// can begin with `-`. Joining with `=` is unambiguous.
+		cmd := exec.CommandContext(ctx, "bws", "secret", "edit", id, "--value="+value, "-o", "none")
 		cmd.Stderr = os.Stderr
 		return cmd.Run()
 	}

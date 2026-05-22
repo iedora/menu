@@ -23,6 +23,10 @@ const targetSchema = z.discriminatedUnion('kind', [
     restaurantId: z.string().min(1),
     itemId: z.string().min(1),
   }),
+  z.object({
+    kind: z.literal('menu-import-photo'),
+    restaurantId: z.string().min(1),
+  }),
 ])
 
 const inputSchema = z.object({

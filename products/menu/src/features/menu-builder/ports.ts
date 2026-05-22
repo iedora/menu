@@ -15,6 +15,12 @@ export type SampleMenuSeed = {
       description: { default: string; i18n: LocalizedText | null }
       priceCents: number
       currency: string
+      /**
+       * Optional ad-hoc price variants — "Meia dose", "Imperial",
+       * "Jarra 1L". Labels are plain strings (no i18n overrides at
+       * this layer yet). Omit for the common single-price case.
+       */
+      variants?: ReadonlyArray<{ label: string; priceCents: number }>
     }>
   }>
 }

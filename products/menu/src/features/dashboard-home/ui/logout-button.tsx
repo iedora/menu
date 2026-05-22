@@ -9,6 +9,7 @@ export function LogoutButton() {
   return (
     <Button
       variant="ghost"
+      data-test-id="dashboard-logout"
       onClick={() => {
         // /api/auth/logout clears menu's session cookie + bounces the
         // browser to Zitadel's end_session, which drops the Zitadel-side

@@ -1,7 +1,7 @@
 import 'server-only'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 import { db } from '@/shared/db/client'
-import { category, item, menu } from '@/shared/db/schema'
+import { category, item, menu, type ItemVariant } from '@/shared/db/schema'
 import {
   type LanguageCode,
   type LocalizedText,
@@ -31,6 +31,7 @@ export type RawItem = {
   position: number
   imageUrl: string | null
   tags: string[]
+  variants: ItemVariant[]
 }
 
 export type RawCategory = {
@@ -120,6 +121,7 @@ export async function loadMenuTree(opts: {
             position: item.position,
             imageUrl: item.imageUrl,
             tags: item.tags,
+            variants: item.variants,
           })
           .from(item)
           .where(
@@ -146,6 +148,9 @@ export async function loadMenuTree(opts: {
       position: it.position ?? 0,
       imageUrl: it.imageUrl,
       tags: (it.tags as string[] | null) ?? [],
+      // jsonb returns `null` when the column is unset; normalise to `[]`
+      // so downstream code can iterate without a branch.
+      variants: (it.variants as ItemVariant[] | null) ?? [],
     })
   }
 
@@ -217,6 +222,10 @@ export function localizeTree(
         available: it.available,
         tags: it.tags,
         imageUrl: it.imageUrl,
+        // Variant labels stay as written today (no i18n overrides yet);
+        // pass them through verbatim. If/when we add label translations
+        // this is the spot that picks the right language.
+        variants: it.variants,
       })),
     })),
   }))

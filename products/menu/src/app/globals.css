@@ -190,3 +190,13 @@
   border: 0;
   margin: 0;
 }
+
+/* Soft fade-in used by the menu-import wizard's animated "building"
+   sequence (and any other one-shot reveal that wants a calm landing). */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.menu-import-building-line {
+  animation: fadeIn 480ms ease-out;
+}

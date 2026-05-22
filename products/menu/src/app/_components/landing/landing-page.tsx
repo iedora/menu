@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Nav, NavActions, NavBrand, PageProgress, Wordmark } from "@iedora/design-system";
+import { Badge, Nav, NavActions, NavBrand, PageProgress, Wordmark } from "@iedora/design-system";
 import { APP_HOSTNAME, BRAND_NAME, BRAND_URL, CONTACT_EMAIL, SIGN_IN_PATH } from "@/shared/brand";
 import "./landing.css";
 
@@ -34,7 +34,7 @@ type Copy = {
     eyebrow: string;
     h: string;
     free: { tier: string; priceMain: string; priceSub: string; desc: string; cta: string; feats: string[] };
-    pro: { tier: string; priceMain: string; priceSub: string; desc: string; cta: string; feats: string[] };
+    pro: { tier: string; priceMain: string; priceSub: string; desc: string; cta: string; feats: string[]; badge: string };
     foot: string;
   };
   closing: { eyebrow: string; h: string; ctaPrimary: string };
@@ -74,6 +74,7 @@ const COPY: Record<LangCode, Copy> = {
         desc: "For everyone past a thousand views, and anyone running more than one room.",
         cta: "Choose Casa",
         feats: ["Multiple restaurants", "Unlimited guest views", "Hour-by-hour scan analytics", "PDF export"],
+        badge: "Recommended",
       },
       foot: "No card on file for the free tier. Cancel Casa anytime.",
     },
@@ -109,6 +110,7 @@ const COPY: Record<LangCode, Copy> = {
         desc: "Para quem passa as mil visualizações, e para quem tem mais que uma sala.",
         cta: "Escolher Casa",
         feats: ["Vários restaurantes", "Visualizações ilimitadas", "Análise de scans por hora", "Exportação para PDF"],
+        badge: "Recomendado",
       },
       foot: "Sem cartão no plano grátis. Cancele a Casa quando quiser.",
     },
@@ -144,6 +146,7 @@ const COPY: Record<LangCode, Copy> = {
         desc: "Para los que pasan de las mil visitas, y para quien tiene más de una sala.",
         cta: "Elegir Casa",
         feats: ["Varios restaurantes", "Visitas ilimitadas", "Análisis de escaneos por hora", "Exportar a PDF"],
+        badge: "Recomendado",
       },
       foot: "Sin tarjeta en el plan gratis. Cancela Casa cuando quieras.",
     },
@@ -179,6 +182,7 @@ const COPY: Record<LangCode, Copy> = {
         desc: "Pour ceux qui dépassent les mille vues, et pour ceux qui ont plus d'une salle.",
         cta: "Choisir Casa",
         feats: ["Plusieurs restaurants", "Vues illimitées", "Analyses des scans par heure", "Export PDF"],
+        badge: "Recommandé",
       },
       foot: "Aucune carte requise pour le gratuit. Annulez Casa à tout moment.",
     },
@@ -591,7 +595,10 @@ function Pricing({ c }: { c: Copy }) {
 
           <article className="menu-card reveal" data-test-id="landing-pricing-pro" style={{ ["--rd" as string]: "120ms" } as React.CSSProperties}>
             <header className="menu-card-head">
-              <span className="menu-card-tier">{c.pricing.pro.tier}</span>
+              <span className="menu-card-tier" style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                {c.pricing.pro.tier}
+                <Badge variant="live">{c.pricing.pro.badge}</Badge>
+              </span>
               <span className="menu-card-price">
                 <span className="amt-main">{c.pricing.pro.priceMain}</span>
                 <span className="amt-sub">{c.pricing.pro.priceSub}</span>

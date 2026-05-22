@@ -42,7 +42,10 @@ func buildEnvironment(ctx context.Context, secrets []bws.Secret, bwsAccessToken,
 		return val, nil
 	}
 
-	// Resolve Cloudflare Account ID if not already pinned in env.
+	// Resolve Cloudflare Account ID. Env wins (CI sets it from a GHA
+	// variable); otherwise derive it from INFRA_CLOUDFLARE_API_TOKEN via
+	// the CF API. cfAccountResolver reads /zones (not /accounts) because
+	// the latter throws transient 503s on this account.
 	cfAccountID := envMap["CLOUDFLARE_ACCOUNT_ID"]
 	if cfAccountID == "" {
 		cfToken, err := requireKey("INFRA_CLOUDFLARE_API_TOKEN")
@@ -51,7 +54,7 @@ func buildEnvironment(ctx context.Context, secrets []bws.Secret, bwsAccessToken,
 		}
 		discovered, err := cfAccountResolver(ctx, cfToken)
 		if err != nil {
-			return nil, fmt.Errorf("cloudflare discovery failed: %w", err)
+			return nil, fmt.Errorf("cloudflare discovery failed: %w (workaround: `export CLOUDFLARE_ACCOUNT_ID=…`)", err)
 		}
 		cfAccountID = discovered
 		envMap["CLOUDFLARE_ACCOUNT_ID"] = cfAccountID

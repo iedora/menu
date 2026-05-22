@@ -6,6 +6,7 @@ export const plan: Plan = {
   limits: {
     restaurants: Number.POSITIVE_INFINITY,
     monthlyViews: Number.POSITIVE_INFINITY,
+    aiMenuGenerationsPerWeek: 5,
   },
   features: new Set<PlanFeature>(['exportPdf', 'customBranding', 'analytics']),
   isDefault: false,

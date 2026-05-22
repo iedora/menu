@@ -18,6 +18,11 @@ export const TARGET_CONSTRAINTS: Record<AssetTargetKind, UploadConstraints> = {
     acceptedMimeTypes: IMAGE_MIME,
     recommended: { width: 800, height: 800, aspectLabel: 'square' },
   },
+  'menu-import-photo': {
+    maxBytes: 10 * 1024 * 1024,
+    acceptedMimeTypes: IMAGE_MIME,
+    recommended: { width: 2000, height: 1500, aspectLabel: 'landscape' },
+  },
 }
 
 const MIME_EXT: Record<string, string> = {
@@ -45,5 +50,7 @@ export function buildKey(target: AssetTarget, mime: string): string {
       return `r/${target.restaurantId}/banner-${slug}.${ext}`
     case 'item-photo':
       return `r/${target.restaurantId}/items/${target.itemId}/${slug}.${ext}`
+    case 'menu-import-photo':
+      return `r/${target.restaurantId}/imports/${slug}.${ext}`
   }
 }

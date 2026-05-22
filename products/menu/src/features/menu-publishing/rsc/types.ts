@@ -9,6 +9,15 @@ export type PublicRestaurant = {
   bannerUrl: string | null
 }
 
+/**
+ * One alternate price for a dish — "Meia dose", "Imperial", "Jarra 1L".
+ * Operator-authored; render label as-written.
+ */
+export type PublicVariant = {
+  label: string
+  priceCents: number
+}
+
 export type PublicItem = {
   id: string
   name: string
@@ -18,6 +27,12 @@ export type PublicItem = {
   available: boolean
   tags: string[]
   imageUrl: string | null
+  /**
+   * Ad-hoc price variants alongside the primary `priceCents`. Empty
+   * array (not null) when the item has a single price — keeps the
+   * templates' iteration code branch-free.
+   */
+  variants: PublicVariant[]
 }
 
 export type PublicCategory = {

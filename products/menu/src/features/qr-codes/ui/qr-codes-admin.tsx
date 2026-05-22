@@ -10,9 +10,12 @@ import {
   FieldInput,
   FieldLabel,
   FieldHint,
+  Histogram,
+  SectionHeader,
+  Stat,
+  StatsPanel,
   type ComboboxOption,
 } from '@iedora/design-system'
-import { Histogram, Stat, StatsPanel } from '@/shared/ui/admin-stats'
 import {
   bindCodeAction,
   bulkGenerateAction,
@@ -82,21 +85,6 @@ function QrCodesStatsPanel({
         <Histogram key="restaurants" label="Top restaurants" entries={stats.topRestaurants} />,
       ]}
     />
-  )
-}
-
-function SectionHeader({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink-55)]">
-        {title}
-      </h2>
-      {hint && (
-        <p className="text-[10.5px] font-[family-name:var(--mono)] uppercase tracking-[0.18em] text-[var(--ink-40)]">
-          {hint}
-        </p>
-      )}
-    </header>
   )
 }
 
@@ -371,7 +359,7 @@ function CodeRow({
       className="grid gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-start lg:gap-6"
     >
       {/* Identity column — code + created date + the two URLs. */}
-      <div className="min-w-0 space-y-1.5">
+      <div className="min-w-0 flex flex-col items-start gap-1.5">
         <div className="flex items-baseline gap-3">
           <span className="font-mono text-sm text-[var(--ink)] break-all">{row.code}</span>
           <time

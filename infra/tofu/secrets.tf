@@ -85,22 +85,17 @@ resource "terraform_data" "bws_sync_autogen" {
 
   triggers_replace = sha256(local.autogen_lookup[each.key])
 
+  # Single Go helper at infra/bin/bws-upsert handles list-then-edit-or-
+  # create, including the leading-`-` value quoting bws CLI's clap parser
+  # is strict about. Same shape as null_resource.iedora_admin_grants ↔
+  # bin/zitadel-grant. Replaces a duplicate bash+jq heredoc that drifted
+  # against internal/bws.Upsert.
   provisioner "local-exec" {
     environment = {
       BWS_KEY        = each.key
       BWS_VALUE      = local.autogen_lookup[each.key]
       BWS_PROJECT_ID = var.bws_project_id
     }
-    interpreter = ["bash", "-c"]
-    command     = <<-EOT
-      set -euo pipefail
-      SECRET_ID=$(bws secret list "$BWS_PROJECT_ID" -o json \
-        | jq -r --arg k "$BWS_KEY" '.[] | select(.key==$k) | .id')
-      if [ -n "$SECRET_ID" ]; then
-        bws secret edit "$SECRET_ID" --value "$BWS_VALUE" -o none
-      else
-        bws secret create -o none -- "$BWS_KEY" "$BWS_VALUE" "$BWS_PROJECT_ID"
-      fi
-    EOT
+    command = "${path.module}/../bin/bws-upsert"
   }
 }

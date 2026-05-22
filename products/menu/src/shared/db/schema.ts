@@ -34,7 +34,41 @@ export const orgPlan = menuSchema.table('org_plan', {
     .notNull(),
 })
 
+// One row per AI menu-import generation. Weekly quota is enforced by the
+// plans slice: a count of rows for `(organizationId, createdAt > now - 7d)`
+// against the plan's `aiMenuGenerationsPerWeek` limit. The org id is the
+// Zitadel-issued UUID (same convention as `restaurant.organizationId`);
+// no FK because Zitadel lives in a separate DB.
+export const aiMenuGeneration = menuSchema.table(
+  'ai_menu_generation',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organizationId: text('organization_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    // Window query: COUNT(*) WHERE org = $1 AND created_at > now() - '7d'.
+    index('ai_menu_generation_org_time_idx').on(t.organizationId, t.createdAt),
+  ],
+)
+
 // ─── Domain: restaurant menu builder ──────────────────────────────────────────
+
+/**
+ * Ad-hoc price variant on an `item`. `label` is operator-authored copy
+ * shown to guests next to the price (e.g. "Meia dose", "Imperial",
+ * "Jarra 0.5L"). `priceCents` is integer cents, same money rule as the
+ * primary `priceCents` column. Items normally have no variants
+ * (primary price only); ones that do typically carry 1–2.
+ */
+export type ItemVariant = {
+  label: string
+  priceCents: number
+}
 
 export type RestaurantTheme = {
   primaryColor?: string
@@ -157,6 +191,12 @@ export const item = menuSchema.table(
     position: integer('position').notNull().default(0),
     available: boolean('available').notNull().default(true),
     tags: jsonb('tags').$type<string[]>().default([]),
+    // Ad-hoc price variants — "Dose / Meia dose", "Imperial / Caneca",
+    // "Jarra 0.5L / 1L". `priceCents` (above) is the primary/leftmost
+    // price; this array carries every alternate as a labelled price.
+    // Null when the item has a single price (the common case). Order is
+    // preserved so the public menu renders variants in menu-card order.
+    variants: jsonb('variants').$type<ItemVariant[]>(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .defaultNow()

@@ -1,7 +1,7 @@
 import 'server-only'
-import { count, eq } from 'drizzle-orm'
+import { and, count, eq, gt } from 'drizzle-orm'
 import { db } from '@/shared/db/client'
-import { orgPlan, restaurant } from '@/shared/db/schema'
+import { aiMenuGeneration, orgPlan, restaurant } from '@/shared/db/schema'
 import type { PlansGateway } from '../ports'
 
 /**
@@ -47,5 +47,22 @@ export const drizzlePlans: PlansGateway = {
         set: { plan: code },
       })
     return true
+  },
+
+  async countAiGenerationsSince(organizationId, since) {
+    const rows = await db
+      .select({ value: count() })
+      .from(aiMenuGeneration)
+      .where(
+        and(
+          eq(aiMenuGeneration.organizationId, organizationId),
+          gt(aiMenuGeneration.createdAt, since),
+        ),
+      )
+    return Number(rows[0]?.value ?? 0)
+  },
+
+  async recordAiGeneration(organizationId) {
+    await db.insert(aiMenuGeneration).values({ organizationId })
   },
 }

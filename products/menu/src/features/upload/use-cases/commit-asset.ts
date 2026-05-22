@@ -21,6 +21,10 @@ const targetSchema = z.discriminatedUnion('kind', [
     restaurantId: z.string().min(1),
     itemId: z.string().min(1),
   }),
+  z.object({
+    kind: z.literal('menu-import-photo'),
+    restaurantId: z.string().min(1),
+  }),
 ])
 
 const inputSchema = z.object({
@@ -113,6 +117,9 @@ export async function readCurrentAssetUrl(target: AssetTarget): Promise<string |
         .limit(1)
       return rows[0]?.url ?? null
     }
+    case 'menu-import-photo':
+      // Ephemeral target — no persistent DB record.
+      return null
   }
 }
 
@@ -138,6 +145,9 @@ export async function writeAssetUrl(
         .update(item)
         .set({ imageUrl: url })
         .where(and(eq(item.id, target.itemId), eq(item.restaurantId, target.restaurantId)))
+      return
+    case 'menu-import-photo':
+      // Ephemeral target — no DB row to update.
       return
   }
 }

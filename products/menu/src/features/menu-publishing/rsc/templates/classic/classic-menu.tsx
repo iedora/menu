@@ -138,6 +138,27 @@ export function ClassicMenu({ restaurant: r, menus }: RenderProps) {
                                     ))}
                                   </div>
                                 )}
+                                {(it.variants ?? []).length > 0 && (
+                                  <dl className="mt-2 space-y-0.5">
+                                    {(it.variants ?? []).map((v, vi) => (
+                                      <div
+                                        key={`${v.label}-${vi}`}
+                                        className="flex items-baseline gap-2 text-sm"
+                                        style={{ color: 'var(--menu-secondary)' }}
+                                      >
+                                        <dt>{v.label}</dt>
+                                        <dd
+                                          aria-hidden
+                                          className="flex-1 translate-y-[-3px] border-b border-dotted"
+                                          style={{ borderColor: 'var(--menu-secondary)' }}
+                                        />
+                                        <dd className="tabular-nums">
+                                          {formatPrice(v.priceCents, it.currency)}
+                                        </dd>
+                                      </div>
+                                    ))}
+                                  </dl>
+                                )}
                               </div>
                               <span
                                 className={

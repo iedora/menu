@@ -4,6 +4,10 @@
 > deploy or destroy recipe was tripped up by during the brief work
 > (2026-05-21). Knowing the detection signature short-circuits the
 > debug arc next time.
+>
+> See also: [`deploy-validation.md`](deploy-validation.md) — the
+> before-you-merge 6-step runbook that proactively catches this class
+> of failure. Most rows below were found by running that sequence.
 
 | Symptom in logs | Root cause | Where it's fixed | If you hit it again |
 |-----------------|------------|------------------|---------------------|

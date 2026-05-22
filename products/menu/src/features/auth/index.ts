@@ -73,3 +73,5 @@ export const requireScope = cache((scope: Scope) =>
 export type { AuthGateway, Session } from './ports'
 export { IEDORA_ADMIN_ROLE } from './roles'
 export { SCOPES, type Scope } from './scopes'
+export { BUNDLES } from './bundles'
+
