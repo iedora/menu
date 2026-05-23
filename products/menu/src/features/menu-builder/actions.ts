@@ -130,7 +130,16 @@ export async function updateMenu(
 export async function createItem(
   slug: string,
   categoryId: string,
-  fields: { name: string; priceCents: number },
+  fields: {
+    name: string
+    priceCents: number
+    /** Optional initial variants (½ dose, alcohol-free, large, …). */
+    variants?: ReadonlyArray<{
+      label: string
+      labelI18n?: LocalizedText | null
+      priceCents: number
+    }>
+  },
 ) {
   const { restaurant: r } = await requireRestaurantBySlug(slug)
   const res = await runCreateItem(drizzleMenuWrite, {
@@ -153,7 +162,11 @@ export async function updateItem(
     nameI18n?: LocalizedText
     descriptionI18n?: LocalizedText
     /** Pass `undefined` to leave variants alone; `[]` to clear them. */
-    variants?: ReadonlyArray<{ label: string; priceCents: number }>
+    variants?: ReadonlyArray<{
+      label: string
+      labelI18n?: LocalizedText | null
+      priceCents: number
+    }>
   },
 ) {
   const { restaurant: r } = await requireRestaurantBySlug(slug)

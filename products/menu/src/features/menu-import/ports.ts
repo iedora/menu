@@ -99,7 +99,80 @@ export type ParseMenuResult = ParsedMenu | ParseMenuError
 /** Stateless port for AI vision analysis. */
 export interface ImageAnalysisPort {
   parseMenuFromImage(imageUrl: string): Promise<ParseMenuResult>
+  /**
+   * PATCH mode — caller supplies a compact view of the current menu (id +
+   * name + price per item, plus categories) along with a fresh photo. The
+   * model returns ONLY the diff: items to add (under a category name),
+   * items to update (by id + new price / new name), and items to remove
+   * (by id). Token-efficient: nothing already on the plate is repeated
+   * back. Categories work the same.
+   */
+  parseMenuPatch(input: {
+    imageUrl: string
+    current: PatchCurrentMenu
+  }): Promise<ParseMenuPatchResult>
 }
+
+/**
+ * Compact projection of a restaurant's current menu — what the AI sees
+ * when deciding "what changed since last time?". Just the fields the
+ * model needs to match against the new photo; no images, no i18n
+ * overrides, no positions.
+ */
+export type PatchCurrentMenu = {
+  language: LanguageCode
+  currency: string
+  categories: Array<{
+    id: string
+    name: string
+    items: Array<{
+      id: string
+      name: string
+      priceCents: number
+    }>
+  }>
+}
+
+/**
+ * Operations the model emits. Each kind references existing rows by id
+ * (for update / remove) or by parent category name (for add). The
+ * adapter applies these atomically.
+ */
+export type PatchOperation =
+  | {
+      kind: 'add-category'
+      name: string
+      items: Array<{ name: string; priceCents: number; description?: string }>
+    }
+  | { kind: 'remove-category'; categoryId: string }
+  | { kind: 'rename-category'; categoryId: string; name: string }
+  | {
+      kind: 'add-item'
+      categoryId: string | null
+      /** Category name when the AI is adding to a category that doesn't
+       *  exist yet — the use-case resolves this against the categories
+       *  in `add-category` ops. Otherwise pass `categoryId`. */
+      categoryName?: string
+      name: string
+      priceCents: number
+      description?: string
+    }
+  | {
+      kind: 'update-item'
+      itemId: string
+      name?: string
+      priceCents?: number
+      description?: string
+    }
+  | { kind: 'remove-item'; itemId: string }
+
+export type ParseMenuPatchResult =
+  | {
+      language: LanguageCode
+      currency: string
+      operations: PatchOperation[]
+    }
+  | ParseMenuError
 
 export type ImportResult =
   | { ok: true; menuId: string }
@@ -146,4 +219,37 @@ export interface MenuImportPort {
     restaurantId: string,
     language: LanguageCode,
   ): Promise<boolean>
+
+  // ── PATCH-mode helpers ──────────────────────────────────────────────────
+
+  /** Look up a category by `(menuId, name)` for patch ops that resolve
+   *  parents by name. Returns null when no match. */
+  findCategoryByMenuAndName(
+    menuId: string,
+    name: string,
+  ): Promise<{ id: string } | null>
+
+  renameCategory(
+    categoryId: string,
+    restaurantId: string,
+    name: string,
+  ): Promise<void>
+
+  deleteCategory(categoryId: string, restaurantId: string): Promise<void>
+
+  /** Updates only the fields listed in `patch`. Untouched fields keep
+   *  their current values (so a price-only update doesn't clobber the
+   *  description). */
+  updateItemFields(
+    itemId: string,
+    restaurantId: string,
+    patch: { name?: string; description?: string; priceCents?: number },
+  ): Promise<void>
+
+  deleteItem(itemId: string, restaurantId: string): Promise<void>
+
+  /** Returns the highest `position` value in a category, or `-10` when
+   *  the category is empty. The use-case adds 10 to land new items at
+   *  the tail with the standard step. */
+  findMaxItemPosition(categoryId: string): Promise<number>
 }

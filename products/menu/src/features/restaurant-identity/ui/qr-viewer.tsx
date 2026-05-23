@@ -70,15 +70,15 @@ export function QrViewer({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-md space-y-6">
       <div
         ref={printRef}
-        data-testid="qr-printable"
-        className="qr-printable mx-auto flex w-fit flex-col items-center gap-4 rounded-lg border bg-white p-6"
+        data-test-id="qr-printable"
+        className="qr-printable mx-auto flex w-fit flex-col items-center gap-4 border border-[var(--ink-14)] bg-white p-6"
       >
         {svgMarkup ? (
           <div
-            data-testid="qr-svg"
+            data-test-id="qr-svg"
             style={{ width: PREVIEW_PX, height: PREVIEW_PX }}
             className="[&>svg]:h-full [&>svg]:w-full"
             // qrcode.toString returns trusted, deterministic SVG markup.
@@ -87,27 +87,47 @@ export function QrViewer({
         ) : (
           <div
             style={{ width: PREVIEW_PX, height: PREVIEW_PX }}
-            className="animate-pulse rounded bg-muted"
+            className="animate-pulse bg-[var(--ink-14)]"
           />
         )}
-        <div className="text-center">
-          <p className="text-base font-semibold">{restaurantName}</p>
-          <p className="text-xs text-muted-foreground">{t('scan')}</p>
+        <div className="space-y-1 text-center">
+          <p className="font-[family-name:var(--serif)] text-base font-medium text-[var(--ink)]">
+            {restaurantName}
+          </p>
+          <p className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+            {t('scan')}
+          </p>
+          {/* Fallback URL — printed alongside the QR so anyone who can't
+              scan can still type the address. Protocol stripped to keep
+              the line tight; full URL is the title for hover/copy. */}
+          <p
+            className="break-all font-mono text-[10px] text-[var(--ink-40)]"
+            title={publicUrl}
+            data-test-id="qr-public-url"
+          >
+            {publicUrl.replace(/^https?:\/\//, '')}
+          </p>
         </div>
       </div>
 
       {error && (
-        <p data-testid="qr-error" className="text-sm text-destructive">
+        <p
+          data-test-id="qr-error"
+          className="text-sm text-[var(--cinnabar)]"
+        >
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-center gap-2 print:hidden">
+      {/* Stack full-width on mobile so each button is a comfortable
+          thumb target. From sm+ they sit in a centered inline row. */}
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center print:hidden">
         <Button
           type="button"
           onClick={downloadSvg}
           disabled={!svgMarkup}
-          data-testid="qr-download-svg"
+          data-test-id="qr-download-svg"
+          className="w-full sm:w-auto"
         >
           {t('downloadSvg')}
         </Button>
@@ -115,7 +135,8 @@ export function QrViewer({
           type="button"
           onClick={downloadPng}
           disabled={!svgMarkup}
-          data-testid="qr-download-png"
+          data-test-id="qr-download-png"
+          className="w-full sm:w-auto"
         >
           {t('downloadPng')}
         </Button>
@@ -123,7 +144,8 @@ export function QrViewer({
           type="button"
           variant="solid"
           onClick={printQr}
-          data-testid="qr-print"
+          data-test-id="qr-print"
+          className="w-full sm:w-auto"
         >
           {t('print')}
         </Button>

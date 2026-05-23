@@ -19,6 +19,24 @@ import { updateIdentity as runUpdateIdentity } from './use-cases/update-identity
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 
+/**
+ * Specialised result for the language-settings action — carries the
+ * promote-on-switch counters so the Theme editor can render a one-shot
+ * "X rows need attention" banner. Bare `{ ok: true }` callers can still
+ * narrow on the discriminant; the extra fields are present but ignored.
+ */
+type UpdateLanguageSettingsActionResult =
+  | {
+      ok: true
+      /** Did the default language change in this save? */
+      defaultChanged: boolean
+      /** Source columns rewritten by the promotion. */
+      rowsPromoted: number
+      /** Rows with content but no translation to promote — operator must fix. */
+      rowsNeedingAttention: number
+    }
+  | { ok: false; error: string }
+
 async function gateIdentity(slug: string): Promise<
   | { ok: true; restaurantId: string }
   | { ok: false; error: string }
@@ -47,21 +65,52 @@ export async function updateTheme(
   return { ok: true }
 }
 
+/**
+ * Promote-on-switch is implemented in the adapter — when
+ * `defaultLanguage` changes, every translatable row (restaurant
+ * description, all categories' name + description, all items' name +
+ * description, all items' variants' labels) is rotated inside a single
+ * transaction: the new-default's translation moves to the source
+ * column; the old source value moves to `i18n[oldDefault]`.
+ *
+ * Rows that had no translation to promote get counted under
+ * `rowsNeedingAttention` — we log that count server-side via
+ * `console.warn` for now. TODO(language-switch-ui): surface the count
+ * back to the Theme editor so the operator sees a one-time "X rows
+ * need attention" banner after switching.
+ */
 export async function updateLanguageSettings(
   slug: string,
   input: unknown,
-): Promise<ActionResult> {
+): Promise<UpdateLanguageSettingsActionResult> {
   const guarded = await gateIdentity(slug)
-  if (!guarded.ok) return guarded
+  if (!guarded.ok) return { ok: false, error: guarded.error }
   const res = await runUpdateLanguageSettings(drizzleIdentityWrite, {
     ...(typeof input === 'object' && input !== null ? input : {}),
     restaurantId: guarded.restaurantId,
   })
   if ('error' in res) return { ok: false, error: res.error }
+  if (res.defaultChanged) {
+    // Operator-relevant signal; kept as a log line in addition to the
+    // UI banner so the data flip stays observable in prod.
+    console.warn(
+      '[restaurant-identity] default language changed',
+      JSON.stringify({
+        slug,
+        rowsPromoted: res.rowsPromoted,
+        rowsNeedingAttention: res.rowsNeedingAttention,
+      }),
+    )
+  }
   revalidatePath(`/dashboard/r/${slug}`)
   revalidatePath(`/dashboard/r/${slug}/theme`)
   revalidateRestaurant(slug)
-  return { ok: true }
+  return {
+    ok: true,
+    defaultChanged: res.defaultChanged,
+    rowsPromoted: res.rowsPromoted,
+    rowsNeedingAttention: res.rowsNeedingAttention,
+  }
 }
 
 export async function updateIdentity(

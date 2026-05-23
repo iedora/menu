@@ -200,3 +200,831 @@
 .menu-import-building-line {
   animation: fadeIn 480ms ease-out;
 }
+
+/* ── Menu builder editor surface ──────────────────────────────────────
+ *
+ * Component-local styles for the redesigned restaurant menu editor.
+ * Goals: every interactive element ≥ 44px tall (touch target floor),
+ * nothing more than two taps from where the operator is looking, the
+ * editor reads like a native app on a phone — not a desktop form that
+ * happens to also work on mobile.
+ *
+ *   1. .menu-section-chips    sticky horizontal nav
+ *   2. .menu-section-card     each section + its items
+ *   3. .menu-item-row         a single dish row (tap → edit)
+ *   4. .menu-builder-add      "+ Add item" / "+ Add section" CTAs
+ *   5. .menu-builder-grip     drag handle icon
+ */
+
+.menu-section-chips {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: -8px -16px 0;
+  padding: 10px 16px;
+  background: color-mix(in oklab, var(--paper) 92%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.menu-section-chips__scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  padding-bottom: 2px;
+}
+.menu-section-chips__scroll::-webkit-scrollbar { display: none; }
+.menu-section-chips__chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  color: var(--ink-70);
+  font-family: var(--serif);
+  font-size: 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+.menu-section-chips__chip:hover {
+  border-color: var(--ink-40);
+  color: var(--ink);
+}
+.menu-section-chips__chip[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.menu-section-chips__chip--add {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+  border-style: dashed;
+}
+.menu-section-chips__chip--add:hover { color: var(--ink); }
+
+.menu-section-card {
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  scroll-margin-top: 96px;
+}
+.menu-section-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 12px;
+  border-bottom: 1px solid var(--ink-14);
+  min-height: 56px;
+}
+.menu-section-card__head-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: text;
+  padding: 4px 0;
+}
+.menu-section-card__head-title:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ink-24);
+  text-underline-offset: 4px;
+}
+.menu-section-card__empty {
+  padding: 18px 16px;
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-55);
+  font-size: 14px;
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--ink-14);
+  padding: 12px 14px 12px 8px;
+  min-height: 60px;
+  cursor: pointer;
+  color: var(--ink);
+  font-family: var(--serif);
+  transition: background 100ms ease;
+}
+.menu-item-row:first-child { border-top: 0; }
+.menu-item-row:hover { background: var(--paper-2); }
+.menu-item-row:focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: -2px;
+}
+.menu-item-row[data-unavailable="true"] .menu-item-row__name {
+  text-decoration: line-through;
+  color: var(--ink-55);
+}
+.menu-item-row__thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.menu-item-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu-item-row__name {
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.menu-item-row__desc {
+  font-size: 13px;
+  color: var(--ink-55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-item-row__price {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  color: var(--ink);
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+.menu-item-row__price--zero {
+  color: var(--ink-40);
+  font-style: italic;
+  font-size: 13px;
+}
+.menu-item-row__variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.menu-item-row__variant-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--ink-55);
+}
+.menu-item-row__variant-pill .num {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.menu-builder-grip {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-40);
+  cursor: grab;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+}
+.menu-builder-grip:hover { color: var(--ink); background: var(--paper-2); }
+.menu-builder-grip:active { cursor: grabbing; }
+
+.menu-builder-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--ink-14);
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+  cursor: pointer;
+  min-height: 52px;
+}
+.menu-builder-add:hover { color: var(--ink); background: var(--paper-2); }
+
+.menu-builder-add-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 18px 16px;
+  border: 1px dashed var(--ink-24);
+  background: transparent;
+  color: var(--ink-55);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 60px;
+}
+.menu-builder-add-section:hover {
+  color: var(--ink);
+  border-color: var(--ink-40);
+}
+
+.menu-section-card__kebab {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-55);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.menu-section-card__kebab:hover {
+  color: var(--ink);
+  border-color: var(--ink-14);
+  background: var(--paper-2);
+}
+
+.menu-section-card[data-reorder="true"] {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: -2px;
+}
+.menu-section-card[data-reorder="true"] .menu-item-row {
+  cursor: grab;
+}
+
+.menu-edit-more {
+  margin-top: 4px;
+  border-top: 1px solid var(--ink-14);
+  padding-top: 14px;
+}
+.menu-edit-more__toggle {
+  background: transparent;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+  cursor: pointer;
+  padding: 6px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.menu-edit-more__toggle:hover { color: var(--ink); }
+.menu-edit-more__toggle .chev {
+  display: inline-block;
+  transition: transform 160ms ease;
+}
+.menu-edit-more__toggle[aria-expanded="true"] .chev {
+  transform: rotate(90deg);
+}
+
+/* Action sheet list — vertical list of big tappable rows used by the
+   section-actions kebab and the "Add item" dialog when there are
+   multiple ways to add (paste price list, take photo, …). */
+.menu-action-list {
+  display: grid;
+  gap: 8px;
+}
+.menu-action-list__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 56px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.menu-action-list__item:hover {
+  background: var(--paper-2);
+  border-color: var(--ink-40);
+}
+.menu-action-list__item--danger { color: var(--cinnabar); }
+.menu-action-list__item--danger:hover { border-color: var(--cinnabar); }
+
+/* ── Restaurant home surface ──────────────────────────────────────────
+ *
+ * The restaurant home is built from a hero + a stack of action sections:
+ *   - restaurant-menu-card    the menu hero (tap → editor)
+ *   - restaurant-menu-extra   rows for additional menus (rare)
+ *   - restaurant-empty        the no-menu hero with two CTAs
+ *   - restaurant-actions      the vertical stack of action sections
+ *   - restaurant-action-card  one section per action: title + lede + CTA
+ *
+ * Each action card has the same shape — title, editorial lede, then
+ * either a dialog trigger (Update / Translate) or a chevron (Link
+ * variant: QR, Settings, View public menu). Equal weight, identical
+ * rhythm, thumb-friendly tap targets.
+ *
+ * Buttons inside these blocks are styled by `@iedora/design-system`
+ * already; what follows is the layout-and-typography glue.
+ */
+.restaurant-menu-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 18px 18px 20px;
+  border: 1px solid var(--ink-24);
+  background: var(--paper);
+  text-decoration: none;
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 88px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.restaurant-menu-card:hover {
+  background: var(--paper-2);
+  border-color: var(--ink);
+}
+.restaurant-menu-card__body {
+  flex: 1;
+  min-width: 0;
+}
+.restaurant-menu-card__title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.restaurant-menu-card__meta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink-55);
+}
+.restaurant-menu-card__chevron {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink-40);
+  flex-shrink: 0;
+}
+
+.restaurant-menu-extra {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--ink-14);
+}
+.restaurant-menu-extra__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-top: 1px solid var(--ink-14);
+  color: var(--ink);
+  text-decoration: none;
+  min-height: 56px;
+}
+.restaurant-menu-extra li:first-child .restaurant-menu-extra__row {
+  border-top: 0;
+}
+.restaurant-menu-extra__row:hover { background: var(--paper-2); }
+.restaurant-menu-extra__name { font-family: var(--serif); font-size: 16px; }
+.restaurant-menu-extra__meta {
+  font-size: 12px;
+  color: var(--ink-55);
+}
+
+.restaurant-empty {
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  padding: 28px 20px 26px;
+  text-align: center;
+  display: grid;
+  gap: 12px;
+}
+.restaurant-empty__title {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--ink);
+}
+.restaurant-empty__lede {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-55);
+  max-width: 42ch;
+  margin-inline: auto;
+}
+.restaurant-empty__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  align-items: stretch;
+}
+@media (min-width: 480px) {
+  .restaurant-empty__actions {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+}
+.restaurant-empty__or {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: center;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-55);
+}
+
+.restaurant-actions {
+  /* Stack of action sections. The gap is what carries the rhythm —
+     each card is its own block, no horizontal rules, no grouping.
+     Spacing above this block is handled by the page's outer
+     `space-y-3` (DashboardPage chrome="none"). */
+  display: grid;
+  gap: 12px;
+}
+.restaurant-action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.restaurant-action-card__head {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.restaurant-action-card__title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 0;
+}
+.restaurant-action-card__lede {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-55);
+}
+.restaurant-action-card__cta {
+  /* The dialog trigger button stretches to fill the card on phones so
+     the tap target is the full width of the section. Buttons keep
+     their design-system padding; we just take care of width + align. */
+  display: flex;
+}
+.restaurant-action-card__cta > * {
+  width: 100%;
+  justify-content: center;
+}
+@media (min-width: 640px) {
+  /* On larger viewports the cards still look intentional — let the
+     button collapse back to its natural width and sit on the left. */
+  .restaurant-action-card__cta > * {
+    width: auto;
+  }
+}
+
+/* Link variant: the whole card is a single tap target. The chevron
+   sits on the right; head + chevron live on the same row. */
+.restaurant-action-card--link {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  min-height: 88px;
+  cursor: pointer;
+}
+.restaurant-action-card--link .restaurant-action-card__head {
+  flex: 1;
+}
+.restaurant-action-card--link:hover {
+  background: var(--paper-2);
+  border-color: var(--ink-40);
+}
+.restaurant-action-card__chevron {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--ink-40);
+  flex-shrink: 0;
+}
+
+/* ── Billing surface ──────────────────────────────────────────────────
+ *
+ * Plan cards + invoice list. Same visual language as the restaurant
+ * home: large serif title, hairline borders, no horizontal rules.
+ * The current plan is set apart by a subtle paper-2 fill and a
+ * cinnabar "● Active" caption; the recommended plan picks up a
+ * thicker ink border so it reads as the default tap target.
+ */
+.billing-plans {
+  display: grid;
+  gap: 14px;
+}
+@media (min-width: 720px) {
+  .billing-plans {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+.billing-plan-card {
+  display: grid;
+  gap: 14px;
+  padding: 22px 22px 20px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  align-content: start;
+}
+.billing-plan-card[data-current="true"] {
+  background: var(--paper-2);
+  border-color: var(--ink-40);
+}
+.billing-plan-card[data-recommended="true"] {
+  border-color: var(--ink);
+}
+.billing-plan-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.billing-plan-card__name {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--ink);
+}
+.billing-plan-card__tagline {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-55);
+  line-height: 1.4;
+}
+.billing-plan-card__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.billing-plan-card__features li {
+  position: relative;
+  padding-left: 18px;
+}
+.billing-plan-card__features li::before {
+  content: "·";
+  position: absolute;
+  left: 6px;
+  color: var(--ink-40);
+}
+.billing-plan-card__action {
+  margin-top: 4px;
+}
+.billing-plan-card__current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  padding: 8px 0;
+}
+.billing-plan-card__current-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--cinnabar);
+  display: inline-block;
+}
+
+.billing-invoices {
+  margin-top: 12px;
+  display: grid;
+  gap: 14px;
+}
+.billing-invoices__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.billing-invoices__title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--ink);
+}
+.billing-invoices__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-55);
+}
+.billing-invoices__years {
+  display: flex;
+  gap: 6px;
+}
+.billing-invoices__year {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 6px 10px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--ink-14);
+  color: var(--ink-55);
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
+}
+.billing-invoices__year:hover {
+  border-color: var(--ink-40);
+  color: var(--ink);
+}
+.billing-invoices__year[data-active="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.billing-invoices__empty {
+  border: 1px dashed var(--ink-24);
+  padding: 28px 16px;
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-55);
+  margin: 0;
+}
+.billing-invoice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.billing-invoice {
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  padding: 14px 16px 14px;
+  display: grid;
+  gap: 4px;
+}
+.billing-invoice__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.billing-invoice__date {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--ink);
+}
+.billing-invoice__status {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.billing-invoice__status[data-status="paid"] { color: #3d5a3a; }
+.billing-invoice__status[data-status="open"] { color: var(--cinnabar); }
+.billing-invoice__status[data-status="void"] {
+  color: var(--ink-40);
+  text-decoration: line-through;
+}
+.billing-invoice__plan {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-55);
+}
+.billing-invoice__period { color: var(--ink-55); }
+.billing-invoice__amount {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* ── Misc (Account → AI usage meter) ─────────────────────────────────── */
+.misc-section {
+  display: grid;
+  gap: 14px;
+}
+.misc-usage {
+  display: grid;
+  gap: 10px;
+}
+.misc-usage__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.misc-usage__count {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.misc-usage__remaining {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+}
+.misc-usage__bar {
+  position: relative;
+  height: 6px;
+  background: var(--ink-14);
+  overflow: hidden;
+}
+.misc-usage__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width 240ms ease;
+}
+.misc-usage[data-exhausted="true"] .misc-usage__bar-fill {
+  background: var(--cinnabar);
+}
+.misc-usage__reset {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-55);
+}
+
+/* ── Settings cards (theme editor) ────────────────────────────────────
+ *
+ * Each settings subsection (URL, Identity, Languages, Theme) gets the
+ * same card chrome — border, paper background, breathable padding —
+ * so the page reads as a stack of self-contained tools instead of a
+ * long form with horizontal rules. The cards' internal titles take
+ * over the visual hierarchy work that the old <hr>s tried to do.
+ */
+.settings-card {
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  padding: 18px 18px 16px;
+}
+@media (min-width: 640px) {
+  .settings-card { padding: 20px 22px 18px; }
+}

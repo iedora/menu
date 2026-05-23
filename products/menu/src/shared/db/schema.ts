@@ -64,9 +64,16 @@ export const aiMenuGeneration = menuSchema.table(
  * "Jarra 0.5L"). `priceCents` is integer cents, same money rule as the
  * primary `priceCents` column. Items normally have no variants
  * (primary price only); ones that do typically carry 1–2.
+ *
+ * `labelI18n` mirrors the per-table `*I18n` pattern: `label` carries the
+ * source/default-language copy; `labelI18n` carries translations into
+ * non-default languages. Optional + nullable so untranslated variants
+ * stay compact in the jsonb. Renderer follows the standard fallback
+ * chain (requested → default `label` → empty) via `localized()`.
  */
 export type ItemVariant = {
   label: string
+  labelI18n?: LocalizedText | null
   priceCents: number
 }
 

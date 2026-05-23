@@ -107,13 +107,36 @@ describe('DashboardPage', () => {
     expect(html).toMatch(/^<div[^>]*data-test-id="my-page"/)
   })
 
-  it('applies the standard spacing rhythm and separator', () => {
+  it('chrome="none" hides the header entirely and keeps an sr-only h1', () => {
+    const html = renderToStaticMarkup(
+      <DashboardPage title="Menu de exemplo" data-test-id="menu-builder" chrome="none">
+        <div data-test-id="menu-builder-body">content</div>
+      </DashboardPage>,
+    )
+    // The h1 still exists for a11y/SEO, but visually hidden.
+    expect(html).toMatch(/<h1[^>]*class="sr-only"[^>]*>Menu de exemplo<\/h1>/)
+    expect(html).toContain('data-test-id="menu-builder-heading"')
+    // No breadcrumb, no header row, no eyebrow/description/actions slot.
+    expect(html).not.toContain('aria-label="Breadcrumb"')
+    expect(html).not.toContain('data-test-id="menu-builder-header"')
+    expect(html).not.toContain('class="ds-breadcrumb__here"')
+    // The body still renders.
+    expect(html).toContain('data-test-id="menu-builder-body"')
+    // Outer wrapper uses the tight 12px rhythm — not the chunky 24px
+    // of standard chrome.
+    expect(html).toContain('class="space-y-3"')
+    expect(html).not.toContain('class="space-y-6"')
+  })
+
+  it('applies the standard spacing rhythm', () => {
+    // No horizontal rule — the page heading + sidebar context are enough.
+    // The space-y rhythm carries the visual structure on its own.
     const html = renderToStaticMarkup(
       <DashboardPage title="X">
         <div />
       </DashboardPage>,
     )
     expect(html).toContain('class="space-y-6"')
-    expect(html).toContain('class="ds-separator"')
+    expect(html).not.toContain('class="ds-separator"')
   })
 })

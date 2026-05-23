@@ -152,7 +152,7 @@ export function AiTranslationDialog({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant="solid"
           data-test-id="ai-translation-trigger"
         >
           {t('aiTranslation')}

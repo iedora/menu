@@ -1,5 +1,6 @@
 import 'server-only'
 import type { LanguageCode } from '@/features/i18n'
+import type { ItemVariant } from '@/shared/db/schema'
 import type {
   StaleRow,
   TranslatableField,
@@ -7,6 +8,22 @@ import type {
   TranslationPort,
   WriteUpdate,
 } from '../ports'
+
+// Encoding for the variant labels' `field` key. Variants are addressed
+// by their array index at the moment of the stale read — the writer
+// rebuilds the array using that index. If a variant is added / removed
+// between projection and write, the worst case is one translation being
+// dropped / misapplied; the next sync corrects it because the row is
+// stale again.
+const VARIANT_FIELD_PREFIX = 'variant:'
+function variantField(idx: number): string {
+  return `${VARIANT_FIELD_PREFIX}${idx}`
+}
+function parseVariantIdx(field: string): number | null {
+  if (!field.startsWith(VARIANT_FIELD_PREFIX)) return null
+  const n = Number(field.slice(VARIANT_FIELD_PREFIX.length))
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
 
 export type RefreshResult =
   | {
@@ -89,6 +106,22 @@ export async function refreshTranslations(
         text: row.description,
       })
     }
+    // Item rows only — push each non-empty variant label as its own
+    // translatable field. Empty labels are skipped (operator started
+    // a row and didn't fill it in) so we don't waste tokens.
+    if (row.rowKind === 'item' && row.variants) {
+      for (let i = 0; i < row.variants.length; i += 1) {
+        const v = row.variants[i]!
+        const label = v.label?.trim() ?? ''
+        if (label.length === 0) continue
+        fields.push({
+          rowKind: 'item',
+          id: row.id,
+          field: variantField(i),
+          text: label,
+        })
+      }
+    }
   }
 
   let translated
@@ -128,6 +161,17 @@ export async function refreshTranslations(
       id: row.id,
       nameI18n: row.nameI18n ?? {},
       descriptionI18n: row.descriptionI18n ?? {},
+      // Seed item updates with a CLONE of the projected variants. We
+      // mutate the clones below as variant translations come in; the
+      // priceCents + label source pass through unchanged.
+      variants:
+        row.rowKind === 'item' && row.variants
+          ? row.variants.map((v) => ({
+              label: v.label,
+              labelI18n: v.labelI18n ? { ...v.labelI18n } : null,
+              priceCents: v.priceCents,
+            }))
+          : undefined,
     }
     merged.set(key, fresh)
     return fresh
@@ -138,6 +182,27 @@ export async function refreshTranslations(
     const row = byRow.get(key)
     if (!row) continue // defensive — translator can't invent ids
     const update = ensure(key, row)
+
+    // Variant label translation? Route it into the right variant's
+    // labelI18n slot. Out-of-range or non-item fields are dropped.
+    const variantIdx = parseVariantIdx(t.field)
+    if (variantIdx !== null) {
+      if (update.rowKind !== 'item' || !update.variants) continue
+      const variant = update.variants[variantIdx]
+      if (!variant) continue
+      const next: NonNullable<ItemVariant['labelI18n']> = {
+        ...(variant.labelI18n ?? {}),
+      }
+      for (const lang of targets) {
+        const value = t.translations[lang]
+        if (typeof value === 'string' && value.length > 0) {
+          next[lang] = value
+        }
+      }
+      variant.labelI18n = Object.keys(next).length === 0 ? null : next
+      continue
+    }
+
     const targetMap =
       t.field === 'name' ? update.nameI18n : update.descriptionI18n
     if (!targetMap) continue
@@ -158,6 +223,9 @@ export async function refreshTranslations(
   }
 
   // Normalise: empty i18n object → null on the column (keeps jsonb tidy).
+  // Item updates carry the rebuilt variants array through unchanged —
+  // only `undefined` means "don't touch the column", and we always send
+  // a concrete array for item rows that had variants at projection time.
   const updates: WriteUpdate[] = Array.from(merged.values()).map((u) => ({
     rowKind: u.rowKind,
     id: u.id,
@@ -167,6 +235,9 @@ export async function refreshTranslations(
       u.descriptionI18n && Object.keys(u.descriptionI18n).length > 0
         ? u.descriptionI18n
         : null,
+    ...(u.variants !== undefined
+      ? { variants: u.variants && u.variants.length > 0 ? u.variants : null }
+      : {}),
   }))
 
   await data.applyTranslations(input.restaurantId, updates)

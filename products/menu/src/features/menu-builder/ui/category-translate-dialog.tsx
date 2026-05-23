@@ -76,7 +76,7 @@ export function CategoryTranslateDialog({
           Translate
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Edit category</DialogTitle>
         </DialogHeader>

@@ -4,7 +4,6 @@ import {
   Breadcrumb,
   BreadcrumbHere,
   BreadcrumbLink,
-  Separator,
 } from '@iedora/design-system'
 
 /**
@@ -63,6 +62,17 @@ export type DashboardPageProps = {
   description?: React.ReactNode
   /** Right-aligned slot for primary actions (links, buttons, filters). */
   actions?: React.ReactNode
+  /**
+   * Visual header chrome.
+   *   - 'standard' (default): breadcrumb / h1 + optional eyebrow /
+   *     description / actions row.
+   *   - 'none': no visible header at all. The title is still rendered
+   *     in a visually-hidden `<h1>` for a11y + SEO, but the page
+   *     content claims the full vertical space. Use sparingly — only
+   *     for surfaces where the content provides its own navigation
+   *     (e.g. the menu builder's sticky chip nav).
+   */
+  chrome?: 'standard' | 'none'
   /** Page sections. */
   children: React.ReactNode
   /** Forwarded to the outer wrapper + namespaces all auto test-ids. */
@@ -75,12 +85,29 @@ export function DashboardPage({
   eyebrow,
   description,
   actions,
+  chrome = 'standard',
   children,
   'data-test-id': testId,
 }: DashboardPageProps) {
   const ns = (suffix: string) => (testId ? `${testId}-${suffix}` : undefined)
   const showHeaderRow = Boolean(eyebrow || description || actions)
   const hasTrail = crumbs.length > 0
+
+  if (chrome === 'none') {
+    // Bare mode: the page's own content owns the top of the viewport.
+    // We still emit an `<h1>` for screen readers + page outlining, just
+    // visually hidden. Outer rhythm is `space-y-3` (12px) — tight
+    // enough to feel content-forward on a phone, big enough that
+    // adjacent top-level sections don't visually fuse.
+    return (
+      <div className="space-y-3" data-test-id={testId}>
+        <h1 className="sr-only" data-test-id={ns('heading')}>
+          {title}
+        </h1>
+        {children}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6" data-test-id={testId}>
@@ -148,8 +175,6 @@ export function DashboardPage({
           </header>
         )}
       </div>
-
-      <Separator />
 
       <div className="space-y-8">
         {children}

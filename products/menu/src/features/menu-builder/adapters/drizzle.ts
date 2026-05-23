@@ -237,6 +237,21 @@ export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
       'max(item.position)',
     )
 
+    // Variants are persisted at insert time when supplied, so the Add
+    // dialog doesn't need a follow-up updateItem roundtrip. `null` /
+    // `[]` collapse to `null` in the column (matches updateItem's
+    // clear-variants semantics). `labelI18n` is round-tripped opaque —
+    // when the operator hasn't translated yet, it's omitted from the
+    // jsonb payload to keep rows compact.
+    const initialVariants =
+      fields.variants && fields.variants.length > 0
+        ? fields.variants.map((v) => ({
+            label: v.label,
+            ...(v.labelI18n ? { labelI18n: v.labelI18n } : {}),
+            priceCents: v.priceCents,
+          }))
+        : null
+
     const row = only(
       await db
         .insert(item)
@@ -246,6 +261,7 @@ export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
           name: fields.name,
           priceCents: fields.priceCents,
           position: (agg.next ?? -1) + 1,
+          variants: initialVariants,
         })
         .returning({ id: item.id }),
       'insert item',
@@ -266,6 +282,7 @@ export function makeDrizzleMenuWrite(db: AdapterDb): MenuWritePort {
                 ? null
                 : fields.variants.map((v) => ({
                     label: v.label,
+                    ...(v.labelI18n ? { labelI18n: v.labelI18n } : {}),
                     priceCents: v.priceCents,
                   })),
           }
@@ -553,10 +570,17 @@ export function makeDrizzleMenuRead(db: AdapterDb): MenuReadPort {
           position: it.position ?? 0,
           imageUrl: it.imageUrl,
           // Normalise jsonb `null` → `[]` so the builder UI iterates
-          // without a branch.
-          variants:
-            (it.variants as Array<{ label: string; priceCents: number }> | null) ??
-            [],
+          // without a branch. Variants round-trip `labelI18n` opaque
+          // so the dish-edit dialog can show + edit translations.
+          variants: ((it.variants as Array<{
+            label: string
+            labelI18n?: LocalizedText | null
+            priceCents: number
+          }> | null) ?? []).map((v) => ({
+            label: v.label,
+            labelI18n: v.labelI18n ?? null,
+            priceCents: v.priceCents,
+          })),
         })),
       })),
     }

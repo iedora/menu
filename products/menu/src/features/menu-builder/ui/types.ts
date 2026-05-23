@@ -6,7 +6,10 @@ import type { LocalizedText } from '@/features/i18n'
  * Cuvete / Take-away). The builder UI must scale to N variants.
  */
 export type BuilderVariant = {
+  /** Source/default-language label. */
   label: string
+  /** Translations into non-default languages — null when none yet. */
+  labelI18n: LocalizedText | null
   priceCents: number
 }
 

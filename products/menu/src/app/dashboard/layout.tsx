@@ -15,6 +15,7 @@ import {
   IEDORA_ADMIN_ROLE,
   SCOPES,
 } from '@/features/auth'
+import { listRestaurantsWithCounts } from '@/features/dashboard-home'
 import { getOrganizationPlan, planHas } from '@/features/plans'
 import { LogoutButton } from '@/features/dashboard-home/ui/logout-button'
 import { UserLocaleSwitcher } from '@/features/dashboard-home/ui/user-locale-switcher'
@@ -38,6 +39,13 @@ export default async function DashboardLayout({
   const plan = organizationId
     ? await getOrganizationPlan(organizationId)
     : null
+  // Sidebar restaurants section. Lists every restaurant in the active org
+  // so the operator can hop between them without going back to /dashboard.
+  // Empty when the user is logged out or has no restaurants yet — the
+  // section header is suppressed in that case (see candidates below).
+  const restaurants = organizationId
+    ? await listRestaurantsWithCounts(organizationId)
+    : []
   const showAnalyticsLink = plan ? planHas(plan, 'analytics') : false
   const showAdminLink =
     session?.user.permissions.includes(SCOPES.QR_CODES_READ) ?? false
@@ -47,14 +55,40 @@ export default async function DashboardLayout({
   const t = await getTranslations('AppHeader')
   const nav = await getTranslations('DashboardNav')
 
-  // Primary nav: Home + Billing + Analytics; secondary "Admin" group
-  // hosts the cross-tenant tools (QR Codes + Sessions). `Home` is opt-out
-  // of prefix matching so it doesn't light up under every nested route.
+  // Primary nav layout:
+  //   ── Restaurants ──            ← anchor of the sidebar. Listed by name
+  //   <restaurant 1>                so the operator can hop between them
+  //   <restaurant 2> …              from any nested page. Falls back to a
+  //                                 single "Restaurants" link to /dashboard
+  //                                 when the org has none yet — that page
+  //                                 is where the empty-state + onboarding
+  //                                 CTA live.
+  //   Analytics
+  //   ── Account ──                ← billing + AI usage live under here
+  //   Billing / Misc
+  //   ── Admin ──                  ← only for cross-tenant tools
+  //   QR Codes / Sessions
+  //
+  // No "Home" entry — the wordmark in the sidebar header already routes
+  // to /dashboard and the dashboard's own role is now the org overview,
+  // not a sibling of Restaurants. Restaurant links use prefix matching
+  // so the current restaurant stays highlighted while the operator is
+  // deep in its menus / theme / QR / billing pages.
   const hasAdminGroup = showAdminLink || showSessionsLink
+  const hasRestaurants = restaurants.length > 0
   const candidates: ReadonlyArray<ActiveSidebarItem | false> = [
-    { href: '/dashboard', label: nav('home'), testId: 'dashboard-nav-home', matchPrefix: false },
+    hasRestaurants
+      ? { kind: 'section', label: nav('restaurants'), testId: 'dashboard-nav-restaurants-section' }
+      : { href: '/dashboard', label: nav('restaurants'), testId: 'dashboard-nav-restaurants-empty', matchPrefix: false },
+    ...restaurants.map((r) => ({
+      href: `/dashboard/r/${r.slug}`,
+      label: r.name,
+      testId: `dashboard-nav-restaurant-${r.slug}`,
+    })),
     showAnalyticsLink && { href: '/dashboard/analytics', label: nav('analytics'), testId: 'dashboard-nav-analytics' },
+    { kind: 'section', label: nav('account'), testId: 'dashboard-nav-account-section' },
     { href: '/dashboard/billing', label: nav('billing'), testId: 'dashboard-nav-billing' },
+    { href: '/dashboard/misc', label: nav('misc'), testId: 'dashboard-nav-misc' },
     hasAdminGroup && { kind: 'section', label: nav('admin'), testId: 'dashboard-nav-admin-section' },
     showAdminLink && { href: '/dashboard/admin/qr-codes', label: nav('qrCodes'), testId: 'dashboard-nav-admin' },
     showSessionsLink && { href: '/dashboard/admin/sessions', label: nav('sessions'), testId: 'dashboard-nav-sessions' },

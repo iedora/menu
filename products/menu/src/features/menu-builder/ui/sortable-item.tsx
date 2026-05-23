@@ -6,41 +6,64 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   Field,
   FieldInput,
   FieldLabel,
+  FieldTextarea,
+  SectionHeader,
 } from '@iedora/design-system'
+import { useTranslations } from 'next-intl'
 import { ImageUpload } from '@/features/upload/ui/image-upload'
-import { LocalizedFields } from '@/features/i18n/ui/localized-fields'
 import type { LanguageCode, LocalizedText } from '@/features/i18n'
 import { deleteItem, updateItem } from '../actions'
 import type { BuilderItem, BuilderVariant } from './types'
+import {
+  VariantsEditor,
+  cleanVariants,
+  type EditableVariant,
+} from './variants-editor'
+import { ItemTranslations } from './item-translations'
 
-type EditableVariant = {
-  label: string
-  /** Raw price string for the input; empty allowed mid-typing. */
-  priceText: string
-}
+/**
+ * Item row + edit dialog.
+ *
+ * Row design:
+ *   - Whole row is one tap target → open the edit dialog. The previous
+ *     version split the row into a grip area and a click area, which
+ *     was unreliable on touch (mis-taps hit the grip).
+ *   - Grip is on the LEFT, an SVG glyph not unicode, with `cursor: grab`
+ *     and `min-width: 28px`. Drag activation is gated by an 8px move
+ *     threshold so a tap can't be misread as a drag.
+ *   - Price column: hides "€0.00" — shows the localised "no price" hint
+ *     in ink-40 italics instead, so the row doesn't lie about prices
+ *     the operator hasn't entered.
+ *   - Description shows truncated under the name on one line; variants
+ *     pill-row below for items with 2+ doses.
+ *
+ * Edit dialog design:
+ *   - Two stacked groups. The top "basics" (name, price, photo,
+ *     available) is what the operator touches 90% of the time. The
+ *     "More options" disclosure expands description, variants,
+ *     translations, and delete.
+ *   - On desktop both can be open simultaneously; on mobile the
+ *     disclosure keeps the form short enough to fit the viewport without
+ *     internal scrolling.
+ */
 
 function variantsToEditable(
   variants: ReadonlyArray<BuilderVariant>,
 ): EditableVariant[] {
   return variants.map((v) => ({
     label: v.label,
+    labelI18n: v.labelI18n,
     priceText: v.priceCents > 0 ? (v.priceCents / 100).toFixed(2) : '',
   }))
-}
-
-function parsePriceCents(raw: string): number {
-  const n = Number(raw.replace(',', '.'))
-  if (!Number.isFinite(n) || n < 0) return NaN
-  return Math.round(n * 100)
 }
 
 function formatPrice(cents: number, currency: string) {
@@ -63,67 +86,84 @@ export function SortableItem({
   supportedLanguages: LanguageCode[]
   item: BuilderItem
 }) {
+  const t = useTranslations('Builder')
   const router = useRouter()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id })
 
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(item.name)
   const [description, setDescription] = useState(item.description ?? '')
-  // Maps of overrides keyed by language. Default language stays in `name`/
-  // `description` above. The LocalizedFields component owns the active-tab UI.
-  const [nameI18n, setNameI18n] = useState<LocalizedText>(() => item.nameI18n ?? {})
+  const [nameI18n, setNameI18n] = useState<LocalizedText>(
+    () => item.nameI18n ?? {},
+  )
   const [descriptionI18n, setDescriptionI18n] = useState<LocalizedText>(
     () => item.descriptionI18n ?? {},
   )
-  const [priceText, setPriceText] = useState((item.priceCents / 100).toFixed(2))
+  const [priceText, setPriceText] = useState(
+    item.priceCents > 0 ? (item.priceCents / 100).toFixed(2) : '',
+  )
   const [available, setAvailable] = useState(item.available)
   const [variants, setVariants] = useState<EditableVariant[]>(() =>
     variantsToEditable(item.variants),
   )
-  // Local mirror for immediate dialog feedback after upload — server already
-  // persists; router.refresh() syncs the row preview when the dialog closes.
   const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Reset local state when reopening so it tracks server truth.
+  function onOpenChange(next: boolean) {
+    setOpen(next)
+    if (!next) {
+      setConfirmDelete(false)
+      setError(null)
+    } else {
+      setName(item.name)
+      setDescription(item.description ?? '')
+      setNameI18n(item.nameI18n ?? {})
+      setDescriptionI18n(item.descriptionI18n ?? {})
+      setPriceText(item.priceCents > 0 ? (item.priceCents / 100).toFixed(2) : '')
+      setAvailable(item.available)
+      setVariants(variantsToEditable(item.variants))
+      setImageUrl(item.imageUrl)
+    }
+  }
 
   function onSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    const priceCents = Math.round(Number(priceText.replace(',', '.')) * 100)
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setError(t('itemNeedsName'))
+      return
+    }
+    const priceCents = priceText.trim()
+      ? Math.round(Number(priceText.replace(',', '.')) * 100)
+      : 0
     if (!Number.isFinite(priceCents) || priceCents < 0) {
-      setError('Invalid price')
+      setError(t('itemBadPrice'))
       return
     }
 
-    // Variants: drop blank-label rows the operator may have added and
-    // never filled. Reject any half-typed prices so we don't write
-    // garbage. Empty array is a real action (clear all variants).
-    const cleanedVariants: { label: string; priceCents: number }[] = []
-    for (const v of variants) {
-      const label = v.label.trim()
-      if (label.length === 0) continue
-      const priceCents = parsePriceCents(v.priceText)
-      if (Number.isNaN(priceCents)) {
-        setError(`Invalid price for variant "${label}"`)
-        return
-      }
-      cleanedVariants.push({ label, priceCents })
+    const cleaned = cleanVariants(variants)
+    if (!cleaned.ok) {
+      setError(t('itemBadVariantPrice', { label: cleaned.label }))
+      return
     }
 
     startTransition(async () => {
       const res = await updateItem(slug, item.id, {
-        name: name.trim(),
+        name: trimmed,
         description: description.trim(),
         priceCents,
         available,
         nameI18n,
         descriptionI18n,
-        variants: cleanedVariants,
+        variants: cleaned.variants,
       })
       if (res && 'error' in res) {
-        setError(res.error ?? 'Could not save')
+        setError(res.error ?? t('itemSaveFailed'))
         return
       }
       setOpen(false)
@@ -131,17 +171,17 @@ export function SortableItem({
     })
   }
 
-  function addVariant() {
-    setVariants((prev) => [...prev, { label: '', priceText: '' }])
+  function doDelete() {
+    startTransition(async () => {
+      await deleteItem(slug, item.id)
+      setOpen(false)
+      router.refresh()
+    })
   }
 
-  function patchVariant(idx: number, patch: Partial<EditableVariant>) {
-    setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, ...patch } : v)))
-  }
-
-  function removeVariant(idx: number) {
-    setVariants((prev) => prev.filter((_, i) => i !== idx))
-  }
+  const showPrice = item.priceCents > 0
+  const formattedPrice = showPrice ? formatPrice(item.priceCents, item.currency) : null
+  const hasMultiLanguage = supportedLanguages.length > 1
 
   return (
     <div
@@ -151,213 +191,296 @@ export function SortableItem({
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className="flex items-center gap-3 px-3 py-2"
     >
       <button
-        aria-label="Drag item"
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        type="button"
+        className="menu-item-row"
+        onClick={() => onOpenChange(true)}
+        data-test-id={`menu-item-row-${item.id}`}
+        data-unavailable={item.available ? 'false' : 'true'}
       >
-        ⋮⋮
+        <span
+          className="menu-builder-grip"
+          aria-label={t('dragItem', { name: item.name })}
+          data-test-id={`menu-item-grip-${item.id}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          {...attributes}
+          {...listeners}
+        >
+          <GripIcon />
+        </span>
+        {item.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt=""
+            data-testid={`item-thumb-${item.id}`}
+            className="menu-item-row__thumb"
+          />
+        )}
+        <span className="menu-item-row__body">
+          <span className="menu-item-row__name">{item.name}</span>
+          {item.description && (
+            <span className="menu-item-row__desc">{item.description}</span>
+          )}
+          {item.variants.length > 0 && (
+            <span
+              className="menu-item-row__variants"
+              data-test-id={`item-variants-${item.id}`}
+            >
+              {item.variants.map((v, vi) => (
+                <span
+                  key={`${v.label}-${vi}`}
+                  className="menu-item-row__variant-pill"
+                >
+                  <span>{v.label}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="num">
+                    {formatPrice(v.priceCents, item.currency)}
+                  </span>
+                </span>
+              ))}
+            </span>
+          )}
+        </span>
+        <span
+          className={
+            showPrice
+              ? 'menu-item-row__price'
+              : 'menu-item-row__price menu-item-row__price--zero'
+          }
+        >
+          {formattedPrice ?? t('noPrice')}
+        </span>
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <button className="flex flex-1 items-center justify-between gap-3 text-left">
-            <div className="flex min-w-0 items-center gap-3">
-              {item.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  data-testid={`item-thumb-${item.id}`}
-                  className="h-8 w-8 shrink-0 rounded object-cover"
-                />
-              )}
-              <div className="min-w-0">
-                <div className={item.available ? '' : 'text-muted-foreground line-through'}>
-                  {item.name}
-                </div>
-                {item.description && (
-                  <div className="truncate text-xs text-muted-foreground">
-                    {item.description}
-                  </div>
-                )}
-                {item.variants.length > 0 && (
-                  // Variant pills inline under the description. `flex-wrap`
-                  // means 4+ doses just continue to a second row — no
-                  // overflow, no layout break. Tabular-nums keeps prices
-                  // aligned for quick visual scan.
-                  <div
-                    className="mt-1 flex flex-wrap items-center gap-1"
-                    data-test-id={`item-variants-${item.id}`}
-                  >
-                    {item.variants.map((v, vi) => (
-                      <span
-                        key={`${v.label}-${vi}`}
-                        className="inline-flex items-center gap-1 rounded-full border border-[var(--ink-14)] bg-[var(--paper-2)] px-2 py-0.5 text-[10.5px] text-[var(--ink-55)]"
-                      >
-                        <span>{v.label}</span>
-                        <span className="text-[var(--ink-40)]">·</span>
-                        <span className="tabular-nums">
-                          {formatPrice(v.priceCents, item.currency)}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="text-sm tabular-nums text-muted-foreground">
-              {formatPrice(item.priceCents, item.currency)}
-            </div>
-          </button>
-        </DialogTrigger>
-        <DialogContent>
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          aria-describedby={undefined}
+          eyebrow={t('itemEditEyebrow')}
+        >
           <DialogHeader>
-            <DialogTitle>Edit item</DialogTitle>
+            <DialogTitle>{t('editItem')}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={onSave} className="space-y-4">
-            <LocalizedFields
-              id="item"
-              defaultLanguage={defaultLanguage}
-              supportedLanguages={supportedLanguages}
-              name={name}
-              onNameChange={setName}
-              description={description}
-              onDescriptionChange={setDescription}
-              nameI18n={nameI18n}
-              onNameI18nChange={setNameI18n}
-              descriptionI18n={descriptionI18n}
-              onDescriptionI18nChange={setDescriptionI18n}
-            />
-            <div className="grid grid-cols-2 gap-3">
+          <form
+            onSubmit={onSave}
+            className="grid gap-6"
+            data-test-id={`menu-item-edit-form-${item.id}`}
+          >
+            {/* ─── Part 1 · Dish ─────────────────────────────────────
+                The basics every dish needs: name + description in the
+                source/default language, price, availability, photo.
+                Description always lives here (source) — translations
+                of it live in Part 3 alongside the name translations. */}
+            <section className="grid gap-4" data-test-id={`menu-item-part-dish-${item.id}`}>
+              <SectionHeader title={t('partDishTitle')} hint={t('partDishHint')} />
               <Field>
-                <FieldLabel htmlFor={`price-${item.id}`}>Price ({item.currency})</FieldLabel>
+                <FieldLabel htmlFor={`item-name-${item.id}`}>
+                  {t('itemName')}
+                </FieldLabel>
                 <FieldInput
-                  id={`price-${item.id}`}
-                  inputMode="decimal"
-                  value={priceText}
-                  onChange={(e) => setPriceText(e.target.value)}
-                  required
+                  id={`item-name-${item.id}`}
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={120}
+                  data-test-id={`menu-item-name-input-${item.id}`}
                 />
               </Field>
-              <div className="flex items-end gap-2">
-                <input
-                  id={`avail-${item.id}`}
-                  type="checkbox"
-                  checked={available}
-                  onChange={(e) => setAvailable(e.target.checked)}
-                  className="h-4 w-4"
+              <Field>
+                <FieldLabel htmlFor={`item-desc-${item.id}`}>
+                  {t('itemDescription')}
+                </FieldLabel>
+                <FieldTextarea
+                  id={`item-desc-${item.id}`}
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  data-test-id={`menu-item-desc-input-${item.id}`}
                 />
-                <FieldLabel htmlFor={`avail-${item.id}`}>Available</FieldLabel>
+              </Field>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor={`item-price-${item.id}`}>
+                    {t('itemPrice', { currency: item.currency })}
+                  </FieldLabel>
+                  <FieldInput
+                    id={`item-price-${item.id}`}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={priceText}
+                    onChange={(e) => setPriceText(e.target.value)}
+                    data-test-id={`menu-item-price-input-${item.id}`}
+                  />
+                </Field>
+                <div className="flex items-end pb-1">
+                  <Checkbox
+                    checked={available}
+                    onChange={(e) =>
+                      setAvailable((e.target as HTMLInputElement).checked)
+                    }
+                    data-test-id={`menu-item-available-${item.id}`}
+                  >
+                    {t('itemAvailable')}
+                  </Checkbox>
+                </div>
               </div>
-            </div>
-            <Field>
-              <FieldLabel>Photo</FieldLabel>
-              <ImageUpload
-                target={{ kind: 'item-photo', restaurantId, itemId: item.id }}
-                currentUrl={imageUrl}
-                label="Item photo"
-                onChange={(url) => {
-                  setImageUrl(url)
-                  router.refresh()
-                }}
-              />
-            </Field>
+              <Field>
+                <FieldLabel>{t('itemPhoto')}</FieldLabel>
+                <ImageUpload
+                  target={{ kind: 'item-photo', restaurantId, itemId: item.id }}
+                  currentUrl={imageUrl}
+                  label={t('itemPhoto')}
+                  onChange={(url) => {
+                    setImageUrl(url)
+                    router.refresh()
+                  }}
+                />
+              </Field>
+            </section>
 
-            {/* Variants editor. Some menus carry 3-4 prices per dish
-                (Dose / Meia dose / Take-away / Cuvete) so the list is
-                vertical and unbounded; each row stays self-contained
-                (label + price + remove). The "Add variant" link sits
-                at the bottom of the list. */}
-            <Field>
-              <FieldLabel>Variants (optional)</FieldLabel>
-              <div
-                className="space-y-2"
-                data-test-id={`item-variants-edit-${item.id}`}
-              >
-                {variants.length === 0 ? (
-                  <p className="text-xs text-[var(--ink-55)]">
-                    No variants. Add one for sized doses (e.g. Meia dose) or
-                    pour sizes (e.g. Imperial, Caneca).
-                  </p>
-                ) : (
-                  variants.map((v, vi) => (
-                    <div
-                      key={vi}
-                      className="flex items-center gap-2"
-                      data-test-id={`item-variant-row-${item.id}-${vi}`}
-                    >
-                      <input
-                        type="text"
-                        value={v.label}
-                        onChange={(e) =>
-                          patchVariant(vi, { label: e.target.value })
-                        }
-                        placeholder="Label (e.g. Meia dose)"
-                        aria-label="Variant label"
-                        className="flex-1 min-w-0 rounded border border-[var(--ink-14)] bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ink-40)]"
-                        data-test-id={`item-variant-label-${item.id}-${vi}`}
-                      />
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={v.priceText}
-                        onChange={(e) =>
-                          patchVariant(vi, { priceText: e.target.value })
-                        }
-                        placeholder="0.00"
-                        aria-label={`Price for ${v.label || 'variant'}`}
-                        className="w-24 rounded border border-[var(--ink-14)] bg-transparent px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[var(--ink-40)]"
-                        data-test-id={`item-variant-price-${item.id}-${vi}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(vi)}
-                        aria-label="Remove variant"
-                        title="Remove variant"
-                        className="text-[var(--ink-40)] hover:text-[var(--cinnabar)] px-1 text-sm leading-none"
-                        data-test-id={`item-variant-remove-${item.id}-${vi}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))
-                )}
-                <button
-                  type="button"
-                  onClick={addVariant}
-                  className="text-[10.5px] uppercase tracking-[0.18em] font-[family-name:var(--mono)] text-[var(--ink-40)] hover:text-[var(--ink)]"
-                  data-test-id={`item-variant-add-${item.id}`}
-                >
-                  + Add variant
-                </button>
+            {/* ─── Part 2 · Variants ────────────────────────────────
+                Operator-defined priced tiers — ½ dose, alcohol-free,
+                large… labels are in the default language (Part 3 will
+                translate them once variant-i18n lands). */}
+            <section data-test-id={`menu-item-part-variants-${item.id}`}>
+              <SectionHeader
+                title={t('partVariantsTitle')}
+                hint={t('partVariantsHint')}
+              />
+              <div className="mt-3">
+                <VariantsEditor
+                  value={variants}
+                  onChange={setVariants}
+                  idPrefix={`item-variant-${item.id}`}
+                />
               </div>
-            </Field>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <DialogFooter className="justify-between sm:justify-between">
+            </section>
+
+            {/* ─── Part 3 · Translations ─────────────────────────────
+                Only rendered for multi-language restaurants. The
+                default language is intentionally hidden — its values
+                are the source-of-truth edited in Part 1 (name +
+                description) and Part 2 (variant labels). Operators see
+                the source value above each translation field so they
+                don't have to flip tabs to know what they're translating. */}
+            {hasMultiLanguage && (
+              <section
+                className="grid gap-4"
+                data-test-id={`menu-item-part-translations-${item.id}`}
+              >
+                <SectionHeader
+                  title={t('partTranslationsTitle')}
+                  hint={t('partTranslationsHint')}
+                />
+                <ItemTranslations
+                  itemId={item.id}
+                  defaultLanguage={defaultLanguage}
+                  supportedLanguages={supportedLanguages}
+                  name={name}
+                  description={description}
+                  variants={variants}
+                  nameI18n={nameI18n}
+                  descriptionI18n={descriptionI18n}
+                  onNameI18nChange={setNameI18n}
+                  onDescriptionI18nChange={setDescriptionI18n}
+                  onVariantsChange={setVariants}
+                />
+              </section>
+            )}
+
+            {/* ─── Part 4 · Danger zone (delete) ────────────────────
+                Quiet by default, cinnabar on confirm. Sits alone at
+                the bottom so an accidental tap can't reach it during
+                normal editing. */}
+            <section
+              className="border-t border-[var(--ink-14)] pt-4"
+              data-test-id={`menu-item-part-danger-${item.id}`}
+            >
+              {confirmDelete ? (
+                <div className="flex flex-col gap-3 border border-[var(--cinnabar)] p-3">
+                  <p className="text-sm">
+                    {t('itemDeleteConfirm', { name: item.name })}
+                  </p>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={pending}
+                      data-test-id={`menu-item-delete-cancel-${item.id}`}
+                    >
+                      {t('cancel')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="accent"
+                      onClick={doDelete}
+                      disabled={pending}
+                      data-test-id={`menu-item-delete-confirm-${item.id}`}
+                    >
+                      {pending ? t('deleting') : t('deleteItem')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setConfirmDelete(true)}
+                  className="justify-self-start text-[var(--cinnabar)]"
+                  data-test-id={`menu-item-delete-${item.id}`}
+                >
+                  {t('deleteItem')}
+                </Button>
+              )}
+            </section>
+
+            {error && (
+              <p
+                className="text-sm text-[var(--cinnabar)]"
+                data-test-id={`menu-item-error-${item.id}`}
+              >
+                {error}
+              </p>
+            )}
+
+            <DialogFooter>
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() =>
-                  startTransition(async () => {
-                    await deleteItem(slug, item.id)
-                    setOpen(false)
-                    router.refresh()
-                  })
-                }
+                onClick={() => onOpenChange(false)}
                 disabled={pending}
+                data-test-id={`menu-item-cancel-${item.id}`}
               >
-                Delete
+                {t('cancel')}
               </Button>
-              <Button type="submit" variant="solid" disabled={pending}>
-                {pending ? 'Saving…' : 'Save'}
+              <Button
+                type="submit"
+                variant="solid"
+                disabled={pending}
+                data-test-id={`menu-item-save-${item.id}`}
+              >
+                {pending ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+function GripIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="18" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="18" r="1.5" fill="currentColor" />
+    </svg>
   )
 }

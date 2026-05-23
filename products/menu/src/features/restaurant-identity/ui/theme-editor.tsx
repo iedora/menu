@@ -4,13 +4,16 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
+  Badge,
   Button,
+  Checkbox,
+  Combobox,
   Field,
   FieldHint,
   FieldInput,
   FieldLabel,
   FieldTextarea,
-  Separator,
+  SectionHeader,
 } from '@iedora/design-system'
 import { ImageUpload } from '@/features/upload/ui/image-upload'
 import { LocalizedFields } from '@/features/i18n/ui/localized-fields'
@@ -72,43 +75,53 @@ export function ThemeEditor({
   const previewRestaurant: PublicRestaurant = { ...restaurant, ...identity }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-      <div className="space-y-8">
-        {/* Slug first — operators consistently look for "URL" / "slug"
-            at the top of settings, not buried under brand assets. */}
-        <SlugSection currentSlug={slug} />
-        <Separator />
-        <IdentitySection
-          slug={slug}
-          restaurantId={restaurant.id}
-          defaultLanguage={initialLanguageSettings.defaultLanguage}
-          supportedLanguages={initialLanguageSettings.supportedLanguages}
-          initial={initialIdentity}
-          value={identity}
-          onChange={setIdentity}
-          onSaved={() => router.refresh()}
-        />
-        <Separator />
-        <LanguagesSection
-          slug={slug}
-          initial={initialLanguageSettings}
-          onSaved={() => router.refresh()}
-        />
-        <Separator />
-        <ThemeSection
-          slug={slug}
-          initial={initialTheme}
-          value={theme}
-          onChange={setTheme}
-          onSaved={() => router.refresh()}
-        />
+    // Two-column at lg+: settings left (420px), preview sticky right.
+    // On mobile we don't get two columns, so the preview goes FIRST
+    // (order utilities) and lives inside a capped, scrollable frame —
+    // otherwise a long menu would push every settings card below the
+    // fold. Card order in the settings column reads identity → content
+    // → look → URL; the slug is last because changing it breaks every
+    // bookmark to the old URL and the operator rarely needs it.
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <div className="order-2 space-y-4 lg:order-none">
+        <div className="settings-card" data-test-id="settings-card-identity">
+          <IdentitySection
+            slug={slug}
+            restaurantId={restaurant.id}
+            defaultLanguage={initialLanguageSettings.defaultLanguage}
+            supportedLanguages={initialLanguageSettings.supportedLanguages}
+            initial={initialIdentity}
+            value={identity}
+            onChange={setIdentity}
+            onSaved={() => router.refresh()}
+          />
+        </div>
+        <div className="settings-card" data-test-id="settings-card-languages">
+          <LanguagesSection
+            slug={slug}
+            initial={initialLanguageSettings}
+            onSaved={() => router.refresh()}
+          />
+        </div>
+        <div className="settings-card" data-test-id="settings-card-theme">
+          <ThemeSection
+            slug={slug}
+            initial={initialTheme}
+            value={theme}
+            onChange={setTheme}
+            onSaved={() => router.refresh()}
+          />
+        </div>
+        <div className="settings-card" data-test-id="settings-card-url">
+          <SlugSection currentSlug={slug} />
+        </div>
       </div>
 
-      <div className="lg:sticky lg:top-6 lg:h-fit">
+      <div className="order-1 lg:order-none lg:sticky lg:top-6 lg:h-fit">
         <PreviewLabel />
         <div
-          className="overflow-hidden rounded-lg border bg-background"
-          data-testid="theme-preview"
+          className="max-h-[60vh] overflow-auto border border-[var(--ink-14)] bg-[var(--paper)] lg:max-h-none lg:overflow-hidden"
+          data-test-id="theme-preview"
           data-layout={theme.layout}
         >
           <MenuRenderer
@@ -131,6 +144,13 @@ function PreviewLabel() {
   )
 }
 
+/** Promote-on-switch result surfaced as a one-shot banner. Cleared on
+ *  dismiss or on the next save. */
+type SwitchOutcome = {
+  rowsPromoted: number
+  rowsNeedingAttention: number
+}
+
 function LanguagesSection({
   slug,
   initial,
@@ -151,6 +171,9 @@ function LanguagesSection({
   const [pending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [switchOutcome, setSwitchOutcome] = useState<SwitchOutcome | null>(
+    null,
+  )
   const t = useTranslations('Settings.Languages')
   const tc = useTranslations('Common')
 
@@ -189,6 +212,8 @@ function LanguagesSection({
   function onSave() {
     setError(null)
     setSaved(false)
+    // A fresh save means any prior banner is now stale.
+    setSwitchOutcome(null)
     startTransition(async () => {
       const result = await updateLanguageSettings(slug, {
         defaultLanguage: defaultLang,
@@ -199,6 +224,14 @@ function LanguagesSection({
         return
       }
       setSaved(true)
+      // Only show the banner on an actual default-switch save — toggling
+      // supportedLanguages alone doesn't rotate any rows.
+      if (result.defaultChanged) {
+        setSwitchOutcome({
+          rowsPromoted: result.rowsPromoted,
+          rowsNeedingAttention: result.rowsNeedingAttention,
+        })
+      }
       onSaved()
     })
   }
@@ -211,74 +244,87 @@ function LanguagesSection({
         onSave()
       }}
     >
-      <div>
-        <h2 className="text-base font-medium">{t('title')}</h2>
-        <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <SectionHeader title={t('title')} hint={t('subtitle')} />
 
-      <div className="space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          {LANGUAGE_META.map((lang) => {
-            const isSupported = supported.has(lang.code)
-            const isDefault = defaultLang === lang.code
-            return (
-              <div
-                key={lang.code}
-                data-testid={`lang-row-${lang.code}`}
-                className={
-                  'flex items-center justify-between gap-2 rounded-lg border p-3 ' +
-                  (isSupported
-                    ? 'border-primary bg-accent'
-                    : 'border-border')
-                }
+      {/* Single-column list of language rows. Each row: design-system
+          Checkbox on the left (serif label + native name), then either
+          a "Default" badge or a ghost-button "Make default" on the
+          right. Min-height 44px hits the touch-target floor. */}
+      <ul className="space-y-2" data-test-id="lang-list">
+        {LANGUAGE_META.map((lang) => {
+          const isSupported = supported.has(lang.code)
+          const isDefault = defaultLang === lang.code
+          return (
+            <li
+              key={lang.code}
+              data-test-id={`lang-row-${lang.code}`}
+              className={
+                'flex min-h-11 min-w-0 items-center gap-3 border px-3 py-2 ' +
+                (isSupported
+                  ? 'border-[var(--ink-40)] bg-[var(--paper-2)]'
+                  : 'border-[var(--ink-14)] bg-[var(--paper)]')
+              }
+            >
+              <Checkbox
+                checked={isSupported}
+                onChange={() => toggle(lang.code)}
+                disabled={isDefault}
+                data-test-id={`lang-supported-${lang.code}`}
+                className="min-w-0 flex-1"
               >
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={isSupported}
-                    onChange={() => toggle(lang.code)}
-                    disabled={isDefault}
-                    data-testid={`lang-supported-${lang.code}`}
-                    className="h-4 w-4"
-                  />
-                  <span className="font-medium">{lang.name}</span>
-                  <span className="text-xs text-muted-foreground">
+                <span className="min-w-0">
+                  <span className="truncate">{lang.name}</span>
+                  <span className="ml-2 font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.16em] text-[var(--ink-55)]">
                     {lang.nativeName}
                   </span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => selectDefault(lang.code)}
-                  data-testid={`lang-default-${lang.code}`}
-                  className={
-                    'rounded px-2 py-0.5 text-xs ' +
-                    (isDefault
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground')
-                  }
+                </span>
+              </Checkbox>
+              {isDefault ? (
+                <Badge
+                  variant="ink"
+                  data-test-id={`lang-default-${lang.code}`}
                 >
-                  {isDefault ? t('default') : t('makeDefault')}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                  {t('default')}
+                </Badge>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => selectDefault(lang.code)}
+                  data-test-id={`lang-default-${lang.code}`}
+                  className="whitespace-nowrap"
+                >
+                  {t('makeDefault')}
+                </Button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
 
-      <div className="flex items-center gap-3 pt-1">
+      <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button
           type="submit"
           variant="solid"
           disabled={!dirty || pending}
-          data-testid="languages-save"
+          data-test-id="languages-save"
         >
           {pending ? tc('saving') : t('save')}
         </Button>
         {saved && !dirty && (
-          <span className="text-sm text-muted-foreground">{t('saved')}</span>
+          <span className="text-sm text-[var(--ink-55)]">{t('saved')}</span>
         )}
-        {error && <span className="text-sm text-destructive">{error}</span>}
+        {error && (
+          <span className="text-sm text-[var(--cinnabar)]">{error}</span>
+        )}
       </div>
+
+      {switchOutcome && (
+        <DefaultSwitchedBanner
+          outcome={switchOutcome}
+          onDismiss={() => setSwitchOutcome(null)}
+        />
+      )}
     </form>
   )
 }
@@ -351,16 +397,13 @@ function IdentitySection({
         onSave()
       }}
     >
-      <div>
-        <h2 className="text-base font-medium">{t('title')}</h2>
-        <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <SectionHeader title={t('title')} hint={t('subtitle')} />
 
       <Field>
         <FieldLabel htmlFor="identity-name">{t('name')}</FieldLabel>
         <FieldInput
           id="identity-name"
-          data-testid="identity-name"
+          data-test-id="identity-name"
           value={value.name}
           onChange={(e) => patch('name', e.target.value)}
           maxLength={120}
@@ -373,17 +416,19 @@ function IdentitySection({
           id="identity"
           defaultLanguage={defaultLanguage}
           supportedLanguages={supportedLanguages}
-          // Restaurant name stays mono-language (proper noun) — only the
-          // description is translatable here.
-          name="" // unused
+          // Restaurant name is a proper noun (mono-language) and lives
+          // in the `Field` above; the tabbed editor only handles the
+          // translatable description. `showName={false}` keeps the
+          // language tabs but skips the redundant name row.
+          name=""
           onNameChange={() => {}}
           nameI18n={{}}
           onNameI18nChange={() => {}}
+          showName={false}
           description={value.description ?? ''}
           onDescriptionChange={(v) => patch('description', v)}
           descriptionI18n={value.descriptionI18n}
           onDescriptionI18nChange={(next) => patch('descriptionI18n', next)}
-          nameLabel={t('description')}
           descriptionLabel={t('description')}
         />
       ) : (
@@ -391,7 +436,7 @@ function IdentitySection({
           <FieldLabel htmlFor="identity-description">{t('description')}</FieldLabel>
           <FieldTextarea
             id="identity-description"
-            data-testid="identity-description"
+            data-test-id="identity-description"
             value={value.description ?? ''}
             onChange={(e) => patch('description', e.target.value)}
             maxLength={500}
@@ -432,7 +477,7 @@ function IdentitySection({
           type="submit"
           variant="solid"
           disabled={!dirty || !nameValid || pending}
-          data-testid="identity-save"
+          data-test-id="identity-save"
         >
           {pending ? tc('saving') : t('save')}
         </Button>
@@ -488,16 +533,13 @@ function SlugSection({ currentSlug }: { currentSlug: string }) {
   return (
     <form
       className="space-y-4"
-      data-testid="slug-section"
+      data-test-id="slug-section"
       onSubmit={(e) => {
         e.preventDefault()
         if (dirty && looksValid) onSave()
       }}
     >
-      <div>
-        <h2 className="text-base font-medium">{t('title')}</h2>
-        <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <SectionHeader title={t('title')} hint={t('subtitle')} />
 
       <Field>
         <FieldLabel htmlFor="slug-input">{t('label')}</FieldLabel>
@@ -505,7 +547,7 @@ function SlugSection({ currentSlug }: { currentSlug: string }) {
           <span className="text-sm text-muted-foreground">menu.iedora.com/r/</span>
           <FieldInput
             id="slug-input"
-            data-testid="slug-input"
+            data-test-id="slug-input"
             className="min-w-0 flex-1 sm:min-w-[16ch]"
             value={draft}
             onChange={(e) => {
@@ -530,7 +572,7 @@ function SlugSection({ currentSlug }: { currentSlug: string }) {
           type="submit"
           variant="solid"
           disabled={!dirty || !looksValid || pending}
-          data-testid="slug-save"
+          data-test-id="slug-save"
         >
           {pending ? tc('saving') : t('save')}
         </Button>
@@ -600,14 +642,11 @@ function ThemeSection({
         onSave()
       }}
     >
-      <div>
-        <h2 className="text-base font-medium">{t('title')}</h2>
-        <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <SectionHeader title={t('title')} hint={t('subtitle')} />
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">{t('layout')}</legend>
-        <div className="grid grid-cols-2 gap-2">
+        <legend className="ds-field__label">{t('layout')}</legend>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {LAYOUTS.map((l) => {
             const selected = value.layout === l.id
             return (
@@ -616,16 +655,18 @@ function ThemeSection({
                 type="button"
                 onClick={() => patch('layout', l.id)}
                 aria-pressed={selected}
-                data-testid={`layout-${l.id}`}
+                data-test-id={`layout-${l.id}`}
                 className={
-                  'rounded-lg border p-3 text-left transition-colors ' +
+                  'min-h-[72px] border p-3 text-left transition-colors ' +
                   (selected
-                    ? 'border-primary bg-accent'
-                    : 'border-border hover:bg-accent/50')
+                    ? 'border-[var(--ink)] bg-[var(--paper-2)]'
+                    : 'border-[var(--ink-14)] bg-[var(--paper)] hover:border-[var(--ink-40)]')
                 }
               >
-                <div className="text-sm font-medium">{l.name}</div>
-                <div className="mt-1 text-xs text-muted-foreground">
+                <div className="font-[family-name:var(--serif)] text-base">
+                  {l.name}
+                </div>
+                <div className="mt-1 text-xs text-[var(--ink-55)]">
                   {l.description}
                 </div>
               </button>
@@ -636,19 +677,17 @@ function ThemeSection({
 
       <Field>
         <FieldLabel htmlFor="theme-font">{t('font')}</FieldLabel>
-        <select
+        <Combobox
           id="theme-font"
-          data-testid="theme-font"
+          data-test-id="theme-font"
+          options={FONTS.map((f) => ({ value: f.id, label: f.name }))}
           value={value.font}
-          onChange={(e) => patch('font', e.target.value as ResolvedTheme['font'])}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {FONTS.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
+          onChange={(v) =>
+            v && patch('font', v as ResolvedTheme['font'])
+          }
+          clearable={false}
+          aria-label={t('font')}
+        />
       </Field>
 
       <ColorField
@@ -668,12 +707,12 @@ function ThemeSection({
         onChange={(v) => patch('secondaryColor', v)}
       />
 
-      <div className="flex items-center gap-3 pt-1">
+      <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button
           type="submit"
           variant="solid"
           disabled={!canSave}
-          data-testid="theme-save"
+          data-test-id="theme-save"
         >
           {pending ? tc('saving') : t('save')}
         </Button>
@@ -690,9 +729,11 @@ function ThemeSection({
           {t('reset')}
         </Button>
         {saved && !dirty && (
-          <span className="text-sm text-muted-foreground">{t('saved')}</span>
+          <span className="text-sm text-[var(--ink-55)]">{t('saved')}</span>
         )}
-        {error && <span className="text-sm text-destructive">{error}</span>}
+        {error && (
+          <span className="text-sm text-[var(--cinnabar)]">{error}</span>
+        )}
       </div>
     </form>
   )
@@ -713,27 +754,106 @@ function ColorField({
   valid: boolean
   onChange: (v: string) => void
 }) {
+  // NOT wrapped in <Field>. The global `.ds-field input { width: 100% }`
+  // rule stretches every input inside a Field — including
+  // <input type="color"> — turning the 40×40 swatch into a full-width
+  // colored bar. We replicate the field rhythm (label · row · hint
+  // stacked with 6px gaps) by hand and keep the color picker outside
+  // the cascade. Hex chip uses the `.ds-input--compact` chip from the
+  // design system so it matches the Combobox / Field-compact family.
   return (
-    <Field error={!valid}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="flex items-center gap-2">
+    <div className="grid w-full max-w-[380px] gap-1.5 font-[family-name:var(--mono)]">
+      <FieldLabel htmlFor={`${id}-hex`}>{label}</FieldLabel>
+      <div className="flex items-center gap-3">
         <input
           id={id}
           type="color"
           value={valid ? value : '#000000'}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-12 cursor-pointer rounded-md border border-input bg-transparent p-1"
+          className="h-10 w-10 flex-shrink-0 cursor-pointer border border-[var(--ink-40)] bg-transparent p-0"
           aria-label={`${label} picker`}
+          data-test-id={`${id}-picker`}
         />
-        <FieldInput
-          data-testid={`${id}-hex`}
+        <input
+          id={`${id}-hex`}
+          data-test-id={`${id}-hex`}
+          className={
+            'ds-input ds-input--compact min-w-0 flex-1 font-[family-name:var(--mono)] uppercase ' +
+            (valid ? '' : 'ds-input--error')
+          }
           value={value}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
-          className="font-mono"
+          maxLength={7}
         />
       </div>
-      <p className="text-xs text-muted-foreground">{hint}</p>
-    </Field>
+      <FieldHint className={valid ? undefined : 'text-[var(--cinnabar)]'}>
+        {hint}
+      </FieldHint>
+    </div>
+  )
+}
+
+/**
+ * One-shot banner shown after a save that actually flipped the default
+ * language. Two visual states:
+ *
+ *   - Promotion happy-path (rowsNeedingAttention === 0): quiet ink
+ *     border, short "X translations promoted" line.
+ *   - Some rows couldn't promote: cinnabar border, the count + the
+ *     instruction ("Open each one to retranslate").
+ *
+ * Dismiss via the Button; no auto-hide — operators are working in a
+ * settings flow, the signal is too important to flash away.
+ */
+function DefaultSwitchedBanner({
+  outcome,
+  onDismiss,
+}: {
+  outcome: SwitchOutcome
+  onDismiss: () => void
+}) {
+  const t = useTranslations('Settings.Languages')
+  const needsAttention = outcome.rowsNeedingAttention > 0
+  const borderClass = needsAttention
+    ? 'border-[var(--cinnabar)]'
+    : 'border-[var(--ink-40)]'
+
+  return (
+    <aside
+      role="status"
+      data-test-id="languages-switched-banner"
+      data-needs-attention={needsAttention ? 'true' : 'false'}
+      className={
+        'mt-3 flex flex-col gap-2 border bg-[var(--paper-2)] p-3 ' +
+        borderClass
+      }
+    >
+      <div className="flex flex-col gap-1">
+        <span className="font-[family-name:var(--serif)] text-sm font-medium text-[var(--ink)]">
+          {needsAttention ? t('switchedAttentionTitle') : t('switchedTitle')}
+        </span>
+        {outcome.rowsPromoted > 0 && (
+          <span className="text-xs text-[var(--ink-55)]">
+            {t('switchedSummary', { count: outcome.rowsPromoted })}
+          </span>
+        )}
+        {needsAttention && (
+          <span className="text-xs text-[var(--cinnabar)]">
+            {t('switchedAttention', { count: outcome.rowsNeedingAttention })}
+          </span>
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onDismiss}
+          data-test-id="languages-switched-banner-dismiss"
+        >
+          {t('switchedDismiss')}
+        </Button>
+      </div>
+    </aside>
   )
 }

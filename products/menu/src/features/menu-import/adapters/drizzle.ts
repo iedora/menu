@@ -12,7 +12,7 @@
  * variant when the need arises.
  */
 import 'server-only'
-import { max, eq } from 'drizzle-orm'
+import { and, max, eq } from 'drizzle-orm'
 import { db } from '@/shared/db/client'
 import { category, item, menu, restaurant } from '@/shared/db/schema'
 import type { MenuImportPort } from '../ports'
@@ -75,6 +75,71 @@ function makeDrizzleMenuImport(): MenuImportPort {
             ? fields.variants
             : null,
       })
+    },
+
+    // ── PATCH-mode helpers ──────────────────────────────────────────────
+    // Used by `applyMenuPatch`. Each one is restaurant-scoped (defence
+    // in depth) so a stray id from a different tenant could never be
+    // touched.
+
+    async findCategoryByMenuAndName(menuId: string, name: string) {
+      const rows = await db
+        .select({ id: category.id })
+        .from(category)
+        .where(and(eq(category.menuId, menuId), eq(category.name, name)))
+        .limit(1)
+      return rows[0] ?? null
+    },
+
+    async renameCategory(categoryId: string, restaurantId: string, name: string) {
+      await db
+        .update(category)
+        .set({ name })
+        .where(
+          and(eq(category.id, categoryId), eq(category.restaurantId, restaurantId)),
+        )
+    },
+
+    async deleteCategory(categoryId: string, restaurantId: string) {
+      await db
+        .delete(category)
+        .where(
+          and(eq(category.id, categoryId), eq(category.restaurantId, restaurantId)),
+        )
+    },
+
+    async updateItemFields(
+      itemId: string,
+      restaurantId: string,
+      patch: { name?: string; description?: string; priceCents?: number },
+    ) {
+      // Only spread the fields the AI included; everything else
+      // (variants, availability, image) stays put.
+      const set: Record<string, unknown> = {}
+      if (patch.name !== undefined) set.name = patch.name
+      if (patch.description !== undefined) set.description = patch.description
+      if (patch.priceCents !== undefined) set.priceCents = patch.priceCents
+      if (Object.keys(set).length === 0) return
+      await db
+        .update(item)
+        .set(set)
+        .where(
+          and(eq(item.id, itemId), eq(item.restaurantId, restaurantId)),
+        )
+    },
+
+    async deleteItem(itemId: string, restaurantId: string) {
+      await db
+        .delete(item)
+        .where(and(eq(item.id, itemId), eq(item.restaurantId, restaurantId)))
+    },
+
+    async findMaxItemPosition(categoryId: string) {
+      const [row] = await db
+        .select({ max: max(item.position) })
+        .from(item)
+        .where(eq(item.categoryId, categoryId))
+      return Number(row?.max ?? -10)
     },
 
     async setRestaurantDefaultLanguage(restaurantId, language) {

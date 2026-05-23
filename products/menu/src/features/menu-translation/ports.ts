@@ -1,14 +1,22 @@
 import type { LanguageCode } from '@/features/i18n'
+import type { ItemVariant } from '@/shared/db/schema'
 
 /**
  * A single translatable field on a row. The combination of `{rowKind, id,
  * field}` is the natural key the writer uses to land the result back on
  * the right column.
+ *
+ * `field` is encoded as one of:
+ *   - "name"            — the row's name column
+ *   - "description"     — the row's description column
+ *   - "variant:<idx>"   — item rows only; the label of the variant at
+ *                         the given array index (idx is the variant's
+ *                         position in `item.variants` at projection time)
  */
 export type TranslatableField = {
   rowKind: 'item' | 'category'
   id: string
-  field: 'name' | 'description'
+  field: string
   text: string
 }
 
@@ -47,6 +55,13 @@ export type StaleRow = {
   nameI18n: Partial<Record<LanguageCode, string>> | null
   description: string | null
   descriptionI18n: Partial<Record<LanguageCode, string>> | null
+  /**
+   * Item rows only — the item's variants at the moment of the stale
+   * read. Each `label` is a translatable string; the writer rebuilds
+   * the array with the translations merged into each variant's
+   * `labelI18n`. Categories have no variants — leave undefined.
+   */
+  variants?: ItemVariant[] | null
 }
 
 export type WriteUpdate = {
@@ -54,6 +69,12 @@ export type WriteUpdate = {
   id: string
   nameI18n: Partial<Record<LanguageCode, string>> | null
   descriptionI18n: Partial<Record<LanguageCode, string>> | null
+  /**
+   * Item rows only — the rebuilt variants array with translated
+   * `labelI18n`s merged in. `undefined` means "leave the column alone";
+   * pass `null` (or `[]`) to explicitly clear.
+   */
+  variants?: ItemVariant[] | null
 }
 
 export interface TranslationDataPort {

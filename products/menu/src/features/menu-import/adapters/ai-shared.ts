@@ -111,6 +111,110 @@ export const MenuOutputSchema = z.object({
 
 export type MenuOutput = z.infer<typeof MenuOutputSchema>
 
+// ── PATCH-mode schema ─────────────────────────────────────────────────────
+
+/**
+ * Token-efficient diff format. The AI sees the current menu + a fresh
+ * photo and returns ONLY the operations needed to bring the menu in
+ * line with the photo. Items that are unchanged don't appear anywhere.
+ */
+const PatchOperationAISchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('add-category'),
+    name: z.string().describe('Name of the new category as printed on the menu.'),
+    items: z
+      .array(
+        z.object({
+          name: z.string(),
+          priceCents: z.number().int().min(0).default(0),
+          description: z.string().optional(),
+        }),
+      )
+      .default([]),
+  }),
+  z.object({
+    kind: z.literal('remove-category'),
+    categoryId: z.string().describe('id of an existing category to drop.'),
+  }),
+  z.object({
+    kind: z.literal('rename-category'),
+    categoryId: z.string(),
+    name: z.string(),
+  }),
+  z.object({
+    kind: z.literal('add-item'),
+    categoryId: z
+      .string()
+      .nullable()
+      .describe(
+        'id of the existing category this item belongs to. Pass null and ' +
+          'set `categoryName` when the parent is a category you just added ' +
+          'in an `add-category` op.',
+      ),
+    categoryName: z.string().optional(),
+    name: z.string(),
+    priceCents: z.number().int().min(0).default(0),
+    description: z.string().optional(),
+  }),
+  z.object({
+    kind: z.literal('update-item'),
+    itemId: z.string().describe('id of an existing item to modify.'),
+    name: z.string().optional(),
+    priceCents: z.number().int().min(0).optional(),
+    description: z.string().optional(),
+  }),
+  z.object({
+    kind: z.literal('remove-item'),
+    itemId: z.string().describe('id of an existing item to drop.'),
+  }),
+])
+
+export const MenuPatchSchema = z.object({
+  language: LanguageAISchema,
+  currency: z.string().default(''),
+  operations: z.array(PatchOperationAISchema).default([]),
+})
+
+export type MenuPatchOutput = z.infer<typeof MenuPatchSchema>
+
+export const PATCH_SYSTEM_PROMPT = `You are a menu update assistant.
+The user shows you a restaurant's CURRENT menu (as JSON) and a fresh
+photo of the same menu. Your job is to return ONLY the operations
+needed to bring the stored menu in line with the photo.
+
+Output a single \`operations\` array. Empty array means "no changes".
+
+OP KINDS:
+- "add-category" — a brand-new section visible in the photo. Include
+  its items inline (with name + priceCents).
+- "remove-category" — a section that's gone from the photo. Reference
+  by the \`id\` from the input JSON. Items cascade automatically.
+- "rename-category" — same section, different printed name.
+- "add-item" — a new dish. If its parent category EXISTS in the input
+  JSON, set \`categoryId\` to that id and omit \`categoryName\`. If the
+  parent is itself a NEW category (you also emitted an "add-category"
+  op for it), set \`categoryId\` to null and \`categoryName\` to the
+  new category's name.
+- "update-item" — same dish, different name / price / description.
+  Reference by the \`id\` from the input JSON. ONLY include the fields
+  that changed. Do not echo the unchanged fields.
+- "remove-item" — a dish that's gone from the photo. Reference by id.
+
+RULES:
+- TOKEN ECONOMY — items whose name, price, and description match the
+  photo MUST NOT appear in the output. Don't echo unchanged data.
+- IDENTITY — match items by name (case-insensitive, accent-insensitive,
+  ignoring trailing punctuation). A minor wording change ("Polvo à
+  lagareiro" → "Polvo à lagareiro grelhado") is an "update-item" on
+  the same id, not a remove + add.
+- PRICE PARSING — €12.50 → priceCents 1250. €0,00 or no symbol → 0.
+- LANGUAGE / CURRENCY — return the menu's detected language and
+  currency the same way as the full-import flow (single language in
+  names/descriptions, ISO 4217 currency code).
+- IF THE PHOTO ISN'T A MENU — return \`operations: []\`. Do not invent.
+- IF THE PHOTO IS THE SAME MENU UNCHANGED — return \`operations: []\`.
+  This is a valid, common outcome.`
+
 // ── Prompt ────────────────────────────────────────────────────────────────
 
 export const SYSTEM_PROMPT = `You are a menu-digitisation assistant.

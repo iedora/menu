@@ -17,12 +17,36 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Button, Field, FieldInput } from '@iedora/design-system'
+import { useTranslations } from 'next-intl'
 import type { LanguageCode } from '@/features/i18n'
-import { createCategory, reorderCategories } from '../actions'
+import { reorderCategories } from '../actions'
 import { SortableCategory } from './sortable-category'
+import { SectionChips } from './section-chips'
+import { AddSectionDialog } from './add-section-dialog'
 import type { BuilderCategory } from './types'
 
+/**
+ * Restaurant menu editor — top-level shell.
+ *
+ * The redesign organises the surface as a real app:
+ *
+ *   1. Sticky horizontal chip nav      — tap to jump to any section.
+ *   2. Stacked section cards            — each card has its own kebab
+ *                                         (Rename / Translate / Delete)
+ *                                         and a "+ Add item" CTA at the
+ *                                         bottom.
+ *   3. Quiet dotted "+ Add section"     — bottom of the page.
+ *
+ * The chip nav doubles as a visual table of contents — operators with
+ * 25–40 dishes across 4–6 sections can scan the whole menu without
+ * scrolling. IntersectionObserver in `SectionChips` keeps the chip
+ * matching whichever section is currently in view.
+ *
+ * Every interactive element here is at least 44px tall. No inline
+ * forms sit at the bottom of every section like before; "+ Add item"
+ * opens a focused dialog so the operator's hot path is two taps
+ * (tap +, type name, save → repeat).
+ */
 export function MenuBuilder({
   slug,
   menuId,
@@ -38,38 +62,34 @@ export function MenuBuilder({
   supportedLanguages: LanguageCode[]
   initialCategories: BuilderCategory[]
 }) {
+  const t = useTranslations('Builder')
   const router = useRouter()
   const [categories, setCategories] = useState<BuilderCategory[]>(initialCategories)
   const [prevInitial, setPrevInitial] = useState(initialCategories)
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [pending, startTransition] = useTransition()
+  const [addSectionOpen, setAddSectionOpen] = useState(false)
+  const [, startTransition] = useTransition()
 
-  // After a server action calls revalidateRestaurant + router.refresh, the
-  // page re-renders with fresh `initialCategories`. Sync local state via a
-  // render-phase update — React's recommended pattern over `useEffect` for
-  // "reset state when a prop changes" (https://react.dev/learn/you-might-not-need-an-effect#resetting-all-state-when-a-prop-changes).
+  // Sync local state with the server-rendered prop after mutations —
+  // render-phase update is the React-recommended pattern for "reset on
+  // prop change". See https://react.dev/learn/you-might-not-need-an-effect.
   if (initialCategories !== prevInitial) {
     setPrevInitial(initialCategories)
     setCategories(initialCategories)
   }
 
-  // 8px activation distance prevents click-to-edit from triggering a drag.
-  // KeyboardSensor with sortableKeyboardCoordinates makes the list accessible
-  // (Tab to handle, Space to pick up, arrow keys to move, Space to drop) and
-  // lets E2E tests drive reorder deterministically without flaky pointer math.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
+  const dndId = useId()
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-
     const oldIndex = categories.findIndex((c) => c.id === active.id)
     const newIndex = categories.findIndex((c) => c.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
-
     const reordered = arrayMove(categories, oldIndex, newIndex)
     setCategories(reordered) // optimistic
     startTransition(async () => {
@@ -82,37 +102,45 @@ export function MenuBuilder({
     })
   }
 
-  function onAddCategory(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const name = newCategoryName.trim()
-    if (!name) return
-    startTransition(async () => {
-      const res = await createCategory(slug, menuId, name)
-      if (res && 'ok' in res) {
-        setNewCategoryName('')
-        router.refresh()
-      }
-    })
-  }
-
-  // dnd-kit generates `aria-describedby` IDs from a global counter,
-  // which can race between SSR and client hydration when more than one
-  // DndContext mounts in a route. Anchor the ID with `useId()` so server
-  // and client always emit the same value.
-  const dndId = useId()
-
   return (
     <div className="space-y-4">
-      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      {categories.length > 0 && (
+        <SectionChips
+          categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+          addLabel={t('addSection')}
+          onAddSection={() => setAddSectionOpen(true)}
+        />
+      )}
+
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext
           items={categories.map((c) => c.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-3">
+          <div className="space-y-4">
             {categories.length === 0 ? (
-              <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                No categories yet. Add one below to get started.
-              </p>
+              <div className="border border-dashed border-[var(--ink-24)] p-8 text-center">
+                <p
+                  className="text-base text-[var(--ink-70)] mb-4"
+                  data-test-id="menu-builder-empty"
+                >
+                  {t('emptyMenu')}
+                </p>
+                <button
+                  type="button"
+                  className="menu-builder-add-section"
+                  onClick={() => setAddSectionOpen(true)}
+                  data-test-id="menu-builder-add-section-empty"
+                >
+                  <span aria-hidden="true">＋</span>
+                  <span>{t('addFirstSection')}</span>
+                </button>
+              </div>
             ) : (
               categories.map((c) => (
                 <SortableCategory
@@ -129,26 +157,24 @@ export function MenuBuilder({
         </SortableContext>
       </DndContext>
 
-      <form
-        onSubmit={onAddCategory}
-        className="flex items-center gap-2 rounded-lg border border-dashed p-3"
-      >
-        <Field className="flex-1">
-          <FieldInput
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            placeholder="New category name (e.g. Starters)"
-            maxLength={80}
-          />
-        </Field>
-        <Button
-          type="submit"
-          variant="solid"
-          disabled={pending || newCategoryName.trim().length === 0}
+      {categories.length > 0 && (
+        <button
+          type="button"
+          className="menu-builder-add-section"
+          onClick={() => setAddSectionOpen(true)}
+          data-test-id="menu-builder-add-section"
         >
-          Add category
-        </Button>
-      </form>
+          <span aria-hidden="true">＋</span>
+          <span>{t('addSection')}</span>
+        </button>
+      )}
+
+      <AddSectionDialog
+        open={addSectionOpen}
+        onOpenChange={setAddSectionOpen}
+        slug={slug}
+        menuId={menuId}
+      />
     </div>
   )
 }

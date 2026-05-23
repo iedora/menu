@@ -84,7 +84,7 @@ test.describe('@responsive dashboard pages at phone width', () => {
     await assertNoHorizontalOverflow(signedInPage)
   })
 
-  test('/dashboard/r/[slug] renders with Home crumb + restaurant title', async ({
+  test('/dashboard/r/[slug] renders headerless — content claims the viewport', async ({
     signIn,
   }) => {
     const org = seedOrg({ id: 'org-rest', name: 'Rest Co.' })
@@ -103,10 +103,10 @@ test.describe('@responsive dashboard pages at phone width', () => {
     await page.setViewportSize(PHONE)
     await page.goto(`/dashboard/r/${r.slug}`)
     await expect(page.getByTestId('restaurant')).toBeVisible()
-    await expect(page.getByTestId('restaurant-breadcrumb-home')).toBeVisible()
-    await expect(page.getByTestId('restaurant-breadcrumb-current')).toContainText(
-      'Casa de Pedra',
-    )
+    // chrome="none" — no visible breadcrumb / heading, the sidebar
+    // already says which restaurant we're on. Action cards claim the
+    // top of the viewport.
+    await expect(page.getByTestId('restaurant-actions')).toBeVisible()
     await assertNoHorizontalOverflow(page)
   })
 

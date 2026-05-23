@@ -1,24 +1,29 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { Button, SectionHeader } from '@iedora/design-system'
+import { useTranslations } from 'next-intl'
+import { Badge, Button, SectionHeader } from '@iedora/design-system'
 import { QrViewer } from './qr-viewer'
 
 /**
  * Per-restaurant QR shelf — the read-only tenant-side view of every QR
- * pointing at this restaurant. Renders:
+ * pointing at this restaurant. Two stacked sections:
  *
- *   1. The branded URL QR (`/r/<slug>`) — large card with download +
- *      print. Same `<QrViewer>` the page used before; this is the QR
- *      most operators want for menus, business cards, social.
+ *   1. **Your menu QR** — `/r/<slug>`, the QR most operators want for
+ *      menus, business cards, social. Owned by them; freely
+ *      regeneratable from the slug.
  *
- *   2. Bound sticker QRs (`/q/<code>`) — only when the restaurant has
- *      any. Compact grid of cards, each showing the QR + sticker code +
- *      label + a single download button. The codes themselves are
- *      managed cross-tenant by iedora-admin from /dashboard/admin/qr-codes;
- *      this surface is purely a reader for the operator to verify what's
- *      printed and pointing at them.
+ *   2. **Bound stickers** — `/q/<code>`, pre-printed sticker codes
+ *      assigned to this restaurant cross-tenant by the iedora team via
+ *      `/dashboard/admin/qr-codes`. Tagged `Admin-managed` so the
+ *      operator immediately understands the section is read-only and
+ *      who to contact to change it.
+ *
+ * Both sections share the same `SectionHeader` rhythm; both are
+ * single-column on mobile and gain columns from `sm` upward. The
+ * branded card is centred via a grid place so the QR doesn't drift
+ * to the left edge on wider viewports.
  */
 export function RestaurantQrShelf({
   brandedUrl,
@@ -29,19 +34,59 @@ export function RestaurantQrShelf({
   brandedUrl: string
   restaurantName: string
   /** Sticker codes bound to this restaurant. Empty list = nothing to render below the branded QR. */
-  stickers: ReadonlyArray<{ code: string; label: string | null; boundAt: string | null }>
+  stickers: ReadonlyArray<{
+    code: string
+    label: string | null
+    boundAt: string | null
+  }>
   publicOrigin: string
 }) {
+  const t = useTranslations('Qr')
+
   return (
-    <div className="space-y-8">
-      <QrViewer publicUrl={brandedUrl} restaurantName={restaurantName} />
+    <div
+      className="space-y-10"
+      data-test-id="restaurant-qr-shelf"
+    >
+      <section className="space-y-4" data-test-id="restaurant-qr-branded-section">
+        <SectionHeader title={t('brandedTitle')} hint={t('brandedHint')} />
+        <div className="grid place-items-center">
+          <QrViewer
+            publicUrl={brandedUrl}
+            restaurantName={restaurantName}
+          />
+        </div>
+      </section>
 
       {stickers.length > 0 && (
-        <section className="space-y-4">
-          <SectionHeader
-            title={`Bound stickers (${stickers.length})`}
-            hint="read-only · manage via admin"
-          />
+        <section
+          className="space-y-4"
+          data-test-id="restaurant-qr-bound-section"
+        >
+          {/* Heading row: title fills the row, the admin-managed badge
+              clings to the right. flex-wrap so on a narrow phone the
+              badge drops below the title instead of cramping it. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <SectionHeader
+                title={t('boundStickersTitle', { count: stickers.length })}
+                hint={t('boundStickersCount', { count: stickers.length })}
+              />
+            </div>
+            <Badge
+              variant="ghost"
+              data-test-id="restaurant-qr-bound-admin-tag"
+            >
+              {t('adminManagedTag')}
+            </Badge>
+          </div>
+
+          <p
+            className="max-w-prose text-sm text-[var(--ink-55)]"
+            data-test-id="restaurant-qr-bound-explanation"
+          >
+            {t('boundStickersExplanation')}
+          </p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {stickers.map((s) => (
@@ -76,6 +121,7 @@ function StickerCard({
 }) {
   const [svgMarkup, setSvgMarkup] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const t = useTranslations('Qr')
 
   useEffect(() => {
     let cancelled = false
@@ -113,11 +159,14 @@ function StickerCard({
   }
 
   return (
-    <div
-      className="flex flex-col gap-2 border border-[var(--ink-14)] bg-[var(--paper)] p-3"
-      data-testid="qr-sticker-card"
+    <article
+      className="flex flex-col gap-3 border border-[var(--ink-14)] bg-[var(--paper)] p-3"
+      data-test-id="qr-sticker-card"
     >
-      <div className="mx-auto bg-white p-2" style={{ width: COMPACT_PX + 16, height: COMPACT_PX + 16 }}>
+      <div
+        className="mx-auto bg-white p-2"
+        style={{ width: COMPACT_PX + 16, height: COMPACT_PX + 16 }}
+      >
         {svgMarkup ? (
           <div
             style={{ width: COMPACT_PX, height: COMPACT_PX }}
@@ -131,28 +180,34 @@ function StickerCard({
           />
         )}
       </div>
-      <div className="flex flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <span className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
-          code · {code}
+          {t('stickerCodeLabel')} · {code}
         </span>
-        {label && <span className="text-sm text-[var(--ink)]">{label}</span>}
-        <span className="font-mono text-[10px] text-[var(--ink-40)] truncate" title={stickerUrl}>
+        {label && (
+          <span className="truncate text-sm text-[var(--ink)]" title={label}>
+            {label}
+          </span>
+        )}
+        <span
+          className="truncate font-mono text-[10px] text-[var(--ink-40)]"
+          title={stickerUrl}
+        >
           {stickerUrl.replace(/^https?:\/\//, '')}
         </span>
       </div>
-      {error && (
-        <p className="text-[10px] text-[var(--cinnabar)]">{error}</p>
-      )}
+      {error && <p className="text-[10px] text-[var(--cinnabar)]">{error}</p>}
       <Button
         type="button"
         variant="ghost"
         onClick={downloadPng}
         disabled={!svgMarkup}
-        data-testid="qr-sticker-download"
+        data-test-id="qr-sticker-download"
+        className="w-full"
       >
-        Download PNG
+        {t('downloadPng')}
       </Button>
-    </div>
+    </article>
   )
 }
 

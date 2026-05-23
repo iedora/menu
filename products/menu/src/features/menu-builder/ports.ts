@@ -99,7 +99,16 @@ export interface MenuWritePort {
   insertItemAtEnd(
     categoryId: string,
     restaurantId: string,
-    fields: { name: string; priceCents: number },
+    fields: {
+      name: string
+      priceCents: number
+      /** Optional initial variants. Omit / `null` / `[]` for no variants. */
+      variants?: ReadonlyArray<{
+        label: string
+        labelI18n?: LocalizedText | null
+        priceCents: number
+      }> | null
+    },
   ): Promise<string>
 
   updateItem(
@@ -114,9 +123,15 @@ export interface MenuWritePort {
       /**
        * Ad-hoc variants. `null` (or omitted) is "leave alone" semantics —
        * the adapter only writes the column when the field is present.
-       * Pass `[]` to explicitly clear.
+       * Pass `[]` to explicitly clear. `labelI18n` per variant carries
+       * non-default-language translations of the label; omit / null when
+       * the variant has no translations yet.
        */
-      variants?: ReadonlyArray<{ label: string; priceCents: number }> | null
+      variants?: ReadonlyArray<{
+        label: string
+        labelI18n?: LocalizedText | null
+        priceCents: number
+      }> | null
     },
   ): Promise<void>
 

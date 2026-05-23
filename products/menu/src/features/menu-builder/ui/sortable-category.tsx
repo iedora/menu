@@ -19,29 +19,34 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Field,
-  FieldInput,
-} from '@iedora/design-system'
+import { FieldInput } from '@iedora/design-system'
+import { useTranslations } from 'next-intl'
 import type { LanguageCode } from '@/features/i18n'
-import {
-  createItem,
-  deleteCategory,
-  reorderItems,
-  updateCategoryName,
-} from '../actions'
+import { reorderItems, updateCategoryName } from '../actions'
 import { CategoryTranslateDialog } from './category-translate-dialog'
+import { CategoryMenu } from './category-menu'
+import { AddItemDialog } from './add-item-dialog'
 import { SortableItem } from './sortable-item'
 import type { BuilderCategory, BuilderItem } from './types'
 
+/**
+ * Renders one section card: title row + items list + "+ Add item" CTA.
+ *
+ * Big shifts vs the previous version:
+ *   - Header is one row only: title (tap to rename inline) + small
+ *     translate button (multi-lang only) + kebab. The destructive
+ *     "Delete" lives behind the kebab so a misplaced tap doesn't nuke a
+ *     section.
+ *   - The inline add-item form is gone. "+ Add item" opens `AddItemDialog`
+ *     which keeps the operator focused (one form, two fields).
+ *   - Drag handles live on the LEFT and use a real SVG grip glyph.
+ *     The whole row is the tap target — the operator drags by the grip,
+ *     taps anywhere else to open the item editor.
+ *
+ * Reorder mode (Phase B candidate): right now drag is always live with
+ * an 8px activation distance — safe for click-to-edit. A future "Reorder"
+ * toggle behind the kebab can disable click-to-edit for the duration.
+ */
 export function SortableCategory({
   slug,
   restaurantId,
@@ -55,25 +60,23 @@ export function SortableCategory({
   supportedLanguages: LanguageCode[]
   category: BuilderCategory
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: category.id,
-  })
-
+  const t = useTranslations('Builder')
   const router = useRouter()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: category.id })
+
   const [items, setItems] = useState<BuilderItem[]>(category.items)
   const [prevItems, setPrevItems] = useState(category.items)
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState(category.name)
   const [prevName, setPrevName] = useState(category.name)
-  const [newItemName, setNewItemName] = useState('')
-  const [newItemPrice, setNewItemPrice] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [addItemOpen, setAddItemOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  // Sync local state with the server-rendered prop after a mutation triggers
-  // router.refresh() upstream. Render-phase update over `useEffect` — React's
-  // recommended pattern for "reset state when a prop changes" (see
-  // https://react.dev/learn/you-might-not-need-an-effect).
+  // Sync local state with the server-rendered prop after a mutation
+  // triggers router.refresh() upstream. Render-phase update per React's
+  // "reset state when a prop changes" recipe — better than useEffect
+  // because the new state is visible on the same render.
   if (category.items !== prevItems) {
     setPrevItems(category.items)
     setItems(category.items)
@@ -88,10 +91,6 @@ export function SortableCategory({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  // Stable ID for dnd-kit's accessibility wiring. Without it the global
-  // counter inside dnd-kit races between SSR and hydration when more
-  // than one DndContext lives on a route, surfacing as an
-  // aria-describedby mismatch in dev.
   const dndId = useId()
 
   function handleItemDragEnd(event: DragEndEvent) {
@@ -127,40 +126,33 @@ export function SortableCategory({
     })
   }
 
-  function onAddItem(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const trimmed = newItemName.trim()
-    const priceCents = Math.round(Number(newItemPrice.replace(',', '.')) * 100)
-    if (!trimmed || !Number.isFinite(priceCents) || priceCents < 0) return
-    startTransition(async () => {
-      const res = await createItem(slug, category.id, { name: trimmed, priceCents })
-      if (res && 'ok' in res) {
-        setNewItemName('')
-        setNewItemPrice('')
-        router.refresh()
-      }
-    })
-  }
+  const currency = items[0]?.currency ?? 'EUR'
 
   return (
-    <div
+    <section
       ref={setNodeRef}
+      id={`menu-section-${category.id}`}
+      data-section-id={category.id}
+      data-test-id={`menu-section-${category.id}`}
+      className="menu-section-card"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className="rounded-lg border bg-card"
     >
-      <div className="flex items-center gap-2 border-b p-3">
+      <header className="menu-section-card__head">
         <button
-          aria-label="Drag category"
+          type="button"
+          aria-label={t('dragSection', { name: category.name })}
+          data-test-id={`menu-section-grip-${category.id}`}
+          className="menu-builder-grip"
           {...attributes}
           {...listeners}
-          className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
         >
-          ⋮⋮
+          <GripIcon />
         </button>
+
         {editingName ? (
           <FieldInput
             autoFocus
@@ -174,17 +166,21 @@ export function SortableCategory({
                 setEditingName(false)
               }
             }}
-            className="h-8"
+            className="h-9 flex-1"
             maxLength={80}
+            data-test-id={`menu-section-name-input-${category.id}`}
           />
         ) : (
           <button
+            type="button"
+            className="menu-section-card__head-title"
             onClick={() => setEditingName(true)}
-            className="flex-1 text-left text-base font-medium hover:underline"
+            data-test-id={`menu-section-title-${category.id}`}
           >
             {category.name}
           </button>
         )}
+
         {supportedLanguages.length > 1 && (
           <CategoryTranslateDialog
             slug={slug}
@@ -199,39 +195,14 @@ export function SortableCategory({
             }}
           />
         )}
-        <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" aria-label={`Delete ${category.name}`}>
-              Delete
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete {category.name}?</DialogTitle>
-              <DialogDescription>
-                Removes this category and all of its items.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
-              {/* destructive → accent (closest iedora visual for a danger action) */}
-              <Button
-                variant="accent"
-                disabled={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    await deleteCategory(slug, category.id)
-                    setConfirmDelete(false)
-                    router.refresh()
-                  })
-                }
-              >
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+
+        <CategoryMenu
+          slug={slug}
+          categoryId={category.id}
+          categoryName={category.name}
+          onRename={() => setEditingName(true)}
+        />
+      </header>
 
       <DndContext
         id={dndId}
@@ -243,10 +214,10 @@ export function SortableCategory({
           items={items.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="divide-y">
+          <div className="menu-section-card__items">
             {items.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                No items in this category yet.
+              <p className="menu-section-card__empty">
+                {t('emptySection')}
               </p>
             ) : (
               items.map((it) => (
@@ -264,34 +235,38 @@ export function SortableCategory({
         </SortableContext>
       </DndContext>
 
-      <form onSubmit={onAddItem} className="flex items-center gap-2 border-t p-3">
-        <Field className="flex-1">
-          <FieldInput
-            placeholder="Item name"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            maxLength={120}
-          />
-        </Field>
-        <Field className="w-24">
-          <FieldInput
-            placeholder="0.00"
-            inputMode="decimal"
-            value={newItemPrice}
-            onChange={(e) => setNewItemPrice(e.target.value)}
-          />
-        </Field>
-        <Button
-          type="submit"
-          disabled={
-            pending ||
-            newItemName.trim().length === 0 ||
-            newItemPrice.trim().length === 0
-          }
-        >
-          Add item
-        </Button>
-      </form>
-    </div>
+      <button
+        type="button"
+        className="menu-builder-add"
+        onClick={() => setAddItemOpen(true)}
+        disabled={pending}
+        data-test-id={`menu-section-add-item-${category.id}`}
+      >
+        <span aria-hidden="true">＋</span>
+        <span>{t('addItem')}</span>
+      </button>
+
+      <AddItemDialog
+        open={addItemOpen}
+        onOpenChange={setAddItemOpen}
+        slug={slug}
+        categoryId={category.id}
+        categoryName={category.name}
+        currency={currency}
+      />
+    </section>
+  )
+}
+
+function GripIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="18" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="18" r="1.5" fill="currentColor" />
+    </svg>
   )
 }

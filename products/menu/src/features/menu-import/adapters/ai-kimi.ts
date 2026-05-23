@@ -17,12 +17,18 @@
 import 'server-only'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { generateObject } from 'ai'
-import type { ImageAnalysisPort, ParseMenuResult } from '../ports'
+import type {
+  ImageAnalysisPort,
+  ParseMenuPatchResult,
+  ParseMenuResult,
+} from '../ports'
 import {
   classifyError,
   fetchImageBytes,
   mapAIResponseToParsedMenu,
   MenuOutputSchema,
+  MenuPatchSchema,
+  PATCH_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
   USER_PROMPT,
 } from './ai-shared'
@@ -114,12 +120,76 @@ export function createKimiAdapter(
     }
   }
 
+  async function parseMenuPatch({
+    imageUrl,
+    current,
+  }: {
+    imageUrl: string
+    current: Parameters<ImageAnalysisPort['parseMenuPatch']>[0]['current']
+  }): Promise<ParseMenuPatchResult> {
+    const fetched = await fetchImageBytes(imageUrl)
+    if ('error' in fetched) return fetched
+
+    // Compact context. Keep it short — the AI matches by name anyway,
+    // so descriptions and i18n overrides would just burn tokens.
+    const compact = {
+      language: current.language,
+      currency: current.currency,
+      categories: current.categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        items: c.items.map((it) => ({
+          id: it.id,
+          name: it.name,
+          priceCents: it.priceCents,
+        })),
+      })),
+    }
+
+    try {
+      const { object } = await generateObject({
+        model,
+        schema: MenuPatchSchema,
+        system: PATCH_SYSTEM_PROMPT,
+        temperature: 0,
+        maxOutputTokens: KIMI_MAX_OUTPUT_TOKENS,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', image: fetched.bytes, mediaType: fetched.mediaType },
+              {
+                type: 'text',
+                text:
+                  'Current menu (JSON):\n```json\n' +
+                  JSON.stringify(compact) +
+                  '\n```\n\nReturn only the operations needed to bring this in line with the photo.',
+              },
+            ],
+          },
+        ],
+      })
+      return {
+        language: object.language,
+        currency: object.currency,
+        operations: object.operations,
+      }
+    } catch (err) {
+      console.error('[menu-import/ai-kimi] PATCH call failed', err)
+      return {
+        error: err instanceof Error ? err.message : String(err),
+        code: classifyError(err),
+      }
+    }
+  }
+
   return {
     async parseMenuFromImage(imageUrl: string): Promise<ParseMenuResult> {
       const fetched = await fetchImageBytes(imageUrl)
       if ('error' in fetched) return fetched
       return parseMenuFromBytes(fetched.bytes, fetched.mediaType)
     },
+    parseMenuPatch,
     _parseMenuFromBytes: parseMenuFromBytes,
   }
 }

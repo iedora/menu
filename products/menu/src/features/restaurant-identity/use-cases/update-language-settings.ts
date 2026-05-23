@@ -22,7 +22,17 @@ const Input = z
     path: ['defaultLanguage'],
   })
 
-export type UpdateLanguageSettingsResult = { ok: true } | { error: string }
+export type UpdateLanguageSettingsResult =
+  | {
+      ok: true
+      /** Did the default language change vs. the stored value? */
+      defaultChanged: boolean
+      /** Source columns rewritten by the promotion. */
+      rowsPromoted: number
+      /** Rows that had no translation to promote — operator must fix. */
+      rowsNeedingAttention: number
+    }
+  | { error: string }
 
 export async function updateLanguageSettings(
   port: IdentityWritePort,
@@ -37,9 +47,9 @@ export async function updateLanguageSettings(
   // Dedupe + keep declarative order from input. supportedLanguages is a JSON
   // array (not a Postgres set), so we control the persisted shape here.
   const supported = Array.from(new Set(parsed.data.supportedLanguages))
-  await port.updateLanguageSettings(parsed.data.restaurantId, {
+  const stats = await port.updateLanguageSettings(parsed.data.restaurantId, {
     defaultLanguage: parsed.data.defaultLanguage,
     supportedLanguages: supported,
   })
-  return { ok: true }
+  return { ok: true, ...stats }
 }

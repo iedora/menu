@@ -222,10 +222,18 @@ export function localizeTree(
         available: it.available,
         tags: it.tags,
         imageUrl: it.imageUrl,
-        // Variant labels stay as written today (no i18n overrides yet);
-        // pass them through verbatim. If/when we add label translations
-        // this is the spot that picks the right language.
-        variants: it.variants,
+        // Variant labels follow the same fallback chain as name /
+        // description — pick from `labelI18n[requested]`, fall back to
+        // the source `label`, then to empty (handled by `localized`).
+        variants: it.variants.map((v) => ({
+          label: localized(
+            v.label,
+            v.labelI18n,
+            currentLanguage,
+            defaultLanguage,
+          ),
+          priceCents: v.priceCents,
+        })),
       })),
     })),
   }))

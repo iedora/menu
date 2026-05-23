@@ -344,4 +344,103 @@ describe('refreshTranslations', () => {
     expect(seenTargets[0]).not.toContain('pt')
     expect(seenTargets[0]).toContain('en')
   })
+
+  it('translates variant labels alongside name + description and merges into labelI18n', async () => {
+    const captured: WriteUpdate[][] = []
+    const data = makeData({
+      defaultLanguage: 'pt',
+      supportedLanguages: ['pt', 'en'],
+      stale: [
+        {
+          rowKind: 'item',
+          id: 'i-1',
+          name: 'Bacalhau',
+          nameI18n: null,
+          description: null,
+          descriptionI18n: null,
+          variants: [
+            { label: 'Dose', priceCents: 1500 },
+            // Pre-existing FR translation must survive the EN-only sync.
+            { label: 'Meia dose', labelI18n: { fr: 'Demi' }, priceCents: 800 },
+            // Empty label — operator started a row and didn't fill it.
+            // Must be skipped to save tokens.
+            { label: '', priceCents: 0 },
+          ],
+        },
+      ],
+      onApply: (u) => captured.push([...u]),
+    })
+
+    const seenFields: string[] = []
+    const translator = makeTranslator((fields) => {
+      const out: Record<string, Partial<Record<LanguageCode, string>>> = {}
+      for (const f of fields) {
+        seenFields.push(f.field)
+        const key = `${f.rowKind}:${f.id}:${f.field}`
+        if (f.field === 'name') out[key] = { en: 'Cod' }
+        if (f.field === 'variant:0') out[key] = { en: 'Full' }
+        if (f.field === 'variant:1') out[key] = { en: 'Half' }
+      }
+      return out
+    })
+
+    const result = await refreshTranslations(data, translator, {
+      restaurantId: 'r-1',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error('unreachable')
+    // name + 2 non-empty variant labels = 3 fields (empty variant skipped).
+    expect(result.translatedFields).toBe(3)
+    expect(seenFields).toEqual(['name', 'variant:0', 'variant:1'])
+
+    const [updates] = captured
+    const it = updates![0]
+    expect(it?.nameI18n).toEqual({ en: 'Cod' })
+    // Variant labels round-trip with translations merged; priceCents
+    // unchanged; the empty-labelled variant is preserved as-is.
+    expect(it?.variants).toEqual([
+      { label: 'Dose', labelI18n: { en: 'Full' }, priceCents: 1500 },
+      {
+        label: 'Meia dose',
+        labelI18n: { fr: 'Demi', en: 'Half' },
+        priceCents: 800,
+      },
+      { label: '', labelI18n: null, priceCents: 0 },
+    ])
+  })
+
+  it('item rows without variants pass through unchanged (no variants key written)', async () => {
+    const captured: WriteUpdate[][] = []
+    const data = makeData({
+      defaultLanguage: 'pt',
+      supportedLanguages: ['pt', 'en'],
+      stale: [
+        {
+          rowKind: 'item',
+          id: 'i-1',
+          name: 'Café',
+          nameI18n: null,
+          description: null,
+          descriptionI18n: null,
+          // variants undefined — the adapter never read them (or the
+          // item never had any).
+        },
+      ],
+      onApply: (u) => captured.push([...u]),
+    })
+
+    await refreshTranslations(
+      data,
+      makeTranslator(() => ({})),
+      { restaurantId: 'r-1' },
+    )
+
+    const [updates] = captured
+    // No variants key on the WriteUpdate → adapter leaves the column
+    // alone. Critical: we don't accidentally NULL out variants on an
+    // item that has them just because the row had no translatable
+    // labels in this batch.
+    expect(updates![0]).not.toHaveProperty('variants')
+  })
 })
