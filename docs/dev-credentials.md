@@ -1,8 +1,8 @@
 # Dev credentials — what you log in with locally
 
-> **Prod secrets** live in BWS — see [`secrets.md`](secrets.md). This doc enumerates the **local `just dev` stack only**: literal passwords from `infra/dev/tofu/main.tf`, Tofu-minted values written into `products/menu/.env`, and the URLs to reach each surface.
+> **Prod secrets** live in BWS — see [`secrets.md`](secrets.md). This doc enumerates the **local `task dev` stack only**: literal passwords from `infra/dev/tofu/main.tf`, Tofu-minted values written into `products/menu/.env`, and the URLs to reach each surface.
 >
-> The dev stack is single-machine and the credentials below ship hard-coded in this repo. They unlock only the operator's own Docker daemon — never a remote service. Rotating them costs nothing (`just dev --destroy && just dev`).
+> The dev stack is single-machine and the credentials below ship hard-coded in this repo. They unlock only the operator's own Docker daemon — never a remote service. Rotating them costs nothing (`task dev:down && just dev`).
 
 ## Single master password
 
@@ -38,14 +38,14 @@ default = ["dev@iedora.local"]
 
 **Workflow:**
 1. Sign in to menu once with `dev@iedora.local` (Zitadel auto-provisions the user via OIDC on first login).
-2. Re-run `just dev` so the `zitadel_user_grant` resource picks up the now-existent user and grants `iedora-admin`.
+2. Re-run `task dev` so the `zitadel_user_grant` resource picks up the now-existent user and grants `iedora-admin`.
 3. Sign out + back in — the role lands on the next session.
 
-To grant additional emails: pass `-var iedora_admin_emails='["a@x", "b@y"]'` to `just dev` (or edit the default for stable changes).
+To grant additional emails: pass `-var iedora_admin_emails='["a@x", "b@y"]'` to `task dev` (or edit the default for stable changes).
 
 ## Programmatic credentials (auto-loaded by Next + Zitadel SDK)
 
-These live in **`products/menu/.env`** — committed, auto-rewritten on every `just dev`. Every value is a real working value; the random ones (`MENU_SESSION_SECRET`, signing keys, OAuth client secret) are minted by Tofu and re-minted on `just dev --destroy + just dev`.
+These live in **`products/menu/.env`** — committed, auto-rewritten on every `task dev`. Every value is a real working value; the random ones (`MENU_SESSION_SECRET`, signing keys, OAuth client secret) are minted by Tofu and re-minted on `task dev:down + just dev`.
 
 | Variable | What it unlocks | Source |
 |---|---|---|
@@ -76,12 +76,12 @@ The Drizzle Studio (`bun --bun drizzle-kit studio`) reads `DATABASE_URL` from `.
 
 | Symptom | Fix |
 |---|---|
-| Lost / corrupted `.env` | `just dev` regenerates (random secrets re-minted; literal passwords stay `Password1!`). |
+| Lost / corrupted `.env` | `task dev` regenerates (random secrets re-minted; literal passwords stay `Password1!`). |
 | Zitadel admin password lost | `just dev --reset-db zitadel` re-bootstraps; admin is `Password1!` again. |
 | Postgres data corrupted | `just dev --reset-db menu` (or `zitadel`) drops + recreates one DB. |
-| Whole stack flaky | `just dev --destroy && just dev` — wipes containers, volumes, state, regenerates everything. ~30s cold. |
+| Whole stack flaky | `task dev:down && just dev` — wipes containers, volumes, state, regenerates everything. ~30s cold. |
 
-`just dev --destroy` is best-effort: each step continues on failure (intentional — partial state should never block a reset).
+`task dev:down` is best-effort: each step continues on failure (intentional — partial state should never block a reset).
 
 ## What this doc does NOT cover
 

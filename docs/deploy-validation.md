@@ -39,10 +39,10 @@ moving parts compose correctly against live cloud APIs.
 Run from the repo root. Each step blocks until the previous one is `✓`.
 
 ```
-just deploy --destroy   # 1: tear down (idempotent — works from any state)
+task down   # 1: tear down (idempotent — works from any state)
 just deploy             # 2: cold deploy (full bootstrap dance)
 just deploy             # 3: warm deploy (should be a no-op)
-just deploy --destroy   # 4: destroy from a full estate
+task down   # 4: destroy from a full estate
 just deploy             # 5: cold deploy AGAIN (catches state-vs-cloud drift, DNS races)
 just deploy             # 6: warm deploy (final no-op check)
 ```
@@ -127,7 +127,7 @@ Apply complete! Resources: 1 imported, 25 added, 0 changed, 0 destroyed.  (Pass 
 | R2 bucket destroy hangs 30s then 409s `bucket not empty` | `internal/r2.EmptyBucket` failed silently and tofu tried the bucket destroy anyway. | Read the orchestrator's `! R2 empty failed` line. Likely the CF token lost R2 perms or the SigV4 escape rules regressed. Check `infra/internal/r2/r2_test.go` is still green. |
 | Pass 3 fails: `Errors.Target.DeniedURL` on `zitadel_action_target.menu_{permissions,grants}` | `waitForMenuDNS` budget exhausted OR the probe doesn't reflect Zitadel's resolver view anymore. | Check `deploy.go:waitForMenuDNS`. The 90s budget assumes infra-caddy's nslookup matches Zitadel's resolver — true today because both inherit the host's `/etc/resolv.conf`. If that ever changes, the probe needs to move into the Zitadel container (or a `--network iedora` sidecar). |
 | Warm deploy shows `N added` / `N changed` instead of `0/0/0` | Tofu plan drift. Read the plan output before the apply — usually a downstream resource attribute change cascaded from a provider upgrade. | Read the diff; commit the state + reason; do not merge until warm deploy is fully idempotent. |
-| `house deploy failed: known Cloudflare transient (10007 on assets-upload-session)` | CF's assets pipeline is in a transient 500 window (see workers-sdk#11153). Not your code, not your account. | Wait 15–30 min, re-run `just deploy`. Tofu picks up where it left off. |
+| `house deploy failed: known Cloudflare transient (10007 on assets-upload-session)` | CF's assets pipeline is in a transient 500 window (see workers-sdk#11153). Not your code, not your account. | Wait 15–30 min, re-run `task up`. Tofu picks up where it left off. |
 
 More entries in [`deploy-failure-modes.md`](deploy-failure-modes.md).
 

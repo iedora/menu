@@ -120,7 +120,7 @@ Every product exposes `/up`. [Better Stack](https://betterstack.com/) free tier:
 | Scenario | Cost/yr | Added complexity | Best fit |
 |---|---|---|---|
 | 1. Single CPX22 | €60 | None | Today. Pre-revenue, <100 concurrent |
-| 2. Bigger Hetzner | €90-230 | None — same `just deploy` | CPU/memory pressure but uptime still fine |
+| 2. Bigger Hetzner | €90-230 | None — same `task up` | CPU/memory pressure but uptime still fine |
 | 3. Multi-host shared-DB | €120-180 | Medium — two hosts, private network, partial HA only | Paying users + zero-downtime deploys mandatory |
 | 4. Postgres HA | €360+ | High — replication, failover, conflict handling | Thousands of tenants, real downtime intolerance |
 | 5. Multi-region | €600+ | Very high | Real geographic spread |

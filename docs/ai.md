@@ -70,7 +70,7 @@ The chain: `INFRA_CLAUDE_CODE_OAUTH_TOKEN` in BWS (`iedora-deploy`
 project) → `infra/bin/with-secrets` exports `TF_VAR_claude_code_oauth_token`
 → `variable "claude_code_oauth_token"` (`infra/tofu/variables.tf`) →
 `local.github_secrets["CLAUDE_CODE_OAUTH_TOKEN"]` (`infra/tofu/github.tf`)
-→ `just deploy` reconciles the GitHub Actions secret the workflow
+→ `task up` reconciles the GitHub Actions secret the workflow
 reads as `${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}`.
 
 One-time setup:
@@ -88,24 +88,24 @@ One-time setup:
 3. **Put it in BWS** as `INFRA_CLAUDE_CODE_OAUTH_TOKEN` in the
    `iedora-deploy` project (`bws secret create`, or the Bitwarden UI).
    The value never goes near the GitHub UI or shell history.
-4. **Write it through:** `just deploy`. Tofu reconciles the
+4. **Write it through:** `task up`. Tofu reconciles the
    `CLAUDE_CODE_OAUTH_TOKEN` GitHub Actions secret from BWS,
    *overwriting* any value already there — so a previously hand-set
    `gh secret set` value is cleanly superseded on the first apply (no
    `gh secret delete` needed; the secret name is the same).
 
 Do not edit the GitHub secret in the UI or with `gh secret set` once
-it's Tofu-managed — the next `just deploy` silently clobbers it
+it's Tofu-managed — the next `task up` silently clobbers it
 (infra hard rule 1). Change the value in BWS instead.
 
 ### Rotation / revocation
 
 - **Rotate:** re-run `claude setup-token`, update
-  `INFRA_CLAUDE_CODE_OAUTH_TOKEN` in BWS, `just deploy`. Same
+  `INFRA_CLAUDE_CODE_OAUTH_TOKEN` in BWS, `task up`. Same
   recipe as every other write-through (or `bws secret edit <id>` directly).
 - **Revoke:** revoke the OAuth grant in your Anthropic account and
   remove the BWS key + the `github.tf` map entry, then
-  `just deploy`. The workflow then fails closed (auth error) —
+  `task up`. The workflow then fails closed (auth error) —
   it does not run unauthenticated.
 - Treat its lifecycle as "rotate on suspicion, revoke when the Action
   is removed" — see `docs/secrets.md` § Expiration discipline.

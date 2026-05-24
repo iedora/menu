@@ -9,7 +9,7 @@ Maximize the share of infra defined declaratively so an LLM can safely add a 4th
 - **One source of truth per resource.** No "set in BWS AND in `gh variable set`."
 - **`for_each` over a `locals.products` map** wherever multiple products share a shape, so the marginal cost of a new product is a few lines in one place.
 - **Validation blocks** at variable boundaries to catch bad LLM edits before they hit a provider API.
-- **Idempotent surface.** Re-running `just deploy` should converge; nothing should need a specific call order.
+- **Idempotent surface.** Re-running `task up` should converge; nothing should need a specific call order.
 
 What we are NOT trying to do:
 
@@ -44,7 +44,7 @@ What we are NOT trying to do:
 | Per-product Tofu boilerplate | 2× duplicated `versions.tf` (32 lines each) + duplicated core variables | Adding a 3rd product = copy-paste-edit 3 files |
 | Cloudflare account ID | Hardcoded in 3× `.env` files | One more thing to remember on new-laptop setup |
 | 3× `bin/with-secrets` scripts | Per-product + shared infra | All compute the same TF_VAR_* aliases ± per-root variations |
-| Hetzner VPS bootstrap of Zitadel SA key | 3-pass `just deploy` dance — Pass 3 lifts FirstInstance's JSON key out of a Docker volume into BWS | Runs ONCE per Zitadel re-bootstrap; codified in `infra/justfile` but not pure-declarative |
+| Hetzner VPS bootstrap of Zitadel SA key | 3-pass `task up` dance — Pass 3 lifts FirstInstance's JSON key out of a Docker volume into BWS | Runs ONCE per Zitadel re-bootstrap; codified in `infra/justfile` but not pure-declarative |
 
 **Inherently imperative (leave alone):**
 
@@ -71,7 +71,7 @@ Background research agent verified the 2026 state of each candidate. Highlights 
 
 - **Workflows-as-HCL** — no traction. The closest thing is Terramate's `generate_file` primitive, and the 2026 consensus is "YAML is what every LLM has seen most of; keep it." Add `actionlint` as a CI lint step is the highest-value workflow-side improvement.
 - **Terragrunt / Terramate** — overkill at 3-product scale. The shared `modules/` directory + per-product roots pattern (which is what we'd adopt for Tier 2) covers everything they offered. Revisit Terramate if we ever ladder to 8+ stacks (it shines on change-detection).
-- **Atlantis / GitOps `tofu apply`** — overkill solo. The merge-time auto-apply pattern shines when there's a second human reviewing PRs; for solo dev, manual `just deploy` is plenty.
+- **Atlantis / GitOps `tofu apply`** — overkill solo. The merge-time auto-apply pattern shines when there's a second human reviewing PRs; for solo dev, manual `task up` is plenty.
 - **Stateless / state-as-code** — there is no 2026 movement toward stateless Tofu. The encrypted-state-in-git pattern this repo already uses IS the solo-dev best practice; the only tweak worth making is pinning PBKDF2 to ≥600k iterations.
 - **OS provisioning via Tofu provisioners** — explicitly deprecated. The 2026 pattern is cloud-init for cloud VPSes (`cloudinit_config` data source feeding Hetzner user-data), a one-shot bootstrap script for the homelab. Ansible is the textbook answer but out of proportion for one homelab + a couple of cloud nodes.
 
@@ -87,7 +87,7 @@ Sources: `integrations/terraform-provider-github` releases / [#2103](https://git
 
 ### Tier 1 · Tofu-managed GitHub repo config
 
-**What:** Declare every GH Actions secret + variable in `infra/tofu/github.tf` via the `integrations/github` provider. `just deploy` then reconciles GH repo state alongside Cloudflare + Tailscale.
+**What:** Declare every GH Actions secret + variable in `infra/tofu/github.tf` via the `integrations/github` provider. `task up` then reconciles GH repo state alongside Cloudflare + Tailscale.
 
 **Why first:** The `gh secret set` × 6 commands in `docs/deploy.md` are the most LLM-unfriendly part of the current setup — they require running a specific sequence, can't be re-derived from any source of truth, and silently go stale (e.g. the leftover `BETTER_AUTH_SECRET` currently in the repo from an earlier flow).
 
@@ -234,7 +234,7 @@ resource "bitwarden-secrets_secret" "infra_cloudflare_api_token" {
 
 ### Tier 6 (deferred) · GitOps for `tofu apply`
 
-**What:** Auto-`tofu apply` on push to main (via Atlantis or plain GHA). Currently `just deploy` is run from a laptop.
+**What:** Auto-`tofu apply` on push to main (via Atlantis or plain GHA). Currently `task up` is run from a laptop.
 
 **Why deferred:** For a solo dev, the laptop-driven flow has fewer moving parts. GitOps shines when there's a team that needs change review; for a solo dev who already reviews their own diffs, it's added complexity. Revisit when team grows.
 
@@ -286,7 +286,7 @@ Marginal cost drops from ~600 lines copied to ~80 lines new.
 
 - **Don't merge the per-product Tofu roots.** The blast-radius isolation is documented as deliberate; merging them puts every product's resources in one state file. Modules give code reuse without that cost.
 - **Don't move CI workflow YAMLs to HCL.** GH Actions' YAML is the canonical declarative form; the `actions-yaml-from-hcl` providers I've seen are toys.
-- **Don't auto-apply Tofu from CI** (Tier 6). For a solo dev, manual `just deploy` is plenty.
+- **Don't auto-apply Tofu from CI** (Tier 6). For a solo dev, manual `task up` is plenty.
 - **Don't introduce Terragrunt.** OpenTofu 1.10's native `encryption {}` + module sources cover everything Terragrunt offered; the maintenance cost isn't worth the marginal feature.
 
 ---
@@ -310,7 +310,7 @@ Done overnight, NOT applied (nothing touches `tofu apply` / `gh secret set` / th
 4. (Recommended in 2026) Migrate to a GitHub App later instead of the PAT — the App auth path is more future-proof per `integrations/terraform-provider-github` #2103. Out of scope for tonight.
 
 **After bootstrap, applying:**
-1. Run `just deploy` — Tofu reconciles GH Actions secrets + variables.
+1. Run `task up` — Tofu reconciles GH Actions secrets + variables.
 2. Verify with `gh secret list` and `gh variable list`.
 3. Delete the leftover `BETTER_AUTH_SECRET` GH secret: `gh secret delete BETTER_AUTH_SECRET` (Tofu doesn't manage what it doesn't declare, but it's worth cleaning up).
 

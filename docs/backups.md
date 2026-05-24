@@ -73,10 +73,10 @@ Wall-clock: ~10 min for a < 1 GB dump.
 
 ### Whole VPS dies (Hetzner regional outage)
 
-A new VPS is one `just deploy` away — Tofu provisions a fresh CPX22 via the `hcloud` provider.
+A new VPS is one `task up` away — Tofu provisions a fresh CPX22 via the `hcloud` provider.
 
 ```bash
-just deploy --destroy          # tear down dead box's state (skip if Hetzner already removed it)
+task down          # tear down dead box's state (skip if Hetzner already removed it)
 just deploy                    # provisions NEW VPS + boots every container
 HOST=$(cd infra && bin/with-secrets tofu -chdir=tofu output -raw hetzner_ipv4)
 ssh -t root@$HOST docker exec -it infra-backups sh /restore.sh   # restore latest dump

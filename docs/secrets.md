@@ -62,12 +62,12 @@ Cloudflare credentials follow a two-tier pattern, deliberately:
 
 | Key | Purpose | Impact of leak | Rotation |
 |---|---|---|---|
-| `INFRA_CLOUDFLARE_API_TOKEN` | Master CF token (6 permission groups) | Edit DNS, write R2, push Workers, mint new tokens | Browser **Roll** (preserves token ID) → BWS edit → `just deploy`. Sub-tokens survive |
+| `INFRA_CLOUDFLARE_API_TOKEN` | Master CF token (6 permission groups) | Edit DNS, write R2, push Workers, mint new tokens | Browser **Roll** (preserves token ID) → BWS edit → `task up`. Sub-tokens survive |
 | `INFRA_HCLOUD_TOKEN` | Hetzner Cloud API token (R/W) | Attacker can create/destroy VPSes on your account | Hetzner console regenerate → BWS edit. New VPS provisioning needs it; running stack is unaffected |
-| `INFRA_GITHUB_API_TOKEN` | Fine-grained PAT (Actions/Secrets/Variables R+W) | Attacker can push GH Actions secrets, modify workflows | github.com regenerate (preserves identity) → BWS edit → `just deploy` |
+| `INFRA_GITHUB_API_TOKEN` | Fine-grained PAT (Actions/Secrets/Variables R+W) | Attacker can push GH Actions secrets, modify workflows | github.com regenerate (preserves identity) → BWS edit → `task up` |
 | `INFRA_GHCR_TOKEN` | Classic PAT (`write:packages`) for CI's `docker push` AND Tofu's pull on the box | Attacker can push malicious images to `ghcr.io/eduvhc/menu` | GH UI regenerate → BWS edit → next deploy picks up |
 | `INFRA_STATE_PASSPHRASE` | Tofu state encryption (PBKDF2 + AES-GCM, 600k iterations) | Old encrypted state in git becomes decryptable | **`fallback` block rotation** — see below |
-| `INFRA_SSH_PRIVATE_KEY` | Private SSH key Tofu uses to reach the Hetzner Docker daemon. Tofu pushes it to GH as `INFRA_SSH_PRIVATE_KEY` | SSH as root to the VPS | Generate new keypair → `ssh-copy-id root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4)` → BWS edit → `just deploy` → remove old pubkey from `/root/.ssh/authorized_keys` |
+| `INFRA_SSH_PRIVATE_KEY` | Private SSH key Tofu uses to reach the Hetzner Docker daemon. Tofu pushes it to GH as `INFRA_SSH_PRIVATE_KEY` | SSH as root to the VPS | Generate new keypair → `ssh-copy-id root@$(tofu -chdir=infra/tofu output -raw hetzner_ipv4)` → BWS edit → `task up` → remove old pubkey from `/root/.ssh/authorized_keys` |
 | `BWS_ACCESS_TOKEN` (operator shell env — e.g. `~/.secrets`, NOT in BWS) | Unlocks BWS itself | Read every other secret | **Blue/green** — see below |
 
 ### AUTOGEN_INFRA_* — Tofu-minted, no operator action needed
@@ -86,7 +86,7 @@ Cloudflare credentials follow a two-tier pattern, deliberately:
 
 | Key | Purpose | Impact of leak | Rotation |
 |---|---|---|---|
-| `INFRA_CLAUDE_CODE_OAUTH_TOKEN` | Claude Code Action's Pro/Max OAuth token; Tofu pushes to GH as `CLAUDE_CODE_OAUTH_TOKEN` | Attacker can run the Action against your subscription | `claude setup-token` → BWS edit → `just deploy`. Revoke in Anthropic account if leaked. See `docs/ai.md` |
+| `INFRA_CLAUDE_CODE_OAUTH_TOKEN` | Claude Code Action's Pro/Max OAuth token; Tofu pushes to GH as `CLAUDE_CODE_OAUTH_TOKEN` | Attacker can run the Action against your subscription | `claude setup-token` → BWS edit → `task up`. Revoke in Anthropic account if leaked. See `docs/ai.md` |
 | `INFRA_OPENOBSERVE_ROOT_USER_EMAIL` | OO root account email (receives alerts) | Username disclosure | BWS edit + `tofu apply` recreates infra-openobserve |
 
 > **Auth/OIDC secrets are not in BWS.** Menu's session-cookie key, Zitadel
@@ -96,7 +96,7 @@ Cloudflare credentials follow a two-tier pattern, deliberately:
 
 ### Tofu-managed write-throughs
 
-Minted by Tofu in encrypted state, pushed to BWS by `just deploy` so other systems can read from BWS without running Tofu.
+Minted by Tofu in encrypted state, pushed to BWS by `task up` so other systems can read from BWS without running Tofu.
 
 | Key | Source | Rotation |
 |---|---|---|
@@ -132,7 +132,7 @@ SECRET_ID=$(bws secret list "$BWS_PROJECT_ID" -o json | jq -r '.[] | select(.key
 bws secret edit "$SECRET_ID" --value "<new-value>" -o none
 ```
 
-Then `just deploy` — `bin/with-secrets` re-reads BWS on every apply.
+Then `task up` — `bin/with-secrets` re-reads BWS on every apply.
 
 For `AUTOGEN_INFRA_*` secrets (Tofu-minted):
 
@@ -158,7 +158,7 @@ For `BWS_ACCESS_TOKEN`:
 1. Bitwarden UI → Machine accounts → `iedora-deploy` → Access tokens → revoke old
 2. Generate new
 3. Replace the value in your shell-sourced secrets file (e.g. `~/.secrets`) and re-source it
-4. Tofu in CI gets it automatically (Tofu pushes the new token to `BWS_ACCESS_TOKEN` GH Actions secret on next `just deploy`)
+4. Tofu in CI gets it automatically (Tofu pushes the new token to `BWS_ACCESS_TOKEN` GH Actions secret on next `task up`)
 
 No code changes — `bin/with-secrets` reads it at runtime.
 
@@ -210,7 +210,7 @@ Run two app roles (`menu_app` + `menu_app_rotate`); apps connect under one at a 
 
 Existing connections on the old role remain authenticated until they reconnect; no blips.
 
-**Single-role fallback** (what we do today): `ALTER USER` + `just deploy` accepts a ~5–10s window where the last in-flight transactions fail with `password authentication failed`. Adopt dual-role when customers would notice.
+**Single-role fallback** (what we do today): `ALTER USER` + `task up` accepts a ~5–10s window where the last in-flight transactions fail with `password authentication failed`. Adopt dual-role when customers would notice.
 
 ### Tofu state passphrase — `fallback` block rotation
 
@@ -236,7 +236,7 @@ encryption {
 ### BWS access token — blue/green
 
 1. Bitwarden UI → Machine accounts → `iedora-deploy` → Access tokens → **Create a SECOND token** (don't revoke yet).
-2. Update `BWS_ACCESS_TOKEN` in your shell-sourced secrets file (e.g. `~/.secrets`), re-source, then `just deploy` (write-throughs to GH Actions secret).
+2. Update `BWS_ACCESS_TOKEN` in your shell-sourced secrets file (e.g. `~/.secrets`), re-source, then `task up` (write-throughs to GH Actions secret).
 3. `gh workflow run infra-deploy.yml` — verify CI authenticates.
 4. **Then** revoke the OLD token.
 

@@ -182,7 +182,7 @@ App secrets.
 
 ## Bootstrap (first-time-only flow)
 
-1. **Deploy** — `just deploy` runs one `tofu apply` that does
+1. **Deploy** — `task up` runs one `tofu apply` that does
    everything in order via `depends_on` and the docker provider's
    create/start semantics:
    - Cloudflare resources land (R2 buckets, grey-cloud A records for
@@ -326,7 +326,7 @@ Phase 2 of #19.
   cadence, zero-downtime patterns. The two new Zitadel secrets are
   listed there.
 - **[`docs/deploy.md`](../deploy.md)** — overall deploy flow;
-  `just deploy` runs one `tofu apply` that brings up the
+  `task up` runs one `tofu apply` that brings up the
   auth.iedora.com tunnel + the Zitadel containers in the right order.
 - **[`infra/CLAUDE.md`](../../infra/CLAUDE.md)** — what the shared
   `infra/` workspace owns, the six hard rules (declarative-first,

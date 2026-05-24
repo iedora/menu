@@ -19,7 +19,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Menu** (menu.iedora.com — `products/menu/`) — SaaS multi-tenant restaurant menu builder. Each tenant is an organization that owns one or more `restaurant` rows. Admins build menus via drag-and-drop; the public menu renders from the same data.
 - **House** (iedora.com — `products/house/`) — umbrella brand landing page. Astro static output, deployed to Cloudflare Workers Static Assets. No DB, no auth.
 
-**Identity is Zitadel.** Self-hosted at `auth.iedora.com` (single VPS, Tofu-managed). Menu is a thin OIDC client. The `menu_session_v2` cookie is a JWE carrying only `{sid, sub, exp}`; the authoritative state is a server-side `menu.session` row (roles, permissions, permissionsVersion) so Zitadel Actions v2 webhooks can rewrite scopes live without waiting for cookie TTL. See `products/menu/src/features/auth/README.md` for the revocation model. The identity slice calls Zitadel's management API for memberships + org provisioning via a TF-minted IAM_OWNER PAT. See `products/menu/src/features/auth/` and `products/menu/src/features/identity/`.
+**Identity is Zitadel.** Self-hosted at `auth.iedora.com` (single VPS, Tofu-managed). Menu is a thin OIDC client. The `menu_session_v2` cookie is a JWE carrying only `{sid, sub, exp}`; the authoritative state is a server-side `menu.session` row (roles, permissions, permissionsVersion) so Zitadel Actions v2 webhooks can rewrite scopes live without waiting for cookie TTL. See `products/menu/src/features/auth/README.md` for the revocation model. The identity slice calls Zitadel's management API for memberships + org provisioning via a PAT minted by `bin/zitadel-apply` (Stage 3) and written to BWS. See `products/menu/src/features/auth/` and `products/menu/src/features/identity/`.
 
 ## Stack
 
@@ -27,7 +27,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **TypeScript** strict, every workspace.
 - **Drizzle ORM** + `postgres-js`, **Postgres 18**.
 - **`openid-client` v6 + `jose` v6** — Zitadel OIDC client + cookie JWE.
-- **Zitadel** v4.15.0 — self-hosted IdP (TF provider 2.12 declares org, project, OIDC app, machine user, PAT).
+- **Zitadel** v4.15.0 — self-hosted IdP. The CONTAINER is Tofu-managed (`infra/tofu/containers.tf::module.zitadel`). The APP STATE (org, project, OIDC app, action targets, PAT) is reconciled by `bin/zitadel-apply` (Stage 3 of the pipeline), via Zitadel's REST API.
 - **shadcn/ui** + Tailwind v4 — menu only. Editorial primitives come from **`@iedora/design-system`**.
 - **@dnd-kit** — menu's drag-and-drop builder.
 - **Bun** — package manager, test runner, dev orchestrator. **Production runtime is Node** — `bun + next build` is unstable as of 2026 (oven-sh/bun#23944); `next start` runs under Node in the production container.
@@ -57,20 +57,25 @@ The slice contract (file layout, cross-slice rules, the Next.js boundary, how to
 iedora/                                  repo root
   bun.lock                               single workspace lockfile
   package.json                           workspaces: packages/* + products/{menu,house}
-  justfile                               just modules: infra::, menu::, house::
-  .github/                               composite setup action + one workflow per workspace
+  Taskfile.yml                           operator entry point — `task infra:up`, `task deploy:menu`, …
+  .github/                               composite setup action + one workflow per pipeline stage
   .mcp.json                              shadcn, postgres, bun, next-devtools, playwright MCP servers
   docs/                                  brand-level docs
 
-  infra/                                 SHARED INFRASTRUCTURE — the single deploy entry point.
-                                         Every always-on container on the Hetzner VPS is declared
-                                         here as a Tofu `docker_container` resource: postgres,
-                                         openobserve, zitadel + login, caddy, backups, menu_web.
-    Justfile                               thin shims: deploy/destroy/doctor → bin/iedora; day-2 ops as bash
-    bin/iedora, cmd/iedora/                Go orchestrator. Pass 1/2/3 dance, localhost HTTPS_PROXY for the zitadel TF provider (sidesteps macOS NXDOMAIN cache), cert-issuer probe (LE vs Caddy internal). Unit-tested.
-    bin/with-secrets                       BWS wrapper. Only `BWS_ACCESS_TOKEN` required in operator's shell.
+  infra/                                 SHARED INFRASTRUCTURE + Stage-3 configurators.
+                                         Tofu owns infra (VPS, networks, shared containers);
+                                         Go binaries own app-state reconcile + per-product deploy.
+    bin/iedora                             Stage 2/3/4 orchestrator: iac | app | deploy | pipeline
+    bin/with-secrets                       BWS env wrapper. `--stage iac|app|deploy [--product NAME]`
+    bin/zitadel-apply                      Stage 3 — reconciles Zitadel app state via REST
+    cmd/iedora/                            Go orchestrator (subcommands + productRuntime registry)
+    cmd/zitadel-apply/                     Stage 3 reconciler (JWT-bearer auth, BWS / file output)
+    cmd/with-secrets/                      Stage-filtered env wrapper
+    cmd/dev/                               local dev orchestrator (mirrors prod pipeline shape)
     tofu/                                Single Tofu root. Hetzner VPS + R2 buckets + DNS + GitHub
-                                         Actions config + every docker_container on the box.
+                                         Actions config + every SHARED container on the box
+                                         (postgres, zitadel, zitadel-login, caddy, openobserve,
+                                         backups). Menu container is owned by Stage 4, NOT Tofu.
     backup/                              self-built Postgres-backup image
 
   packages/
@@ -100,17 +105,27 @@ Menu's `infra/` owns a Dockerfile (built by CI into the GHCR image) plus a tiny 
 
 ### Deploy
 
-- `just deploy` — one `tofu apply` provisions the Hetzner VPS, every Cloudflare resource, the GH Actions config, and every container (`infra-postgres`, `infra-backups`, `infra-openobserve`, `infra-zitadel`, `infra-zitadel-login`, `infra-caddy`, `menu_web`). Idempotent day-1 and day-N.
-- `just deploy --destroy` (or `-d`) — tears down the VPS + every Tofu-managed resource. Same Go binary, flag picks direction.
-- `just dev` — boots the local dev stack. `just dev --destroy` wipes it; `just dev --reset-db <service>` (e.g. `menu` or `zitadel`) drops + recreates one database without touching the rest.
-- `just doctor` — preflight on the operator's machine (PATH, BWS auth, bootstrap secrets).
-- `just menu::infra` — applies the menu-local Tofu (R2 assets bucket + `assets.iedora.com`). Rare.
-- House (iedora.com) deploys via its own CI workflow on push to main. For ad-hoc local deploys: `cd products/house/infra && just deploy` (or `just destroy`).
-- Day-2 ops (logs / psql / backup / restore / rotate / wipe / zitadel-rebootstrap) are raw SSH against the Hetzner box — boilerplate in the root `justfile` header.
+The deploy pipeline is 4 stages. Local operator orchestration via Taskfile; CI via per-stage GitHub Actions workflows.
 
-`just` is a Rust task runner — `brew install just` (or `cargo install just`).
+```
+Stage 1: Build & Test      per-product (bun, docker build, tests)
+Stage 2: IaC               task infra:up    — tofu apply on infra/tofu/
+Stage 3: AppState          task app:apply   — configurator registry (Zitadel today)
+Stage 4: Deploy            task deploy:<p>  — per-product runtime
+```
 
-Menu image builds happen in CI (`.github/workflows/menu.yml`) on every push to main: buildx for `linux/amd64` (CPX22 is x86_64), pushed to `ghcr.io/$GHCR_USER/menu:<sha>`. CI then dispatches `infra-deploy.yml` with `--field image_sha=<sha>`, which re-runs `tofu apply`; the SHA flows in as `TF_VAR_menu_image_sha`, forcing `docker_image.menu` to replace and recreating `docker_container.menu_web` in-place. Rollback = same dispatch with an older SHA.
+- `task up` — full pipeline: infra:up → app:apply → deploy:all.
+- `task down` — full teardown: destroy products → infra:down.
+- `task infra:up` / `task infra:down` — Stage 2 only (`tofu apply` / `destroy` on `infra/tofu/`).
+- `task app:apply` — Stage 3 (`bin/zitadel-apply` reconciles Zitadel app state).
+- `task deploy:menu` / `task deploy:house` / `task deploy:all` — Stage 4 per-product (or fan-out).
+- `task dev` — boots the local dev stack. `task dev:down` wipes it; `task dev:reset-db -- <service>` (e.g. `menu` or `zitadel`) drops + recreates one database without touching the rest.
+- `task doctor` — preflight on the operator's machine (PATH, BWS auth, bootstrap secrets).
+- Day-2 ops (logs / psql / backup / restore / rotate / wipe / zitadel-rebootstrap) are raw SSH against the Hetzner box.
+
+`task` is the go-task runner — `brew install go-task`.
+
+Menu image builds happen in CI (`.github/workflows/menu.yml`) on every push to main: buildx for `linux/amd64`, pushed to `ghcr.io/$GHCR_USER/menu:<sha>`. The menu workflow then dispatches `deploy.yml` with `product: menu` + `image_sha: <sha>`; the `dockerOnHetzner` runtime SSHs to the box, pulls the image, runs migrations, and replaces the container. Rollback: `gh workflow run deploy.yml --field product=menu --field image_sha=<older-sha>`.
 
 ## CI
 
@@ -120,11 +135,13 @@ One workflow per workspace. Each is self-contained: own `paths:` trigger, own en
 .github/
   actions/setup/action.yml      composite: Bun + bun install --frozen-lockfile
   workflows/
-    menu.yml                     typecheck + lint + unit + security + build/push image
+    menu.yml                     Stage 1+4: build + push menu image → dispatch deploy.yml
+    house.yml                    Stage 1+4: dispatch deploy.yml for house (Astro → CF Workers)
+    deploy.yml                   Stage 4 reusable workflow_call (product, image_sha)
+    app-state.yml                Stage 3: task app:apply (configurator registry)
+    infra-deploy.yml             Stage 2: task infra:up (tofu apply on infra/tofu/)
     design-system.yml            unit (jsdom)
     observability.yml            unit (no-op-in-tests + tenant attrs)
-    infra-deploy.yml             one tofu apply for the whole estate; workflow_run after menu.yml
-    house-deploy.yml             Astro → wrangler deploy
     codeql.yml                   SAST (push + PR + weekly)
     scorecard.yml                OpenSSF posture grading (weekly)
     dependency-review.yml        gates PRs that add HIGH/CRITICAL CVE deps

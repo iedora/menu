@@ -30,7 +30,7 @@ products/house/
 ├── dist/                       build output — what Tofu uploads to CF
 ├── site-legacy/                the previous 1789-line static site, kept for ref
 └── infra/                      Tofu root + justfile (NOT shipped to CF)
-    ├── justfile        `just deploy` lives here (run from products/house/infra/)
+    ├── justfile        `task up` lives here (run from products/house/infra/)
     └── tofu/           cloudflare_workers_script + cloudflare_workers_custom_domain
                         BWS env hydration comes from infra/bin/with-secrets (one wrapper)
 ```

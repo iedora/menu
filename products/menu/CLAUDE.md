@@ -103,7 +103,7 @@ products/menu/
   drizzle/                           generated SQL migrations
   drizzle.config.ts
   next.config.ts, tsconfig.json      paths: @/* → ./src/*
-  Dockerfile                         app build (Bun-install + Node-build + standalone). Same Dockerfile dev (built locally by `just dev`) and prod (built + pushed to GHCR by .github/workflows/menu.yml) consume.
+  Dockerfile                         app build (Bun-install + Node-build + standalone). Same Dockerfile dev (built locally by `task dev`) and prod (built + pushed to GHCR by .github/workflows/menu.yml) consume.
   .env                               TF-emitted (infra/modules/menu_env, localhost-DNS variant). Committed. Statics + Zod-valid placeholders for the dynamic keys.
   .env.local                         user-owned, gitignored. Real Zitadel + session values for the host bun-run-dev path; user can also override any key to point at remote services.
   package.json                       workspace deps to @iedora/design-system, identity, observability
@@ -119,7 +119,7 @@ products/menu/
                                      menu-build-and-publish, qr-to-public-view, plan-upgrade, …)
 ```
 
-Dev: `just dev` boots a docker_container.menu (build local from this Dockerfile) on the iedora network — same image shape as prod. For HMR, `just dev --except menu && cd products/menu && bun run dev` (reads `.env` + `.env.local`).
+Dev: `task dev` boots a docker_container.menu (build local from this Dockerfile) on the iedora network — same image shape as prod. For HMR, `just dev --except menu && cd products/menu && bun run dev` (reads `.env` + `.env.local`).
 
 Prod: `docker_container.menu_web` in `infra/tofu/containers.tf` pulls `ghcr.io/eduvhc/menu:<sha>` (CI-pushed) and runs on the Hetzner box.
 

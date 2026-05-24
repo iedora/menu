@@ -1,6 +1,6 @@
-# Dev — `just dev` boots the whole stack locally
+# Dev — `task dev` boots the whole stack locally
 
-One command, one declarative source. `just dev` runs OpenTofu against `infra/dev/tofu/`, which calls the same `infra/modules/services/*` modules prod uses — same image shapes, same env contract, just pointed at a local Docker daemon. No `docker-compose`.
+One command, one declarative source. `task dev` runs OpenTofu against `infra/dev/tofu/`, which calls the same `infra/modules/services/*` modules prod uses — same image shapes, same env contract, just pointed at a local Docker daemon. No `docker-compose`.
 
 ```
 local docker daemon
@@ -21,7 +21,7 @@ The orchestrator (`infra/dev/`, Go) does a 4-step Tofu choreography: init → ta
 
 ```bash
 just dev                   # bring everything up (~30s cold, ~5s warm)
-just dev --destroy         # tear down + wipe volumes / state / .env.local
+task dev:down         # tear down + wipe volumes / state / .env.local
 just dev --reset-db menu   # drop+create the menu DB only (postgres stays up)
 ```
 
@@ -71,7 +71,7 @@ Tofu emits two `.env` variants for this — the container variant uses docker-ne
 
 Two files, two roles:
 
-**`products/menu/.env`** — committed, TF-owned. Auto-rewritten every `just dev`. Every key has a real value (the random ones are regenerated on `just dev --destroy` + `just dev`; safe to commit since they only unlock the operator's own localhost stack).
+**`products/menu/.env`** — committed, TF-owned. Auto-rewritten every `task dev`. Every key has a real value (the random ones are regenerated on `task dev:down` + `task dev`; safe to commit since they only unlock the operator's own localhost stack).
 
 **`products/menu/.env.local`** — gitignored, operator-owned. `.env.local` overrides `.env` for `bun run dev`. The orchestrator schema-syncs it:
 
@@ -86,12 +86,12 @@ Before every apply, a warning surfaces shadowing overrides so you notice before 
 ## Tear-down
 
 ```bash
-just dev --destroy
+task dev:down
 ```
 
-Wipes containers, network, volumes, the Zitadel bootstrap dir, the Tofu state, and `products/menu/.env.local`. Everything regenerates on the next `just dev` — fresh PATs, fresh Zitadel DB, fresh OIDC client secret.
+Wipes containers, network, volumes, the Zitadel bootstrap dir, the Tofu state, and `products/menu/.env.local`. Everything regenerates on the next `task dev` — fresh PATs, fresh Zitadel DB, fresh OIDC client secret.
 
-`just dev --destroy` is best-effort: each step continues on failure (matching the throwaway nature of the dev stack — partial state should never block a reset).
+`task dev:down` is best-effort: each step continues on failure (matching the throwaway nature of the dev stack — partial state should never block a reset).
 
 ---
 
@@ -111,7 +111,7 @@ The dev stack runs ONE shared `infra-postgres` container with multiple databases
 
 Anything else: `--reset-db: unknown service "X" (supported: menu, zitadel)`. Adding a new SQL-backed service is one case in `infra/cmd/dev/resetdb.go`.
 
-Selection flags (`--only` / `--except`) are ignored when `--reset-db` is set — it's a single well-defined operation against the running stack. `infra-postgres` must already be up; otherwise the orchestrator bails with a hint to run `just dev` first.
+Selection flags (`--only` / `--except`) are ignored when `--reset-db` is set — it's a single well-defined operation against the running stack. `infra-postgres` must already be up; otherwise the orchestrator bails with a hint to run `task dev` first.
 
 ---
 
@@ -120,7 +120,7 @@ Selection flags (`--only` / `--except`) are ignored when `--reset-db` is set —
 - **Port 8080 busy.** Zitadel publishes on `:8080`. If something else (another local Zitadel, a Jenkins, anything) holds it, the apply fails. Free the port or stop the conflicting service.
 - **First apply takes ~30s.** Image builds for menu + house run in parallel during pass 1. Warm reboots (volumes preserved) finish in ~5s.
 - **`.env.local` shadowing a TF value.** The pre-apply warning will name the keys. If unintended, delete the line in `.env.local` and re-run.
-- **Stale Zitadel state.** If you change the masterkey or the bootstrap dir gets corrupted, `just dev --destroy` is the reset hammer.
+- **Stale Zitadel state.** If you change the masterkey or the bootstrap dir gets corrupted, `task dev:down` is the reset hammer.
 
 ---
 
@@ -139,7 +139,7 @@ The orchestrator is one Go package at `infra/dev/`, split by concern:
 
 Waits use TCP-dial + HTTP probe (`net.DialTimeout` then `http.Get`) instead of `time.Sleep` polling — typical detect time is ~50ms past the moment Zitadel actually starts answering `/debug/ready`.
 
-State lives at `infra/dev/tofu/terraform.tfstate` (plaintext, gitignored). Throwaway — `just dev --destroy` wipes it.
+State lives at `infra/dev/tofu/terraform.tfstate` (plaintext, gitignored). Throwaway — `task dev:down` wipes it.
 
 ---
 

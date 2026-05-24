@@ -147,8 +147,8 @@ Verify: `https://menu.iedora.com/up` → `{"ok":true,"db":"ok"}`.
 
 ```bash
 just deploy                  # idempotent apply
-just deploy --destroy        # tear down VPS + every resource (-d works too)
-just doctor                  # preflight check
+task down        # tear down VPS + every resource (-d works too)
+task doctor                  # preflight check
 ```
 
 Everything else is raw SSH. Resolve the host once, then re-use:
@@ -195,7 +195,7 @@ CI builds + pushes; Tofu pulls from GHCR on the box. The only SSH path in CI is 
 
 ### Tofu-managed GH config
 
-Every GH Actions secret + variable is Tofu-managed via `infra/tofu/github.tf` (`integrations/github`'s `for_each` over a locals map). Set the BWS source, `just deploy` reconciles GH from BWS.
+Every GH Actions secret + variable is Tofu-managed via `infra/tofu/github.tf` (`integrations/github`'s `for_each` over a locals map). Set the BWS source, `task up` reconciles GH from BWS.
 
 | GH Secret | BWS source | Notes |
 |---|---|---|
@@ -267,13 +267,13 @@ Cost: ~30 lines duplicated per root (versions.tf, credentials, `data.cloudflare_
 
 ## Troubleshooting
 
-> **Where the deploy logic lives.** The `just deploy`/`doctor` recipes at the repo root are 1-line shims into `infra/cmd/iedora/` — a Go orchestrator with unit tests under `*_test.go`. `just deploy --destroy` is the same shim with a flag; the Go binary dispatches deploy vs destroy on the flag, no bash branching. Pass 1/2/3 logic, the DNS-override CONNECT proxy that sidesteps the macOS NXDOMAIN cache, and the Let's-Encrypt-vs-internal-CA cert probe all live there. For the catalogue of every failure mode the recipe has tripped over (with detection signature + fix), see [`deploy-failure-modes.md`](deploy-failure-modes.md).
+> **Where the deploy logic lives.** The `task up`/`doctor` recipes at the repo root are 1-line shims into `infra/cmd/iedora/` — a Go orchestrator with unit tests under `*_test.go`. `task down` is the same shim with a flag; the Go binary dispatches deploy vs destroy on the flag, no bash branching. Pass 1/2/3 logic, the DNS-override CONNECT proxy that sidesteps the macOS NXDOMAIN cache, and the Let's-Encrypt-vs-internal-CA cert probe all live there. For the catalogue of every failure mode the recipe has tripped over (with detection signature + fix), see [`deploy-failure-modes.md`](deploy-failure-modes.md).
 
-**Run `just doctor` first.** It validates PATH, BWS auth, and every required bootstrap secret before mutating anything — catches 90% of the bad-environment foot-guns below in <1s.
+**Run `task doctor` first.** It validates PATH, BWS auth, and every required bootstrap secret before mutating anything — catches 90% of the bad-environment foot-guns below in <1s.
 
-**`just deploy` errors with `BWS_ACCESS_TOKEN missing`** — export it in your shell (e.g. `source ~/.secrets`) before running. That's the only env var the wrapper requires; everything else self-discovers (see Step 5).
+**`task up` errors with `BWS_ACCESS_TOKEN missing`** — export it in your shell (e.g. `source ~/.secrets`) before running. That's the only env var the wrapper requires; everything else self-discovers (see Step 5).
 
-**`just deploy` errors with `INFRA_X missing in BWS`** — that secret hasn't been populated. Add it with `bws secret create INFRA_X <value> $(bws project list -o json | jq -r '.[]|select(.name=="iedora-deploy")|.id') -o none`.
+**`task up` errors with `INFRA_X missing in BWS`** — that secret hasn't been populated. Add it with `bws secret create INFRA_X <value> $(bws project list -o json | jq -r '.[]|select(.name=="iedora-deploy")|.id') -o none`.
 
 **Tofu plan fails with "unable to parse docker host"** — the Hetzner box hasn't been provisioned yet; the `kreuzwerker/docker` provider is connecting too early. Pass 1 of the recipe handles this. If you hit it directly: `tofu apply -target=hcloud_server.iedora` first.
 
@@ -291,4 +291,4 @@ Cost: ~30 lines duplicated per root (versions.tf, credentials, `data.cloudflare_
 
 **`tofu destroy` prints `Warning: Resource Destruction Considerations` for `cloudflare_r2_bucket_cors`** — harmless. Cloudflare doesn't expose a separate delete endpoint; the subresource goes when its parent does. Tofu only removes it from local state.
 
-**Zitadel `FirstInstance` never produces `zitadel-admin-sa.json`** — bootstrap volume has stale perms. Manual recovery: `bws secret delete` the `INFRA_ZITADEL_SA_KEY_JSON`, SSH in to `docker rm -f infra-zitadel{,-login}` + `psql -c 'DROP DATABASE zitadel WITH (FORCE); CREATE DATABASE zitadel;'` + `docker volume rm zitadel-bootstrap`, then `tofu state list | grep '^zitadel_' | xargs -n1 tofu state rm`, then `just deploy`. Confirm via `ssh root@$HOST docker logs -f infra-zitadel`.
+**Zitadel `FirstInstance` never produces `zitadel-admin-sa.json`** — bootstrap volume has stale perms. Manual recovery: `bws secret delete` the `INFRA_ZITADEL_SA_KEY_JSON`, SSH in to `docker rm -f infra-zitadel{,-login}` + `psql -c 'DROP DATABASE zitadel WITH (FORCE); CREATE DATABASE zitadel;'` + `docker volume rm zitadel-bootstrap`, then `tofu state list | grep '^zitadel_' | xargs -n1 tofu state rm`, then `task up`. Confirm via `ssh root@$HOST docker logs -f infra-zitadel`.
