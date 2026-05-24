@@ -60,14 +60,11 @@ type dockerOnHetzner struct {
 	envFromTofu map[string]string
 
 	// cmd — the container's entry command (replaces image CMD).
+	// Migrations are NOT run here — they're a Stage 3 configurator
+	// (`infra/cmd/menu-migrate/`) that runs before Stage 4. Stage 4's
+	// responsibility is purely container lifecycle; schema is already
+	// at HEAD by the time the new container starts.
 	cmd []string
-
-	// migrate — optional pre-run one-shot. When non-nil, the runtime
-	// runs `docker run --rm <image> <migrate...>` (with the same env)
-	// before stopping the main container. Used for menu's drizzle
-	// migrations (extracted out of the container CMD as a side-effect
-	// of moving menu out of Tofu).
-	migrate []string
 
 	// logOpts — container --log-opt flags (Docker logging driver).
 	logOpts map[string]string
@@ -128,18 +125,10 @@ func (d *dockerOnHetzner) Deploy(ctx context.Context) error {
 		return fmt.Errorf("pull %s: %w", image, err)
 	}
 
-	if len(d.migrate) > 0 {
-		fmt.Fprintf(stderr, "→ docker run --rm (migrate) %s\n", strings.Join(d.migrate, " "))
-		runArgs := []string{"docker", "run", "--rm",
-			"--network", d.networkName,
-		}
-		runArgs = append(runArgs, envArgs(env)...)
-		runArgs = append(runArgs, image)
-		runArgs = append(runArgs, d.migrate...)
-		if err := sshExec(ctx, host, shellJoin(runArgs)); err != nil {
-			return fmt.Errorf("migrate run: %w", err)
-		}
-	}
+	// Migrations are NOT run here — they're a Stage 3 configurator
+	// (see `appConfigurators` / `infra/cmd/menu-migrate/`) that runs
+	// before Stage 4 reaches Deploy. By the time we get here, schema
+	// is at HEAD.
 
 	// Replace existing container.
 	fmt.Fprintf(stderr, "→ docker stop+rm+run %s\n", d.containerName)

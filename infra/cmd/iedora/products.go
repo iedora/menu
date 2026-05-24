@@ -51,13 +51,10 @@ var products = []product{
 			networkName:    "iedora",
 			networkAliases: []string{"infra-menu-web"},
 			restart:        "unless-stopped",
-			cmd:            []string{"node", "server.js"},
-			// Migrations run as a one-shot container BEFORE the main
-			// container starts — extracts the drizzle pre-step out of
-			// the prior CMD ("node scripts/migrate.mjs && node server.js")
-			// so a migration failure is visible in deploy logs and the
-			// live menu isn't crash-looped on a bad migration.
-			migrate: []string{"node", "scripts/migrate.mjs"},
+			cmd: []string{"node", "server.js"},
+			// Migrations are NOT here — they're a Stage 3 configurator
+			// (`infra/cmd/menu-migrate/`, registered in
+			// `appConfigurators`). Stage 4 hits an already-migrated DB.
 			logOpts: map[string]string{
 				"max-size": "10m",
 			},

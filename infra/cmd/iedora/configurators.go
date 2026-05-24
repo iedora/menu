@@ -40,14 +40,36 @@ type appConfigurator struct {
 }
 
 // appConfigurators — the registry. Order matters (sequential exec).
+// Stage-3 reconcilers run BEFORE Stage 4 (deploy). The menu container
+// boots against an already-migrated DB; a bad migration / dashboard /
+// Zitadel config fails loudly in the deploy log without crash-looping
+// the live menu.
+//
+// Naming convention: `<target>-<concern>`. The configurator's name
+// describes WHAT it configures, not the verb. Operators see them in
+// the Stage 3 log as a flat list — names should read like English.
 var appConfigurators = []appConfigurator{
 	{
-		name:   "zitadel",
+		// Org, project, roles, OIDC app, machine user + PAT, action
+		// targets, admin grants — see infra/cmd/zitadel-apply/.
+		name:   "zitadel-app-config",
 		binary: "bin/zitadel-apply",
 	},
-	// Future:
-	// {name: "openobserve-dashboards", binary: "openobserve/bin/apply-dashboards"},
-	// {name: "menu-migrate",           binary: "bin/menu-migrate"},
+	{
+		// drizzle-kit migrate against menu's postgres database. SSHes
+		// to the box and `docker run`s migrate.mjs from the menu image
+		// at MENU_IMAGE_SHA. See infra/cmd/menu-db-migrations/.
+		name:   "menu-db-migrations",
+		binary: "bin/menu-db-migrations",
+	},
+	{
+		// 3 OpenObserve dashboards (business / technical / correlation)
+		// pushed to obs.iedora.com via curl + jq. See
+		// infra/openobserve/README.md. Bash, not Go — no first-party
+		// Tofu provider for OO v5 dashboards in 2026.
+		name:   "openobserve-dashboards",
+		binary: "openobserve/bin/apply-dashboards",
+	},
 }
 
 // runConfigurator exec's one configurator with the orchestrator's env.

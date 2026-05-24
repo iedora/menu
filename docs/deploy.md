@@ -1,10 +1,19 @@
-# Deploy — one `tofu apply` for the whole iedora estate
+# Deploy — 4-stage pipeline (`task up`)
 
-Edit one config file, run one command, the whole stack lives behind Cloudflare DNS + on-box Caddy TLS. Everything is Tofu-managed — the Hetzner VPS, every Cloudflare resource, the GitHub Actions config, and every Docker container on the box (including the menu app).
+One command, full stack, behind Cloudflare DNS + on-box Caddy TLS. Tofu owns the infrastructure (Hetzner VPS, Cloudflare, GitHub config, Docker network, shared service containers). A Go reconciler owns Zitadel app config. Per-product runtimes own each product's container/script lifecycle.
+
+```
+Stage 1: Build & Test    per-product (bun, docker build, tests)
+Stage 2: IaC             task infra:up   — tofu apply on infra/tofu/
+Stage 3: AppState        task app:apply  — bin/zitadel-apply (+ future configurators)
+Stage 4: Deploy          task deploy:<p> — per-product runtime (Docker on Hetzner / CF Workers)
+```
+
+`task up` chains 2 → 3 → 4 in order. Each stage is independently runnable for surgical re-rolls.
 
 ```
 Internet → Cloudflare DNS (grey-cloud A records, no proxy/tunnel)
-            ├─→ menu.iedora.com   → Hetzner :443 → infra-caddy → menu_web:3000
+            ├─→ menu.iedora.com   → Hetzner :443 → infra-caddy → infra-menu-web:3000
             ├─→ auth.iedora.com   → Hetzner :443 → infra-caddy → infra-zitadel:8080
             ├─→ obs.iedora.com    → Hetzner :443 → infra-caddy → infra-openobserve:5080
             └─→ assets.iedora.com → R2 bucket via custom domain

@@ -63,20 +63,21 @@ var secretAllow = map[string]map[stage]bool{
 	"INFRA_CLAUDE_CODE_OAUTH_TOKEN":     {stageIaC: true},
 	"INFRA_HCLOUD_TOKEN":                {stageIaC: true},
 	"INFRA_GHCR_TOKEN":                  {stageIaC: true},
-	"INFRA_OPENOBSERVE_ROOT_USER_EMAIL": {stageIaC: true},
+	// OpenObserve email is needed by the `openobserve-dashboards`
+	// configurator in Stage 3 for HTTP Basic auth against the API.
+	"INFRA_OPENOBSERVE_ROOT_USER_EMAIL": {stageIaC: true, stageApp: true},
 
 	// App — Stage 3 configurator credentials.
 	"INFRA_ZITADEL_SA_KEY_JSON": {stageApp: true},
 
 	// AUTOGEN_* — Tofu-minted infra secrets. Most are IaC-only because they
-	// configure how infra containers boot. Two leak into Deploy because
-	// they go into menu's env (DATABASE_URL uses postgres pwd; OTEL
-	// header uses OO password).
+	// configure how infra containers boot. The OO password is also
+	// app-scoped because `openobserve-dashboards` authenticates with it.
 	"AUTOGEN_INFRA_POSTGRES_PASSWORD":              {stageIaC: true},
 	"AUTOGEN_INFRA_BACKUP_PASSPHRASE":              {stageIaC: true},
 	"AUTOGEN_INFRA_ZITADEL_MASTERKEY":              {stageIaC: true},
 	"AUTOGEN_INFRA_ZITADEL_FIRST_ADMIN_PASSWORD":   {stageIaC: true},
-	"AUTOGEN_INFRA_OPENOBSERVE_ROOT_USER_PASSWORD": {stageIaC: true},
+	"AUTOGEN_INFRA_OPENOBSERVE_ROOT_USER_PASSWORD": {stageIaC: true, stageApp: true},
 }
 
 // productExtras adds per-product secrets to stage=deploy when --product is
