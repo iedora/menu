@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import * as React from 'react'
 import { Breadcrumb, BreadcrumbHere, BreadcrumbLink } from './breadcrumb'
 
@@ -52,7 +53,7 @@ export function DashboardPage({
                 asChild
                 data-test-id={ns(`breadcrumb-${c.testId ?? i}`)}
               >
-                <a href={c.href}>{c.label}</a>
+                <Link href={c.href}>{c.label}</Link>
               </BreadcrumbLink>
             ))}
             <BreadcrumbHere data-test-id={ns('breadcrumb-current')}>

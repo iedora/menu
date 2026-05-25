@@ -1,97 +1,41 @@
-import fs from 'node:fs'
-import path from 'node:path'
+/**
+ * Runtime property shape used across the UI + slices. Built on top of the
+ * canonical `UnifiedProperty` in `@/shared/types/unified-property` — the
+ * single source of truth for property fields.
+ *
+ * `Property` adds the integrator-status array, which is runtime state and
+ * does not belong in the platform-agnostic canonical type.
+ */
 
-export type PropertyType =
-  | 'apartment' | 'house' | 'country_house' | 'room' | 'office'
-  | 'commercial' | 'garage' | 'land' | 'storage' | 'building' | 'vacation_rental'
+import type {
+  UnifiedProperty,
+  PropertyType,
+  OperationType,
+} from '@/shared/types/unified-property'
 
-export type OperationType = 'sale' | 'rent'
+export type { PropertyType, OperationType }
 
-export type Property = {
+export type IntegratorStatus = {
+  key: string
+  status: 'published' | 'failed' | 'idle' | 'publishing'
+  publishedAt?: string
+  publishedUrl?: string
+  lastError?: string
+}
+
+export type Property = Omit<UnifiedProperty, 'reference'> & {
+  /** Internal reference — required at the UI layer (drives URLs + persistence). */
   reference: string
-  type: PropertyType
-  operation: OperationType
-  address: {
-    locality: string
-    municipality?: string
-    district?: string
-    street?: string
-    postalCode?: string
-    coordinates?: { lat: number; lng: number }
-  }
-  contact: {
-    name: string
-    email: string
-    phone?: string
-    phonePrefix?: string
-  }
-  priceCents: number
-  sizeSqm?: number
-  rooms?: number
-  bathrooms?: number
-  occupancy?: string
-  description?: string
-  features?: {
-    condition?: string
-    yearBuilt?: number
-    energyCertificate?: string
-    heatingType?: string
-    floors?: number
-    constructedAreaSqm?: number
-    usableAreaSqm?: number
-    lotSizeSqm?: number
-    hasLift?: boolean
-    hasTerrace?: boolean
-    hasBalcony?: boolean
-    hasGarden?: boolean
-    hasPool?: boolean
-    hasParking?: boolean
-    hasStorage?: boolean
-    hasWardrobe?: boolean
-    hasAirConditioning?: boolean
-    hasFireplace?: boolean
-    facesSouth?: boolean
-    facesNorth?: boolean
-    facesEast?: boolean
-    facesWest?: boolean
-  }
-  photoUrls?: string[]
-  sourceUrl?: string
+  /** Publication status per integrator. */
+  integrators?: IntegratorStatus[]
 }
 
-// Read all .json files from the fixtures directory at runtime (server-only)
-const FIXTURES_DIR = path.join(process.cwd(), '..', '..', 'products', 'imopush', 'fixtures')
-
-// Fallback: if running from imopush dir directly
-function resolveFixturesDir(): string {
-  const candidates = [
-    path.join(process.cwd(), 'fixtures'),
-    path.join(process.cwd(), '..', '..', 'products', 'imopush', 'fixtures'),
-    FIXTURES_DIR,
-  ]
-  for (const dir of candidates) {
-    if (fs.existsSync(dir)) return dir
-  }
-  return candidates[0]
-}
-
-export function listProperties(): Property[] {
-  const dir = resolveFixturesDir()
-  if (!fs.existsSync(dir)) return []
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as Property)
-}
-
-export function getProperty(reference: string): Property | null {
-  const all = listProperties()
-  return all.find((p) => p.reference === reference) ?? null
-}
-
-// Format helpers
 export function formatPrice(cents: number): string {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100)
+  return new Intl.NumberFormat('pt-PT', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(cents / 100)
 }
 
 export function formatTypePT(type: PropertyType): string {

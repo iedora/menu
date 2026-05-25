@@ -1,17 +1,27 @@
 import { DashboardPage } from '@iedora/design-system'
+import { getTranslations } from 'next-intl/server'
 
-export default function IdealistaIntegrator() {
+export default async function IdealistaIntegrator() {
+  const t = await getTranslations('IdealistaIntegrator')
+  const tList = await getTranslations('PropertyList')
+
   return (
     <DashboardPage
-      title="Idealista"
-      crumbs={[{ label: 'Integradores', href: '/dashboard' }]}
+      title={t('title')}
+      crumbs={[{ label: tList('title'), href: '/dashboard' }]}
       data-test-id="integrator-idealista"
-      description="Publica e gere anúncios no Idealista.pt usando a conta da agência."
+      description={t('description')}
     >
       <div className="rounded border border-border p-6 text-[14px] text-muted-foreground space-y-2">
-        <p>Conta configurada: <span className="font-medium text-foreground">eduardoferdcarvalho+agency@gmail.com</span></p>
-        <p>Estado: <span className="font-medium text-foreground">Ativo (via CDP / Chrome)</span></p>
-        <p className="text-[12.5px]">As publicações são feitas por automação do Chrome com CDP — sem API Key necessária.</p>
+        <p>
+          {t('accountLabel')}{' '}
+          <span className="font-medium text-foreground">eduardoferdcarvalho+agency@gmail.com</span>
+        </p>
+        <p>
+          {t('stateLabel')}{' '}
+          <span className="font-medium text-foreground">{t('stateActive')}</span>
+        </p>
+        <p className="text-[12.5px]">{t('note')}</p>
       </div>
     </DashboardPage>
   )

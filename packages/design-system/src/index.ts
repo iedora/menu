@@ -106,6 +106,7 @@ export {
   DialogBody,
   DialogActions,
 } from "./components/dialog";
+export { ConfirmDialog, type ConfirmDialogProps } from "./components/confirm-dialog";
 export { Toast, ToastStack } from "./components/toast";
 export { EmptyState } from "./components/empty-state";
 export { Tabs, Tab } from "./components/tabs";
@@ -137,6 +138,30 @@ export type {
   EditorialStatus,
   EditorialTrailing,
 } from './components/editorial-list-types'
+
+// Image primitives — thumbnails, galleries, carousels, and uploads shared
+// across products (real-estate listings, restaurant menus, editorial surfaces).
+export { ImageThumbnail } from './components/image-thumbnail'
+export { ImageGallery, type GalleryImage, type ImageGalleryProps } from './components/image-gallery'
+export { ImageCarousel, type CarouselImage, type ImageCarouselProps } from './components/image-carousel'
+export {
+  PhotoLightbox,
+  type PhotoLightboxProps,
+  type PhotoLightboxLabels,
+} from './components/photo-lightbox'
+export { ImageUpload, type UploadConstraints, type ImageUploadProps } from './components/image-upload'
+
+// Chip nav — horizontal scrollable pill row for filter tabs, section
+// navigation, and integrator tags. Extracted from menu-builder.
+export { ChipNav, type Chip, type ChipNavProps } from './components/chip-nav'
+
+// Status chip — pill with success/danger/neutral variants. Built on
+// ds-chip-nav__chip; consumes a renderable icon from any icon library.
+export { StatusChip, type StatusChipVariant, type StatusChipProps } from './components/status-chip'
+
+// Action list — vertical row of large-touch-target actions. Extracted
+// from menu-builder so every product shares the same action sheet.
+export { ActionList, type ActionItem, type ActionListProps } from './components/action-list'
 
 // Admin stats — snapshot panels (Stat, Histogram, StatsPanel) shared
 // across cross-tenant admin surfaces (QR codes, sessions, …).

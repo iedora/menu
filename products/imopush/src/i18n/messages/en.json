@@ -1,0 +1,99 @@
+{
+  "Property": {
+    "back": "Properties",
+    "pricePerSqm": "{price}/m²",
+    "rooms": "{count} rooms",
+    "bathrooms": "{count} bathrooms",
+    "area": "{area} m²",
+    "location": "Location",
+    "data": "Details",
+    "features": "Features",
+    "description": "Description",
+    "photos": "Photos ({count})",
+    "addPhoto": "Add photo",
+    "platforms": "Platforms",
+    "publishIdealista": "Publish on Idealista",
+    "comingSoon": "Coming soon",
+    "contact": "Contact",
+    "viewPhone": "View phone",
+    "source": "View original source",
+    "statusDraft": "Draft",
+    "statusPublished": "Published",
+    "statusPublishing": "Publishing…",
+    "statusFailed": "Failed",
+    "energyCertificate": "Energy certificate",
+    "heating": "Heating",
+    "heatingIndividual": "Individual",
+    "heatingCentral": "Central",
+    "heatingNone": "No heating",
+    "garageIncluded": "Garage included",
+    "yearBuilt": "Built in {year}",
+    "share": "Share",
+    "favorite": "Favorite",
+    "delete": "Delete",
+    "deleteTitle": "Delete property",
+    "deleteDescription": "This will remove the property from every platform it was published on.",
+    "viewListing": "View listing",
+    "rooms_label": "Rooms",
+    "bathrooms_label": "Bathrooms",
+    "areaLabel": "Area",
+    "usableArea": "Usable area",
+    "lotSize": "Lot size",
+    "floors": "Floors",
+    "feature": {
+      "pool": "Pool",
+      "garden": "Garden",
+      "terrace": "Terrace",
+      "balcony": "Balcony",
+      "parking": "Parking",
+      "storage": "Storage",
+      "wardrobe": "Wardrobes",
+      "airConditioning": "Air conditioning",
+      "fireplace": "Fireplace",
+      "lift": "Lift"
+    }
+  },
+  "PropertyList": {
+    "title": "Properties",
+    "newProperty": "New property",
+    "emptyLabel": "No properties",
+    "emptyHint": "Add your first property above.",
+    "statusDraft": "Draft"
+  },
+  "PropertyPhotos": {
+    "noPhoto": "No photo",
+    "expandPhoto": "Expand photo",
+    "previousPhoto": "Previous photo",
+    "nextPhoto": "Next photo",
+    "closeLightbox": "Close",
+    "mainPhoto": "Main photo"
+  },
+  "Integrators": {
+    "idealista": "Idealista",
+    "olx": "OLX",
+    "custoJusto": "Custo Justo"
+  },
+  "IdealistaPublish": {
+    "publish": "Publish on Idealista",
+    "publishing": "Publishing…",
+    "retry": "Retry"
+  },
+  "IdealistaIntegrator": {
+    "title": "Idealista",
+    "description": "Publish and manage Idealista.pt listings using the agency account.",
+    "accountLabel": "Configured account:",
+    "stateLabel": "State:",
+    "stateActive": "Active (via CDP / Chrome)",
+    "note": "Publishing is driven by Chrome automation over CDP — no API key needed."
+  },
+  "Layout": {
+    "footerVersion": "v0.1 · pre-auth"
+  },
+  "Common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back"
+  }
+}

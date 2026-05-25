@@ -31,6 +31,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@iedora/design-system": "workspace:*",
     "@iedora/observability": "workspace:*",
+    "@iedora/storage": "workspace:*",
     "ai": "^6.0.190",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

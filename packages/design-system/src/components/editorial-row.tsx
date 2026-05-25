@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { ActionChip } from './action-chip'
+import { ImageThumbnail } from './image-thumbnail'
 import styles from './editorial-list.module.css'
 import { formatDelta } from './editorial-list-format'
 import type { EditorialRow as Row } from './editorial-list-types'
@@ -6,19 +8,18 @@ import type { EditorialRow as Row } from './editorial-list-types'
 export function EditorialRow({ row }: { row: Row }) {
   const trailing = row.trailing
   return (
-    <div className={styles.row} data-testid="editorial-row">
+    <div className={styles.row} data-test-id="editorial-row">
       <div className="flex gap-3">
         {row.image && (
-          <a href={row.href} tabIndex={-1} aria-hidden="true" className="shrink-0 self-start">
-            <img
+          <Link href={row.href} tabIndex={-1} aria-hidden="true" className="shrink-0 self-start">
+            <ImageThumbnail
               src={row.image}
               alt=""
               width={80}
               height={60}
-              className="h-[60px] w-[80px] object-cover bg-muted"
               loading="lazy"
             />
-          </a>
+          </Link>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-3">
@@ -27,10 +28,10 @@ export function EditorialRow({ row }: { row: Row }) {
                 {row.index}
               </span>
             )}
-            <a href={row.href} className="block min-w-0 no-underline text-foreground">
+            <Link href={row.href} className="block min-w-0 no-underline text-foreground">
               <div className="text-[17px] font-medium leading-tight tracking-tight">{row.title}</div>
               <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[12.5px] text-muted-foreground">{row.subtitle}</div>
-            </a>
+            </Link>
             <span aria-hidden="true" className={styles.leader} />
             {trailing ? (
               <div className="text-right shrink-0">

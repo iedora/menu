@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 import {
   Sidebar,
   SidebarBrand,
@@ -14,11 +16,10 @@ const navItems: ReadonlyArray<ActiveSidebarItem> = [
   { href: '/dashboard', label: 'Propriedades', testId: 'nav-properties', matchPrefix: false },
   { kind: 'section', label: 'Integradores', testId: 'nav-integrators-section' },
   { href: '/dashboard/integrators/idealista', label: 'Idealista', testId: 'nav-idealista' },
-  { href: '/dashboard/integrators/olx', label: 'OLX', testId: 'nav-olx' },
-  { href: '/dashboard/integrators/custo-justo', label: 'Custo Justo', testId: 'nav-custo-justo' },
 ]
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const tLayout = await getTranslations('Layout')
 
   return (
     <SidebarProvider>
@@ -31,15 +32,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Wordmark word="imopush" variant="inline" className="ds-wordmark--reveal" />
             </Link>
           </SidebarBrand>
-          <ActiveSidebarLinks ariaLabel="Navegação principal" items={navItems} />
+          <Suspense fallback={null}>
+            <ActiveSidebarLinks ariaLabel="Navegação principal" items={navItems} />
+          </Suspense>
           <SidebarFooter>
             <span className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)]">
-              v0.1 · sem auth
+              {tLayout('footerVersion')}
             </span>
           </SidebarFooter>
         </Sidebar>
         <main className="ds-shell flex-1 pt-5 pb-10 sm:pt-7 sm:pb-14 lg:pt-8 lg:pb-16">
-          {children}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
         </main>
       </div>
     </SidebarProvider>

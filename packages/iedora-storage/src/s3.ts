@@ -6,17 +6,17 @@ import {
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { SpanStatusCode } from '@opentelemetry/api'
-import { meter, tracer, IEDORA_RESTAURANT_ID, IEDORA_ORGANIZATION_ID } from '@iedora/observability'
+import { meter, tracer } from '@iedora/observability'
 import {
   StorageError,
   type PresignedUpload,
   type PresignedUploadRequest,
   type StoredObject,
   type Storage,
-} from '../types'
+} from './types'
 
 /**
- * Per-operation latency histogram for outbound S3 (R2/MinIO) calls.
+ * Per-operation latency histogram for outbound S3-compatible calls.
  * User-facing operations: presign on upload-start, head on commit,
  * delete on clear. The fetch instrumentation already emits a span for
  * each underlying HTTPS call; this histogram surfaces them grouped by
@@ -34,7 +34,7 @@ const storageOpDuration = meter.createHistogram(
 /**
  * Outcome counter — `success` / `not-found` (404 from head/delete) /
  * `failed` (any other StorageError). Tracks "are we getting 4xx/5xx from
- * R2" without parsing trace exceptions.
+ * the object store" without parsing trace exceptions.
  */
 const storageOps = meter.createCounter('iedora.storage.operations_total', {
   description:
@@ -52,14 +52,6 @@ async function tracedStorageOp<T>(
 ): Promise<T> {
   return tracer.startActiveSpan(`storage.${op}`, async (span) => {
     span.setAttribute('iedora.storage.operation', op)
-    // Key is `r/{restaurantId}/...` (asset hard rule #9). The restaurant
-    // segment is the tenant attribution; recording it here also lets
-    // dashboards filter storage spans by tenant even when the operation
-    // is called outside a tenantContext.run block (e.g. bootstrap).
-    const restaurantSegment = key.match(/^r\/([^/]+)\//)?.[1]
-    if (restaurantSegment) {
-      span.setAttribute(IEDORA_RESTAURANT_ID, restaurantSegment)
-    }
     span.setAttribute('iedora.storage.key', key)
     const startedAt = performance.now()
     let outcome: StorageOutcome = 'failed'
@@ -96,10 +88,9 @@ export type S3StorageConfig = {
   bucket: string
   accessKey: string
   secretKey: string
-  // Where the bucket is publicly served. For path-style MinIO this is
-  // `${endpoint}/${bucket}`. For a CDN (R2/Cloudfront) it can be a custom domain.
+  /** Where the bucket is publicly served. For path-style MinIO this is `${endpoint}/${bucket}`. For a CDN (R2/Cloudfront) it can be a custom domain. */
   publicBaseUrl: string
-  // MinIO requires path-style; AWS S3 supports both but defaults to virtual-hosted.
+  /** MinIO requires path-style; AWS S3 supports both but defaults to virtual-hosted. */
   forcePathStyle?: boolean
 }
 
@@ -202,7 +193,7 @@ export class S3Storage implements Storage {
     })
   }
 
-  // Used by bootstrap.ts only — keeps the SDK access scoped to this module.
+  /** Used by bootstrap.ts only — keeps the SDK access scoped to this module. */
   rawClient(): S3Client {
     return this.client
   }

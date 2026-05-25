@@ -260,6 +260,18 @@ Editorial trail: mono-caps ancestors flank a cinnabar `/`, the current item brea
 - `<BreadcrumbLink asChild>` composes with `next/link` / `react-router` via Radix `Slot` — same `asChild` recipe as `<NavLink>`.
 - `<BreadcrumbHere as="span">` opts out of the default `<h1>` when the page already has another heading.
 
+### `PhotoLightbox`
+Single thumbnail + prev/next hover arrows that expand to a fullscreen lightbox on click. The complement to `<ImageCarousel>`: this one is for tight slots (CRM rows, list items, hero strips), `<ImageCarousel>` is for hero + thumb-strip detail pages.
+```tsx
+<PhotoLightbox
+  urls={property.photoUrls ?? []}
+  testId={`property-${reference}`}
+  size="compact"
+  labels={{ empty: 'Sem foto', expand: 'Expandir', previous: 'Anterior', next: 'Próxima', close: 'Fechar' }}
+/>
+```
+Props: `urls: string[]`, `testId: string`, `size?: 'compact' | 'large'`, `alt?: (index) => string`, `labels?: { empty?, expand?, previous?, next?, close? }`. Radix-backed Dialog handles focus trap + Escape; arrow keys navigate while the lightbox is open; the counter is `aria-live="polite"`. Sub-elements expose stable selectors via the namespaced `testId`: `{testId}-expand`, `{testId}-prev`, `{testId}-next`, `{testId}-lightbox`, `{testId}-lightbox-{close|prev|next}`.
+
 ### `Separator` (Radix-backed)
 Semantic horizontal/vertical hairline.
 ```tsx

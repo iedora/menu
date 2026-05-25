@@ -8,4 +8,3 @@
  */
 export type { Storage } from './types'
 export { getStorage } from './adapters/factory'
-export { ensureBucket } from './adapters/bootstrap'

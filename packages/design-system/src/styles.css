@@ -23,11 +23,381 @@
   text-rendering: optimizeLegibility;
 }
 
-.ds-root *,
-.ds-root *::before,
-.ds-root *::after {
-  box-sizing: border-box;
+/* ─────────────────────────────────────────────────────────────
+ * MANUAL § VI.10 — Chip nav (filter chips, section tabs)
+ * Horizontal scrollable pill row. Extracted from menu-builder
+ * section-chips so every product shares the same sticky nav.
+ * ───────────────────────────────────────────────────────────── */
+
+.ds-chip-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: -8px calc(var(--margin) * -1) 0;
+  padding: 10px var(--margin);
+  background: color-mix(in oklab, var(--paper) 92%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
+.ds-chip-nav__scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  padding-bottom: 2px;
+}
+.ds-chip-nav__scroll::-webkit-scrollbar { display: none; }
+.ds-chip-nav__chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  color: var(--ink-70);
+  font-family: var(--serif);
+  font-size: 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+.ds-chip-nav__chip:hover {
+  border-color: var(--ink-40);
+  color: var(--ink);
+}
+.ds-chip-nav__chip[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.ds-chip-nav__chip--add {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-55);
+  border-style: dashed;
+}
+.ds-chip-nav__chip--add:hover { color: var(--ink); }
+
+/* ─────────────────────────────────────────────────────────────
+ * MANUAL § VI.11 — Image carousel
+ * Real-estate-style hero carousel with prev/next arrows,
+ * counter badge, and thumbnail strip. Mobile-first: the
+ * carousel fills the viewport width; thumbnails hide on the
+ * narrowest screens to prevent overlap.
+ * ───────────────────────────────────────────────────────────── */
+
+.ds-carousel {
+  position: relative;
+  width: 100%;
+  background: var(--paper-2);
+}
+.ds-carousel__stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+.ds-carousel__slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 300ms var(--ease);
+}
+.ds-carousel__slide[data-active="true"] { opacity: 1; }
+.ds-carousel__slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Prev / next arrows */
+.ds-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 24, 21, 0.45);
+  color: var(--paper);
+  border: 0;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.ds-carousel__arrow:hover { background: rgba(26, 24, 21, 0.65); }
+.ds-carousel__arrow--prev { left: 8px; }
+.ds-carousel__arrow--next { right: 8px; }
+@media (max-width: 640px) {
+  .ds-carousel__arrow { width: 32px; height: 32px; }
+  .ds-carousel__arrow--prev { left: 4px; }
+  .ds-carousel__arrow--next { right: 4px; }
+}
+
+/* Counter badge */
+.ds-carousel__counter {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+  padding: 4px 10px;
+  background: rgba(26, 24, 21, 0.65);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+}
+
+/* Thumbnail strip */
+.ds-carousel__thumbs {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ds-carousel__thumbs::-webkit-scrollbar { display: none; }
+.ds-carousel__thumb {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 48px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 150ms ease, border-color 150ms ease;
+  overflow: hidden;
+}
+.ds-carousel__thumb:hover { opacity: 1; }
+.ds-carousel__thumb[data-active="true"] {
+  border-color: var(--ink);
+  opacity: 1;
+}
+.ds-carousel__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+@media (max-width: 420px) {
+  .ds-carousel__thumb { width: 56px; height: 40px; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Photo lightbox — single thumbnail with prev/next on hover,
+ * expanding to a fullscreen Radix dialog on click. The complement
+ * to `ds-carousel`: this one is for tight slots (CRM rows, list
+ * items, hero strips), carousel is for hero + thumb-strip detail
+ * pages.
+ * ───────────────────────────────────────────────────────────── */
+
+.ds-photo-lightbox {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink-04);
+}
+.ds-photo-lightbox__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--ink-04);
+  color: var(--ink-40);
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  letter-spacing: 0.08em;
+}
+.ds-photo-lightbox__empty--compact { font-size: 10px; }
+
+.ds-photo-lightbox__expand {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.ds-photo-lightbox__expand img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Hover-revealed overlays inside the thumbnail */
+.ds-photo-lightbox__arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: rgba(239, 232, 218, 0.60); /* paper @ 60% */
+  border: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms var(--ease), background 150ms var(--ease), color 150ms var(--ease);
+}
+.ds-photo-lightbox:hover .ds-photo-lightbox__arrow { opacity: 1; }
+.ds-photo-lightbox__arrow:hover {
+  background: rgba(26, 24, 21, 0.30);
+  color: var(--paper);
+}
+.ds-photo-lightbox__arrow--prev { left: 0; }
+.ds-photo-lightbox__arrow--next { right: 0; }
+
+.ds-photo-lightbox--large .ds-photo-lightbox__arrow { width: 32px; }
+
+.ds-photo-lightbox__counter {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  background: rgba(26, 24, 21, 0.55);
+  color: rgba(239, 232, 218, 0.80);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  line-height: 1;
+}
+.ds-photo-lightbox--large .ds-photo-lightbox__counter {
+  bottom: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+/* Fullscreen lightbox — separate from the editorial dialog. Near-black
+ * scrim, paper-edge controls, no card frame. */
+.ds-photo-lightbox__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.90);
+  animation: ds-photo-lightbox__fade-in 180ms var(--ease) both;
+}
+@keyframes ds-photo-lightbox__fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ds-photo-lightbox__stage {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+.ds-photo-lightbox__stage > img {
+  max-height: 92vh;
+  max-width: 92vw;
+  object-fit: contain;
+}
+
+.ds-photo-lightbox__close {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.50);
+  color: rgba(239, 232, 218, 0.80);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+}
+.ds-photo-lightbox__close:hover {
+  background: rgba(0, 0, 0, 0.70);
+  color: var(--paper);
+}
+
+.ds-photo-lightbox__stage-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.40);
+  color: rgba(239, 232, 218, 0.70);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+}
+.ds-photo-lightbox__stage-arrow:hover {
+  background: rgba(0, 0, 0, 0.60);
+  color: var(--paper);
+}
+.ds-photo-lightbox__stage-arrow--prev { left: 12px; }
+.ds-photo-lightbox__stage-arrow--next { right: 12px; }
+
+.ds-photo-lightbox__stage-counter {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.60);
+  color: rgba(239, 232, 218, 0.80);
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  letter-spacing: 0.06em;
+  border-radius: 999px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Action list — vertical row of tappable actions.
+ * Extracted from menu-builder so every product shares the
+ * same large-touch-target action sheet.
+ * ───────────────────────────────────────────────────────────── */
+
+.ds-action-list {
+  display: grid;
+  gap: 8px;
+}
+.ds-action-list__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 56px;
+  border: 1px solid var(--ink-14);
+  background: var(--paper);
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.ds-action-list__item:hover {
+  background: var(--paper-2);
+  border-color: var(--ink-40);
+}
+.ds-action-list__item--danger { color: var(--cinnabar); }
+.ds-action-list__item--danger:hover { border-color: var(--cinnabar); }
+
 
 .ds-root--washed {
   position: relative;

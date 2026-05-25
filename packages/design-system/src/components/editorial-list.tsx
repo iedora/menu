@@ -21,7 +21,7 @@ export function EditorialList({
       {rows.length === 0 ? (
         emptyState
       ) : (
-        <div data-testid={testId ?? 'editorial-list'}>
+        <div data-test-id={testId ?? 'editorial-list'}>
           {rows.map((row) => <EditorialRow key={row.id} row={row} />)}
         </div>
       )}

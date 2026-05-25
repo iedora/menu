@@ -14,7 +14,7 @@ import type {
   ContactMethod,
   UnifiedAddress,
   UnifiedProperty,
-} from "../../types/unified-property";
+} from '@/shared/types/unified-property'
 
 // ─── Step 1: typology ────────────────────────────────────────────────────────
 // Field: <select name="typology" id="ca-select-typology">

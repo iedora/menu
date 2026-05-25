@@ -110,5 +110,13 @@
     "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/48-oJ3HKAAPnkjJJqqhHNFSRxpa4BBcGo.jpg"
   ],
 
-  "sourceUrl": "https://www.franetic.com/pt/imoveis/quinta-galizes-t4-piscina-vista-serra-estrela"
+  "sourceUrl": "https://www.franetic.com/pt/imoveis/quinta-galizes-t4-piscina-vista-serra-estrela",
+  "integrators": [
+    {
+      "key": "idealista",
+      "status": "published",
+      "publishedAt": "2026-05-23T10:30:00Z",
+      "publishedUrl": "https://www.idealista.pt/imovel/1234567/"
+    }
+  ]
 }
