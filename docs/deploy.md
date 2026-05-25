@@ -26,6 +26,98 @@ migrations on postgres, OpenObserve dashboards, the menu app container)
 is **not** in Tofu. App state belongs to Stage 3 (configurators) and
 Stage 4 (per-product deploys).
 
+## Environment guardrails
+
+The non-negotiable rules. Everything else flexes around them. Where a
+guardrail is not yet enforced by today's code, the row links to the
+implementation plan in
+[guardrails-implementation.md](./guardrails-implementation.md).
+
+### 1. Binary environment — `local` vs `live`, no staging
+
+Code, infrastructure, and ops paths branch on exactly two values. No
+`staging`, `preview`, `qa`, or `pre-prod` tier exists or will be
+introduced.
+
+|             | local                                  | live                              |
+|-------------|----------------------------------------|-----------------------------------|
+| Where       | operator's machine (`task dev`)        | Hetzner + Cloudflare + GHCR       |
+| Targets     | Docker daemon on `localhost`; LocalStack for S3 | Public APIs, real DNS    |
+| Auth        | FirstInstance bootstrap; no BWS needed | BWS-stored, no defaults           |
+| Side effects| freely destructible                    | gated by the guardrails below     |
+
+Any feature that cannot run in `local` must fail at a preflight check
+before touching `live` resources.
+
+### 2. Tofu state lives in R2, never in git
+
+The OpenTofu state file is **never committed** — encrypted or
+otherwise. State is managed via Tofu's native `s3` backend pointed at
+the `iedora-tofu-state` R2 bucket (S3-compatible, scoped API token).
+Reason: race conditions on concurrent applies, lockfile-style state
+locking, and the "encrypted binary in a 3-way git merge" failure mode.
+
+⚠️ **Not enforced yet.** Today's state is git-tracked (see
+[§ Encrypted state](#encrypted-state) for the existing flow). Migration
+plan: [guardrails-implementation.md § Rule 2](./guardrails-implementation.md#rule-2--tofu-state-in-r2).
+
+### 3. Database migrations are expansion-only
+
+Migrations applied to a `live` Postgres must be non-destructive and
+backward-compatible. Breaking schema changes ride a three-deploy
+expand/contract:
+
+| Deploy | What lands                                   | DB shape       |
+|--------|----------------------------------------------|----------------|
+| N      | Add the new column/table; old column stays   | both shapes    |
+| N+1    | New code targets the new shape               | both shapes    |
+| N+2    | Remove the old column once N is fully retired| new shape only |
+
+Reason: Stage 3 (migrations) runs **before** Stage 4 (container swap).
+Without expand/contract, a breaking migration kills the still-running
+old container while Stage 4 is mid-pull.
+
+⚠️ **Not enforced yet.** `menu-db-migrations` runs drizzle-kit
+unconditionally. Plan:
+[guardrails-implementation.md § Rule 3](./guardrails-implementation.md#rule-3--expand-contract-migrations).
+
+### 4. Stage 4 menu deploy is zero-downtime
+
+`dockerOnHetzner.Deploy` must never stop the live container before its
+replacement is healthy. The contract:
+
+1. Pull image.
+2. Start the incoming container as `infra-menu-web-next` on the
+   `iedora` network.
+3. HTTP-probe `/up` on the new container until 200 OK (Go-native, no
+   `curl` shell-outs).
+4. Atomically re-alias `infra-menu-web` (network alias swap, or Caddy
+   upstream reload).
+5. Stop + remove the old container.
+
+⚠️ **Not enforced yet.** Today's runtime is naive
+`docker stop && docker rm && docker run`; the [§ Failure modes](#failure-modes)
+table even acknowledges the 5s 502 window. Plan:
+[guardrails-implementation.md § Rule 4](./guardrails-implementation.md#rule-4--hot-swap-deploy).
+
+### 5. Zitadel reconciler — anti-panic lock
+
+If a Zitadel resource exists on the live IdP but the corresponding
+sync key is missing from BWS, the reconciler **must fail loudly in
+`live`** — never run an automated `delete + recreate`.
+
+Reason: protects against the cascade where a transient BWS API
+timeout returns "key not found", the reconciler "recovers" by
+re-creating live IAM resources, and live users / service accounts /
+org structures are silently destroyed. Lookup failure is
+operator-investigates territory, not auto-heal.
+
+In `local`, the lock is off — `--no-bws` mode is allowed to mint
+fresh keys at will (that's the whole point of `local`).
+
+⚠️ **Audit pending.** Plan:
+[guardrails-implementation.md § Rule 5](./guardrails-implementation.md#rule-5--zitadel-anti-panic-lock).
+
 ## Architecture
 
 ```
@@ -149,6 +241,11 @@ warm runs both passes are no-diff refreshes (~3s each).
 
 ### Encrypted state
 
+> ⚠️ **Deprecated by [Guardrail #2](#2-tofu-state-lives-in-r2-never-in-git).**
+> The git-tracked encrypted state file is the path we're migrating
+> away from. Until the R2 `s3` backend lands, what's below is what
+> runs.
+
 `infra/tofu/terraform.tfstate` is encrypted at rest (PBKDF2 +
 AES-GCM). Passphrase from BWS key `IAC_BOOTSTRAP_STATE_PASSPHRASE`. CI commits
 the encrypted state back to `main` after every successful apply so the
@@ -238,6 +335,13 @@ concurrent-deploy safety. Inputs: `MENU_IMAGE_SHA` env (default
 (nested `bin/with-secrets --stage iac` call — Stage 3's env scope
 doesn't include the postgres password directly).
 
+Per [Guardrail #3](#3-database-migrations-are-expansion-only), every
+migration that lands here is expand-only. Destructive operations
+(`DROP COLUMN`, `DROP TABLE`, `ALTER COLUMN ... TYPE` on a non-empty
+column) must ride the three-deploy expand/contract — see
+[guardrails-implementation.md § Rule 3](./guardrails-implementation.md#rule-3--expand-contract-migrations)
+for the lint that will enforce this.
+
 **docker login** before pull: Stage 3 runs with `IAC_BOOTSTRAP_GHCR_TOKEN`
 in scope (universal), the binary `docker login ghcr.io
 --password-stdin` before each pull.
@@ -286,7 +390,7 @@ this product get shipped to its runtime."
 
 For Docker-runtime products that run on the shared Hetzner VPS.
 
-**Deploy flow**:
+**Deploy flow** (current — naive, has a 5s 502 window):
 
 1. Mint any per-product `appSecrets` not yet in BWS (menu mints
    `DEPLOY_MENU_SESSION_SECRET` on first deploy).
@@ -297,6 +401,11 @@ For Docker-runtime products that run on the shared Hetzner VPS.
 4. SSH to box, `docker login ghcr.io`, `docker pull <image>:<sha>`.
 5. `docker stop <container> && docker rm <container> && docker run -d
    ...` with the composed env, network alias, log opts.
+
+> ⚠️ **Step 5 violates [Guardrail #4](#4-stage-4-menu-deploy-is-zero-downtime).**
+> Replacement flow (pull → start `*-next` → HTTP-probe `/up` →
+> atomic alias swap → drain old) is specified at
+> [guardrails-implementation.md § Rule 4](./guardrails-implementation.md#rule-4--hot-swap-deploy).
 
 **Inputs**:
 - `MENU_IMAGE_SHA` env — set by CI (`github.sha`) or operator (export).
