@@ -4,23 +4,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // ── constants ────────────────────────────────────────────────────────────────
 
 const (
-	logPrefix          = "[local]"
-	zitadelReadyBudget = 90 * time.Second
-	envFileMode        = 0o600
-	placeholderValue   = "<please_fill>"
+	logPrefix        = "[local]"
+	envFileMode      = 0o600
+	placeholderValue = "<please_fill>"
 )
 
 // ── service catalog ──────────────────────────────────────────────────────────
@@ -40,17 +35,11 @@ type service struct {
 }
 
 var allServices = []service{
-	{name: "postgres", envKeys: []string{"DATABASE_URL"}},
+	{name: "postgres", envKeys: []string{"DATABASE_URL", "CORE_DATABASE_URL"}},
 	{name: "localstack", envKeys: []string{"S3_ENDPOINT", "S3_PUBLIC_URL"}},
 	{name: "openobserve", deps: []string{"localstack"}, envKeys: []string{"OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_HEADERS"}},
-	// zitadel covers the bootstrap-init + main binary + login UI compose
-	// services (they share the `zitadel` profile in docker-compose.yml).
-	{name: "zitadel", deps: []string{"postgres"}},
-	{name: "house"},
-	// menu's deps include zitadel for the env composition (OIDC + PAT)
-	// + postgres for DATABASE_URL + localstack for S3 + openobserve for
-	// OTel headers. All four are implied by the env values it consumes.
-	{name: "menu", deps: []string{"postgres", "localstack", "openobserve", "zitadel"}},
+	// menu pulls in every infra service it consumes.
+	{name: "menu", deps: []string{"postgres", "localstack", "openobserve"}},
 }
 
 func serviceNames() []string {
@@ -61,8 +50,7 @@ func serviceNames() []string {
 	return out
 }
 
-// expandDeps closes selected over service.deps. Used so `--only menu`
-// brings postgres/openobserve/etc. along.
+// expandDeps closes selected over service.deps.
 func expandDeps(selected []string) []string {
 	byName := map[string]service{}
 	for _, s := range allServices {
@@ -129,8 +117,8 @@ func parseFlags() cliArgs {
 	var a cliArgs
 	flag.StringVar(&a.only, "only", "", "comma-separated services to start (+ deps)")
 	flag.StringVar(&a.except, "except", "", "comma-separated services to skip; everything else starts")
-	flag.BoolVar(&a.destroy, "destroy", false, "tear down: `docker compose down -v` + wipe bootstrap + .env.local")
-	flag.StringVar(&a.resetDB, "reset-db", "", "drop+recreate one database (`menu` or `zitadel`) without touching the rest")
+	flag.BoolVar(&a.destroy, "destroy", false, "tear down: `docker compose down -v` + wipe .env.local")
+	flag.StringVar(&a.resetDB, "reset-db", "", "drop+recreate one database (`menu` or `core`) without touching the rest")
 	flag.Parse()
 	if a.only != "" && a.except != "" {
 		fail("--only and --except are mutually exclusive")
@@ -167,9 +155,6 @@ func serviceByName(n string) (service, bool) {
 
 // ── docker compose helpers ───────────────────────────────────────────────────
 
-// composeUp runs `docker compose up -d --wait` with one --profile flag
-// per selected service. --wait blocks until healthchecks pass (compose
-// native). Streams stderr/stdout to the operator.
 func composeUp(ctx context.Context, composeDir string, profiles []string) {
 	args := []string{"compose"}
 	for _, p := range profiles {
@@ -186,8 +171,6 @@ func composeUp(ctx context.Context, composeDir string, profiles []string) {
 }
 
 func composeDown(ctx context.Context, composeDir string) {
-	// `-v` wipes named volumes; `--profile '*'` ensures profile-gated
-	// services are included in the teardown.
 	cmd := exec.CommandContext(ctx, "docker", "compose", "--profile", "*", "down", "-v", "--remove-orphans")
 	cmd.Dir = composeDir
 	cmd.Stdout = os.Stdout
@@ -195,45 +178,13 @@ func composeDown(ctx context.Context, composeDir string) {
 	_ = cmd.Run() // best-effort
 }
 
-// dockerCp reads a file out of a named volume via `docker cp`. The
-// FirstInstance-minted SA key lives in the zitadel_bootstrap volume —
-// no host bind mount (avoids UID-mismatch chmod gymnastics), so we
-// pull it out for the one-shot zitadel-apply invocation.
-func dockerCp(ctx context.Context, container, path string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "docker", "cp", container+":"+path, "-")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("docker cp %s:%s: %w", container, path, err)
-	}
-	// `docker cp ... -` emits a tar stream. Strip the tar wrapper to
-	// get the raw file body.
-	return untarSingleFile(out)
-}
-
-// runZitadelApply exec's `bin/zitadel-apply --mode local
-// --output-file <outputsPath>` with the SA key injected via env.
-func runZitadelApply(ctx context.Context, bin, saKey, outputsPath string) {
-	cmd := exec.CommandContext(ctx, bin, "--mode", "local", "--output-file", outputsPath)
-	cmd.Env = append(os.Environ(),
-		"IAC_BOOTSTRAP_ZITADEL_SA_KEY_JSON="+saKey,
-		"ZA_BASE_URL=http://localhost:8080",
-		"ZA_MENU_HOSTNAME=localhost:3000",
-	)
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fail("zitadel-apply: %v", err)
-	}
-}
-
 // ── teardown + reset ─────────────────────────────────────────────────────────
 
-func runDestroy(ctx context.Context, composeDir, bootstrapDir, envLocalPath string) {
+func runDestroy(ctx context.Context, composeDir, envLocalPath string) {
 	step(1, "docker compose down -v --remove-orphans")
 	composeDown(ctx, composeDir)
 
-	step(2, "wipe local bootstrap + .env.local")
-	_ = os.RemoveAll(bootstrapDir)
+	step(2, "wipe .env.local")
 	_ = os.Remove(envLocalPath)
 	fmt.Printf("%s ✓ destroyed\n", logPrefix)
 }
@@ -244,16 +195,13 @@ func runResetDB(ctx context.Context, dbName string) {
 		fmt.Printf("%s reset-db: dropping + recreating menu\n", logPrefix)
 		execPsql(ctx, `DROP DATABASE IF EXISTS menu;`)
 		execPsql(ctx, `CREATE DATABASE menu;`)
-	case "zitadel":
-		fmt.Printf("%s reset-db zitadel — drops zitadel DB + bootstrap volume; re-run go run ./dev/cmd/local-stack to re-bootstrap\n", logPrefix)
-		// Stop zitadel containers so we can drop the DB cleanly.
-		_ = exec.CommandContext(ctx, "docker", "stop", "infra-zitadel-login", "infra-zitadel").Run()
-		execPsql(ctx, `DROP DATABASE IF EXISTS zitadel;`)
-		execPsql(ctx, `CREATE DATABASE zitadel;`)
-		_ = exec.CommandContext(ctx, "docker", "volume", "rm", "iedora-local_zitadel_bootstrap").Run()
-		fmt.Printf("%s ✓ re-run go run ./dev/cmd/local-stack to re-bootstrap\n", logPrefix)
+	case "core":
+		fmt.Printf("%s reset-db: dropping + recreating core\n", logPrefix)
+		execPsql(ctx, `DROP DATABASE IF EXISTS core;`)
+		execPsql(ctx, `CREATE DATABASE core;`)
+		fmt.Printf("%s ✓ re-run go run ./dev/cmd/local-stack to re-apply auth migrations\n", logPrefix)
 	default:
-		fail("--reset-db: unknown db %q (want `menu` or `zitadel`)", dbName)
+		fail("--reset-db: unknown db %q (want `menu` or `core`)", dbName)
 	}
 }
 
@@ -264,36 +212,6 @@ func execPsql(ctx context.Context, sql string) {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		fail("psql: %v", err)
-	}
-}
-
-// ── HTTP readiness probe ─────────────────────────────────────────────────────
-
-func waitForHTTP200(ctx context.Context, url string, budget time.Duration) error {
-	deadline := time.Now().Add(budget)
-	for {
-		// Pre-flight TCP dial cuts ~150ms off the first poll vs going
-		// straight to http.Get (which has its own connect timeout).
-		conn, err := net.DialTimeout("tcp", "localhost:8080", 500*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			resp, err := http.Get(url)
-			if err == nil {
-				_, _ = io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-				if resp.StatusCode == 200 {
-					return nil
-				}
-			}
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("waitForHTTP200(%s): timed out after %s", url, budget)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
 	}
 }
 
@@ -315,19 +233,12 @@ func printNextSteps(selected []string) {
 	} else {
 		fmt.Printf("  → menu     not in selection (HMR path: cd products/menu && bun run dev)\n")
 	}
-	if contains(selected, "house") {
-		fmt.Printf("  → house    http://localhost:3002\n")
-	}
-	if contains(selected, "zitadel") {
-		fmt.Printf("  → zitadel  http://localhost:8080  (admin: zitadel-admin / Password1!)\n")
-	}
 	if contains(selected, "openobserve") {
 		fmt.Printf("  → o2       http://localhost:5080  (dev@iedora.local / Password1!)\n")
 	}
 }
 
 func findRepoRoot() string {
-	// Walk up from cwd until we find the .git directory.
 	dir, err := os.Getwd()
 	if err != nil {
 		fail("getwd: %v", err)
@@ -383,35 +294,10 @@ func sortedUnique(in []string) []string {
 			out = append(out, s)
 		}
 	}
-	// stable lexicographic sort
 	for i := 1; i < len(out); i++ {
 		for j := i; j > 0 && out[j-1] > out[j]; j-- {
 			out[j-1], out[j] = out[j], out[j-1]
 		}
 	}
 	return out
-}
-
-// untarSingleFile strips a `docker cp ... -` tar stream down to the
-// contents of its single regular file entry. Avoids pulling in
-// archive/tar by reading the POSIX ustar header inline — `docker cp`
-// of a single file emits exactly one entry, 512-byte aligned, no
-// PAX extensions for our use case (JSON < 8GB).
-func untarSingleFile(stream []byte) ([]byte, error) {
-	if len(stream) < 512 {
-		return nil, fmt.Errorf("tar stream truncated (%d bytes)", len(stream))
-	}
-	// Bytes 124..135 = size field, octal ASCII, NUL-padded.
-	sizeField := strings.TrimRight(string(stream[124:136]), "\x00 ")
-	var size int64
-	for _, c := range sizeField {
-		if c < '0' || c > '7' {
-			return nil, fmt.Errorf("tar size field non-octal: %q", sizeField)
-		}
-		size = size*8 + int64(c-'0')
-	}
-	if 512+size > int64(len(stream)) {
-		return nil, fmt.Errorf("tar payload truncated (header says %d, have %d)", size, len(stream)-512)
-	}
-	return stream[512 : 512+size], nil
 }

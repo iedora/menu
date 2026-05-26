@@ -1,25 +1,18 @@
 // Local stack orchestrator. Thin shim over `docker compose` —
 // translates --only/--except into compose profiles, brings the stack
-// up, runs the Stage-3-equivalent `bin/zitadel-apply --mode local`,
-// composes products/menu/.env, then starts the menu container.
-//
-// Replaces the previous Tofu-for-local design (dev/tofu/) per
-// docs/deploy.md § Local stack — compose handles every dev concern
-// Tofu was bolted onto (network, volumes, profiles for selection,
-// depends_on for ordering, healthchecks). Go is only on the path
-// for things compose can't natively express: the Zitadel readiness
-// probe (distroless image, no healthcheck), the SA-key copy from
-// the named volume, and the env-compose-then-restart sequence menu
-// needs to receive its post-reconcile env.
+// up, runs the `core` product's drizzle migrations against the local
+// `core` DB, composes products/menu/.env, then starts the menu
+// container.
 //
 // All paths resolve relative to the repo root (the `go run` working
-// directory is `infra/`; repo root = parent).
+// directory is the repo root for `go run ./dev/cmd/local-stack`).
 package main
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -45,13 +38,10 @@ func main() {
 	menuDir := filepath.Join(repoRoot, "products/menu")
 	envPath := filepath.Join(menuDir, ".env")
 	envLocalPath := filepath.Join(menuDir, ".env.local")
-	bootstrapDir := filepath.Join(repoRoot, "dev/.zitadel-bootstrap")
-	outputsPath := filepath.Join(bootstrapDir, "outputs.json")
-	zitadelApplyBin := filepath.Join(repoRoot, "bin/zitadel-apply")
 
 	switch {
 	case cli.destroy:
-		runDestroy(ctx, composeDir, bootstrapDir, envLocalPath)
+		runDestroy(ctx, composeDir, envLocalPath)
 		return
 	case cli.resetDB != "":
 		runResetDB(ctx, cli.resetDB)
@@ -66,49 +56,47 @@ func main() {
 
 	warnEnvLocalState(envLocalPath, selected)
 
-	// 1. compose up everything EXCEPT menu — menu needs the post-reconcile
-	//    env file which doesn't exist yet on a cold run.
+	// 1. compose up everything EXCEPT menu — menu needs .env which
+	//    we compose after migrations land.
 	step(1, "docker compose up — infra services")
 	composeUp(ctx, composeDir, withoutMenu(selected))
 
-	// 2. Wait for Zitadel /debug/ready. The image is distroless (no sh,
-	//    no curl/wget) so we can't ship a docker healthcheck — orchestrator
-	//    polls from the host port-forward instead.
-	if contains(selected, "zitadel") {
-		step(2, "wait for Zitadel /debug/ready")
-		if err := waitForHTTP200(ctx, "http://localhost:8080/debug/ready", zitadelReadyBudget); err != nil {
-			fail("%v\nhint: docker logs infra-zitadel", err)
-		}
+	// 2. Run the `core` product's drizzle migrations against the local
+	//    `core` DB. Replaces the old bin/zitadel-apply step — better-auth
+	//    lives in-process inside each product container, but the schema
+	//    lives in the shared Postgres and must exist before menu boots.
+	if contains(selected, "postgres") {
+		step(2, "core migration — drizzle-kit migrate against the core DB")
+		runCoreMigrations(ctx, repoRoot)
 	}
 
-	// 3. Run bin/zitadel-apply --mode local. Copies the FirstInstance
-	//    SA key out of the zitadel-bootstrap named volume via
-	//    `docker cp` (volume has no host bind mount; the orchestrator
-	//    just needs the JSON for one process invocation).
-	if contains(selected, "zitadel") {
-		step(3, "bin/zitadel-apply (reconcile local Zitadel → outputs.json)")
-		if err := os.MkdirAll(bootstrapDir, 0o700); err != nil {
-			fail("mkdir %s: %v", bootstrapDir, err)
-		}
-		saKey, err := dockerCp(ctx, "infra-zitadel", "/zitadel-bootstrap/menu-sa.json")
-		if err != nil {
-			fail("read SA key from infra-zitadel: %v", err)
-		}
-		runZitadelApply(ctx, zitadelApplyBin, string(saKey), outputsPath)
-	}
+	// 3. Compose menu's .env from local statics.
+	step(3, "compose products/menu/.env + .env.local")
+	writeMenuEnvFiles(envPath, envLocalPath, selected)
 
-	// 4. Compose menu's .env from statics + outputs.json + a stable
-	//    minted session secret. Skipped services land `<please_fill>`
-	//    in .env.local — same pattern the prior Tofu-driven version used.
-	step(4, "compose products/menu/.env + .env.local")
-	writeMenuEnvFiles(outputsPath, envPath, envLocalPath, selected)
-
-	// 5. Start menu now that .env exists. `compose up -d --wait menu`
-	//    picks up the env_file entries on container create.
+	// 4. Start menu now that .env exists.
 	if contains(selected, "menu") {
-		step(5, "docker compose up — menu")
+		step(4, "docker compose up — menu")
 		composeUp(ctx, composeDir, []string{"menu"})
 	}
 
 	printNextSteps(selected)
+}
+
+// runCoreMigrations execs `bun run --cwd packages/auth db:migrate`
+// against the local Postgres `core` DB. The migrations are owned by
+// the `core` product (packages/auth ships the schema today; future
+// audit/admin tables land in the same drizzle folder). Idempotent —
+// drizzle's tracker table skips applied migrations on warm runs.
+func runCoreMigrations(ctx context.Context, repoRoot string) {
+	cmd := exec.CommandContext(ctx, "bun", "run", "--cwd", "packages/auth", "db:migrate")
+	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(),
+		"CORE_DATABASE_URL=postgresql://postgres:Password1!@localhost:5432/core",
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fail("auth migrations failed: %v\nhint: docker logs infra-postgres", err)
+	}
 }

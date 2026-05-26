@@ -1,10 +1,10 @@
-# Local stack — replaces the Tofu-for-local setup.
+# Local stack — mirror of the prod compose document (`infra/iac/tofu/
+# compose.tf`) running against local Docker.
 #
-# Everything an operator needs to develop iedora on their own machine:
-# postgres, localstack (S3 mock), openobserve, zitadel + its login UI,
-# house (Astro), and menu (Next.js). The compose file is the source of
-# truth for the local stack's shape; `cmd/local` is a thin Go shim
-# around `docker compose` for the env-compose + zitadel-apply hooks.
+# Everything an operator needs to develop iedora locally: postgres,
+# localstack (S3 mock), openobserve, menu (Next.js). Identity is
+# `@iedora/auth` (better-auth) running in-process inside the menu
+# container — no IdP container.
 #
 # See docs/deploy.md § Local stack for the operator surface. See
 # `dev/cmd/local-stack/` for the orchestrator.
@@ -12,14 +12,10 @@
 # Selection is via compose profiles, one per service. The orchestrator
 # passes `--profile X` per selected service. Default (no flags) starts
 # everything. `--except <list>` drops profiles. `--only <list>` keeps
-# only those profiles (+ their depends_on closure since compose
-# auto-includes them).
+# only those profiles (+ their depends_on closure).
 
 name: iedora-local
 
-# Single bridge network. Mirrors prod's `iedora` network on the Hetzner
-# box — services reach each other by container name (DNS via Docker's
-# embedded resolver).
 networks:
   iedora:
     name: iedora
@@ -29,17 +25,12 @@ volumes:
   postgres_data:
   localstack_data:
   openobserve_data:
-  # Named volume for the FirstInstance-minted PAT + machine key.
-  # zitadel-login reads /zitadel-bootstrap/login-client.pat; the dev
-  # orchestrator reads /zitadel-bootstrap/menu-sa.json via the
-  # bind-mounted-by-bootstrap path resolved from this volume.
-  zitadel_bootstrap:
 
 services:
 
   # ── postgres ─────────────────────────────────────────────────────────
   # Same image as prod (postgres:18.4-alpine). init.sql is the canonical
-  # one shared with prod — creates the `menu` and `zitadel` databases.
+  # one shared with prod — creates the `menu` and `core` databases.
   postgres:
     image: postgres:18.4-alpine
     container_name: infra-postgres
@@ -79,9 +70,6 @@ services:
       AWS_DEFAULT_REGION: us-east-1
     volumes:
       - localstack_data:/var/lib/localstack
-      # Init hook — runs once when LocalStack reports ready. Mirrors
-      # prod's R2 bucket layout (private `iedora-data`, public
-      # `iedora-assets`).
       - ./localstack-init.sh:/etc/localstack/init/ready.d/init.sh:ro
     ports:
       - "4566:4566"
@@ -127,144 +115,10 @@ services:
       driver: json-file
       options: { max-size: 10m }
 
-  # ── zitadel bootstrap chmod (one-shot init) ──────────────────────────
-  # Named volumes are root:root 755 by default; Zitadel runs as UID 1000
-  # and Zitadel-Login as UID 1001 — neither can write to the volume.
-  # chmod 777 once, exit; zitadel `depends_on: service_completed_successfully`.
-  zitadel-bootstrap:
-    image: busybox:1.37
-    container_name: infra-zitadel-bootstrap
-    profiles: [zitadel]
-    command: ["chmod", "777", "/x"]
-    volumes:
-      - zitadel_bootstrap:/x
-    restart: "no"
-
-  # ── zitadel (IdP — main binary) ──────────────────────────────────────
-  # FirstInstance creates org=iedora, human admin (Password1!), and the
-  # `menu-sa` machine user with a JSON RSA key landing at
-  # /zitadel-bootstrap/menu-sa.json — read by bin/zitadel-apply.
-  zitadel:
-    image: ghcr.io/zitadel/zitadel:v4.15.0
-    container_name: infra-zitadel
-    profiles: [zitadel]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      zitadel-bootstrap:
-        condition: service_completed_successfully
-    networks:
-      iedora:
-        aliases: [zitadel, infra-zitadel]
-    command:
-      - start-from-init
-      - --masterkeyFromEnv
-      - --tlsMode
-      - disabled
-    environment:
-      ZITADEL_EXTERNALDOMAIN: localhost
-      ZITADEL_EXTERNALPORT: "8080"
-      ZITADEL_EXTERNALSECURE: "false"
-      ZITADEL_TLS_ENABLED: "false"
-      ZITADEL_DATABASE_POSTGRES_HOST: postgres
-      ZITADEL_DATABASE_POSTGRES_PORT: "5432"
-      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
-      ZITADEL_DATABASE_POSTGRES_AWAITINITIALCONN: 5m
-      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: postgres
-      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: Password1!
-      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
-      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
-      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: Password1!
-      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
-      ZITADEL_DATABASE_POSTGRES_ADMIN_EXISTINGDATABASE: postgres
-      ZITADEL_FIRSTINSTANCE_ORG_NAME: iedora
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: zitadel-admin
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_FIRSTNAME: iedora
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_LASTNAME: Admin
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_ADDRESS: dev@iedora.local
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_VERIFIED: "true"
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: Password1!
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login Client
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
-      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /zitadel-bootstrap/login-client.pat
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: menu-sa
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Menu
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINEKEY_TYPE: "1"
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINEKEY_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
-      ZITADEL_FIRSTINSTANCE_MACHINEKEYPATH: /zitadel-bootstrap/menu-sa.json
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: http://localhost:3001/ui/v2/login
-      # Dev masterkey. EXACTLY 32 chars. Encrypts every internal
-      # Zitadel secret — loss = ciphertext dead. Hardcoded for dev
-      # because state is throwaway.
-      ZITADEL_MASTERKEY: dev-masterkey-32-chars-padding-x
-    volumes:
-      - zitadel_bootstrap:/zitadel-bootstrap
-    ports:
-      - "8080:8080"
-    logging:
-      driver: json-file
-      options: { max-size: 10m }
-    # No docker healthcheck — Zitadel's image is distroless (no sh, no
-    # curl/wget). The orchestrator probes `http://localhost:8080/debug/
-    # ready` from the host before invoking bin/zitadel-apply.
-
-  # ── zitadel login UI (v2 Next.js companion) ──────────────────────────
-  zitadel-login:
-    image: ghcr.io/zitadel/zitadel-login:v4.15.0
-    container_name: infra-zitadel-login
-    profiles: [zitadel]
-    depends_on:
-      zitadel:
-        condition: service_started
-    networks:
-      iedora:
-        aliases: [zitadel-login, infra-zitadel-login]
-    environment:
-      ZITADEL_API_URL: http://localhost:8080
-      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
-      ZITADEL_SERVICE_USER_TOKEN_FILE: /zitadel-bootstrap/login-client.pat
-      ZITADEL_TLS_ENABLED: "false"
-      EMAIL_VERIFICATION: "false"
-    # Container-side /etc/hosts override so `localhost` inside the
-    # container reaches the operator's host (where the published
-    # zitadel port lives). Satisfies Zitadel's ExternalDomain
-    # Host-header check without bouncing through Caddy.
-    extra_hosts:
-      - "localhost:host-gateway"
-    volumes:
-      - zitadel_bootstrap:/zitadel-bootstrap
-    ports:
-      - "3001:3000"
-    logging:
-      driver: json-file
-      options: { max-size: 10m }
-
-  # ── house (Astro static, built locally) ──────────────────────────────
-  house:
-    image: iedora-house:local
-    build:
-      context: ..
-      dockerfile: products/house/Dockerfile
-    container_name: infra-house
-    profiles: [house]
-    networks:
-      iedora:
-        aliases: [house, infra-house]
-    ports:
-      - "3002:80"
-    logging:
-      driver: json-file
-      options: { max-size: 10m }
-
   # ── menu (Next.js, built locally) ────────────────────────────────────
-  # Env comes from the composed `products/menu/.env` + `.env.local`
-  # files — the orchestrator writes them AFTER zitadel-apply runs and
-  # then `docker compose up -d menu` (or restart) loads them. The two
-  # files override each other in order: .env (defaults) then
-  # .env.local (operator overrides, optional).
+  # Env comes from `products/menu/.env` + optional `.env.local`. The
+  # dev orchestrator runs the @iedora/auth migrations against the `core`
+  # DB after postgres is healthy, then starts this container.
   menu:
     image: iedora-menu:local
     build:
@@ -278,9 +132,6 @@ services:
     networks:
       iedora:
         aliases: [menu, infra-menu]
-    # Both env files are optional so first-run `docker compose config`
-    # doesn't fail before the orchestrator writes them. The orchestrator
-    # composes .env after `bin/zitadel-apply` runs, then starts menu.
     env_file:
       - path: ../products/menu/.env
         required: false

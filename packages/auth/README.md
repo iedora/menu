@@ -94,6 +94,32 @@ In prod, Stage 3 of the deploy pipeline runs `db:migrate` against the
 - The `core` DB / `core` schema is owned here too — schema drift cannot
   happen silently in a consumer's local migrations folder.
 
+## Cross-product boundary (microservices-ready)
+
+Products talk to `core` data EXCLUSIVELY through this package's API
+(`auth.api.getSession`, `auth.api.hasPermission`,
+`auth.api.createOrganization`, …). No consumer is allowed to:
+
+- Open a Drizzle / postgres-js connection at `CORE_DATABASE_URL` and
+  query `core.user` / `core.organization` / `core.member` directly.
+- Add a foreign-key constraint from its own tables to anything under
+  the `core` schema. Foreign references stay as plain `text` columns
+  carrying the opaque id (e.g. `restaurant.organization_id`).
+- Import Drizzle table objects from `@iedora/auth/schema` for read
+  queries. The `schema` export exists for migrations and the package's
+  own adapters; product code asks the API instead.
+
+Why this matters: the day we split `core` off as its own service —
+distinct repo, distinct DB, gRPC or HTTP boundary — the only thing that
+has to change is this package's adapter (Drizzle → API client). Every
+consumer's call sites stay identical because they already speak the
+API surface, not SQL.
+
+The same boundary applies in the other direction: `core` doesn't
+import menu's schema or query menu's DB. Cross-product reads (e.g.
+"how many restaurants does this org have?") go through whatever API
+the owning product exposes.
+
 ## Not in scope
 
 - SMTP wiring (`requireEmailVerification` is off; flip it on when SMTP

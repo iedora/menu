@@ -3,38 +3,23 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 )
 
-// writeMenuEnvFiles composes products/menu/.env from local-stack
-// statics + the zitadel-apply outputs.json, then writes excluded-
-// service keys to .env.local as `<please_fill>` placeholders.
+// writeMenuEnvFiles composes products/menu/.env from local-stack statics
+// then writes excluded-service keys to .env.local as `<please_fill>`
+// placeholders.
 //
-// The .env file is what compose loads (`env_file:` in the menu
-// service block) when menu starts. `.env.local` is the operator's
-// editable overrides — gitignored — read by menu AFTER .env per
-// compose's documented merge order.
-//
-// All the values here are well-known constants for the local stack
-// (the menu image talks to `infra-postgres:5432`, OO at
-// `infra-openobserve:5080`, LocalStack at `infra-localstack:4566`).
-// No Tofu output reads — that was the previous design's load-bearing
-// complexity, replaced by literal strings now that compose owns the
-// service layout.
-func writeMenuEnvFiles(outputsPath, envPath, envLocalPath string, selected []string) {
-	env, err := composeMenuEnv(outputsPath)
-	if err != nil {
-		fail("compose menu env: %v", err)
-	}
-	mintAndPersistSessionSecret(outputsPath, env)
+// All values here are well-known constants for the local stack — the
+// menu image talks to `infra-postgres:5432`, `infra-openobserve:5080`,
+// `infra-localstack:4566`. No Tofu output reads, no app-state outputs —
+// the orchestrator owns the recipe end-to-end.
+func writeMenuEnvFiles(envPath, envLocalPath string, selected []string) {
+	env := composeMenuEnv(envLocalPath)
 
-	// .env carries every key whose providing service IS in the stack.
-	// Excluded services get dropped here + land in .env.local with the
-	// `<please_fill>` placeholder for the operator to point elsewhere.
 	excluded := excludedEnvKeys(selected)
 	excludeSet := map[string]bool{}
 	for _, k := range excluded {
@@ -50,8 +35,13 @@ func writeMenuEnvFiles(outputsPath, envPath, envLocalPath string, selected []str
 	writeEnvLocal(envLocalPath, excluded)
 }
 
-func composeMenuEnv(outputsPath string) (map[string]string, error) {
-	out := map[string]string{
+// composeMenuEnv returns the full menu env map for the local stack.
+// `envLocalPath` is consulted only to recover an existing IEDORA_AUTH_SECRET
+// across orchestrator runs (so sign-ins survive a restart).
+func composeMenuEnv(envLocalPath string) map[string]string {
+	authSecret := stableAuthSecret(envLocalPath)
+
+	return map[string]string{
 		// Static literals — true for the dev container topology.
 		"NODE_ENV":                    "development",
 		"NEXT_TELEMETRY_DISABLED":     "1",
@@ -59,88 +49,38 @@ func composeMenuEnv(outputsPath string) (map[string]string, error) {
 		"S3_ACCESS_KEY":               "test",
 		"S3_SECRET_KEY":               "test",
 		"S3_BUCKET":                   "iedora-assets",
-		"IEDORA_ADMIN_EMAILS":         "dev@iedora.local",
 		"HOST_NAME":                   "localhost",
 		"GIT_SHA":                     "dev",
 		"MENU_PUBLIC_URL":             "http://localhost:3000",
-		"ZITADEL_ISSUER_URL":          "http://localhost:8080",
+		"IEDORA_AUTH_BASE_URL":        "http://localhost:3000",
+		"IEDORA_AUTH_TRUSTED_ORIGINS": "http://localhost:3000",
+		"IEDORA_AUTH_COOKIE_DOMAIN":   "localhost",
+		"IEDORA_AUTH_SECRET":          authSecret,
 		"S3_PUBLIC_URL":               "http://localhost:4566/iedora-assets",
 		"DATABASE_URL":                "postgres://postgres:Password1!@infra-postgres:5432/menu",
+		"CORE_DATABASE_URL":           "postgres://postgres:Password1!@infra-postgres:5432/core",
 		"S3_ENDPOINT":                 "http://infra-localstack:4566",
 		"OTEL_EXPORTER_OTLP_ENDPOINT": "http://infra-openobserve:5080/api/default",
 		// Same Basic-auth header shape as prod (OO root_user_email +
 		// password, base64'd, URL-escaped). Hardcoded for dev.
 		"OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Basic%20" + base64.StdEncoding.EncodeToString([]byte("dev@iedora.local:Password1!")),
 	}
-
-	// Zitadel-apply outputs (APP_ZITADEL_*). Mapped to the env keys the
-	// menu app actually reads.
-	outputs, err := readOutputsJSON(outputsPath)
-	if err != nil {
-		return nil, err
-	}
-	pull := func(jsonKey, envKey string) {
-		if v, ok := outputs[jsonKey]; ok {
-			out[envKey] = v
-		}
-	}
-	pull("APP_ZITADEL_MENU_OIDC_CLIENT_ID", "ZITADEL_OAUTH_CLIENT_ID")
-	pull("APP_ZITADEL_MENU_OIDC_CLIENT_SECRET", "ZITADEL_OAUTH_CLIENT_SECRET")
-	pull("APP_ZITADEL_MENU_SA_TOKEN", "ZITADEL_MANAGEMENT_TOKEN")
-	pull("APP_ZITADEL_PERMISSIONS_SIGNING_KEY", "ZITADEL_ACTION_SIGNING_KEY")
-	pull("APP_ZITADEL_GRANTS_SIGNING_KEY", "ZITADEL_GRANTS_SIGNING_KEY")
-	pull("APP_ZITADEL_IEDORA_PROJECT_ID", "IEDORA_PROJECT_ID")
-
-	if v, ok := outputs["DEPLOY_MENU_SESSION_SECRET"]; ok {
-		out["MENU_SESSION_SECRET"] = v
-	}
-	return out, nil
 }
 
-// mintAndPersistSessionSecret puts a stable session secret into the
-// env. If outputs.json already has one (warm run), reuse — keeps
-// existing local sessions valid across `go run ./dev/cmd/local-stack` cycles. If not,
-// mint 32 bytes + persist to outputs.json.
-func mintAndPersistSessionSecret(outputsPath string, env map[string]string) {
-	const k = "DEPLOY_MENU_SESSION_SECRET"
-	if _, ok := env["MENU_SESSION_SECRET"]; ok {
-		return
+// stableAuthSecret keeps IEDORA_AUTH_SECRET stable across orchestrator
+// runs so existing sign-ins survive a restart. If `.env.local` already
+// pins one, reuse it; otherwise mint 48 bytes and persist via the
+// .env.local writer downstream.
+func stableAuthSecret(envLocalPath string) string {
+	existing := parseEnvLocal(envLocalPath)
+	if v, ok := existing["IEDORA_AUTH_SECRET"]; ok && v != "" && v != placeholderValue {
+		return v
 	}
-	buf := make([]byte, 32)
+	buf := make([]byte, 48)
 	if _, err := rand.Read(buf); err != nil {
-		fail("mint session secret: %v", err)
+		fail("mint auth secret: %v", err)
 	}
-	secret := base64.RawStdEncoding.EncodeToString(buf)
-	env["MENU_SESSION_SECRET"] = secret
-
-	// Persist alongside the zitadel-apply outputs so warm runs reuse it.
-	outputs, _ := readOutputsJSON(outputsPath)
-	if outputs == nil {
-		outputs = map[string]string{}
-	}
-	outputs[k] = secret
-	body, err := json.MarshalIndent(outputs, "", "  ")
-	if err != nil {
-		fail("marshal outputs: %v", err)
-	}
-	if err := os.WriteFile(outputsPath, body, 0o600); err != nil {
-		fail("write %s: %v", outputsPath, err)
-	}
-}
-
-func readOutputsJSON(path string) (map[string]string, error) {
-	body, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]string{}, nil
-		}
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	var out map[string]string
-	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-	return out, nil
+	return base64.RawStdEncoding.EncodeToString(buf)
 }
 
 // writeEnvFile emits the .env file with a stable key order. Includes a
@@ -153,8 +93,8 @@ func writeEnvFile(path string, env map[string]string) {
 	sort.Strings(keys)
 
 	var b strings.Builder
-	b.WriteString("# AUTO-GENERATED by `go run ./dev/cmd/local-stack` (dev/orchestrator).\n")
-	b.WriteString("# Composed from local-stack statics + bin/zitadel-apply outputs.\n")
+	b.WriteString("# AUTO-GENERATED by `go run ./dev/cmd/local-stack`.\n")
+	b.WriteString("# Composed from local-stack statics; the dev orchestrator owns the recipe.\n")
 	b.WriteString("# Overrides live in `.env.local` (gitignored).\n\n")
 	for _, k := range keys {
 		fmt.Fprintf(&b, "%s=%s\n", k, env[k])
@@ -165,8 +105,8 @@ func writeEnvFile(path string, env map[string]string) {
 }
 
 // writeEnvLocal emits .env.local with `<please_fill>` placeholders for
-// excluded services. Preserves any operator-overridden values that
-// aren't placeholders (so re-running `go run ./dev/cmd/local-stack` doesn't wipe edits).
+// excluded services. Preserves operator overrides that aren't placeholders
+// (so re-running `go run ./dev/cmd/local-stack` doesn't wipe edits).
 func writeEnvLocal(path string, excluded []string) {
 	existing := parseEnvLocal(path)
 
@@ -201,7 +141,7 @@ func writeEnvLocal(path string, excluded []string) {
 	b.WriteString("# Operator overrides for products/menu/.env. Edit any KEY=value\n")
 	b.WriteString("# pair to override what `go run ./dev/cmd/local-stack` composes. Keys set to\n")
 	b.WriteString("# `<please_fill>` are placeholders for services skipped via\n")
-	b.WriteString("# --except — set them to a remote URL (homelab tunnel, prod, …).\n\n")
+	b.WriteString("# --except — set them to a remote URL.\n\n")
 	for _, k := range keys {
 		fmt.Fprintf(&b, "%s=%s\n", k, existing[k])
 	}
@@ -210,10 +150,6 @@ func writeEnvLocal(path string, excluded []string) {
 	}
 }
 
-// parseEnvLocal reads .env.local as a flat map. Tolerates missing
-// file (empty map). Lines starting with `#` and blank lines are
-// skipped; KEY=value pairs with quoted values are NOT supported here
-// (the orchestrator only writes plain values).
 func parseEnvLocal(path string) map[string]string {
 	out := map[string]string{}
 	body, err := os.ReadFile(path)
@@ -235,10 +171,7 @@ func parseEnvLocal(path string) map[string]string {
 }
 
 // warnEnvLocalState surfaces a leading warning when .env.local has
-// operator-overridden keys (anything that's NOT `<please_fill>` and
-// NOT empty) for a service that's in the active selection. Either
-// the operator is intentionally shadowing the auto-composed env
-// (fine) or they're confused. Either way, surfacing is the right call.
+// operator-overridden keys for a service that's in the active selection.
 func warnEnvLocalState(envLocalPath string, selected []string) {
 	existing := parseEnvLocal(envLocalPath)
 	if len(existing) == 0 {
