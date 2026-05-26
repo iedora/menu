@@ -19,8 +19,10 @@
 
 FROM golang:1.26-alpine AS builder
 WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
+# No go.sum — the module has zero external deps (every import is
+# internal under `github.com/eduvhc/iedora/`), so `go mod download`
+# resolves nothing and never writes a sum file.
+COPY go.mod ./
 COPY internal ./internal
 COPY infra/iac/cmd/infra-pg-backup ./infra/iac/cmd/infra-pg-backup
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /infra-pg-backup ./infra/iac/cmd/infra-pg-backup
