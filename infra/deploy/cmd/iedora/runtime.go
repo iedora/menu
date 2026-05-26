@@ -2,13 +2,15 @@ package main
 
 import "context"
 
-// productRuntime is the polymorphic deploy/destroy target for a product.
+// productRuntime is the polymorphic deploy/destroy target for one
+// DEPLOY ARTIFACT — not for a logical product surface. See products.go
+// for the artifact vs logical-product distinction.
 //
 // One implementation today: `dockerOnHetzner` — pulls an image and
 // replaces a container on the shared Hetzner VPS over SSH. Used by
-// `menu` (which also serves the apex `iedora.com` brand landing AND
-// the `core.iedora.com` auth surface via host-based rewrites in
-// `proxy.ts`).
+// the `web` artifact, which is the Next.js shell hosting all three
+// logical products (menu, core, house) from one image via host-based
+// rewrites in `apps/web/src/proxy.ts`.
 //
 // Adding a runtime (Cloudflare Workers, Vercel, S3-static, …):
 // implement the two methods + reference from a product struct literal

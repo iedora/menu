@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@v6
 
       - name: Wait for ghcr.io/eduvhc/web:latest
         # Both Stage-3 configurators (`core-db-migrations`,
@@ -96,7 +96,7 @@ jobs:
           sudo install -m 0755 /tmp/bws/bws /usr/local/bin/bws
 
       - name: Install Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -105,7 +105,7 @@ jobs:
       - name: Install OpenTofu
         # Stage 3 reads `hetzner_ipv4` via `tofu output -raw` so it can
         # SSH to the box (menu-db-migrations + openobserve-dashboards).
-        uses: opentofu/setup-opentofu@847eaa4afeb791b06daa46e8eafa8b1b68d7cfb4 # v2.0.1
+        uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: '1.12.0'
           tofu_wrapper: false

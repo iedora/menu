@@ -1,38 +1,53 @@
 package main
 
-// product describes one deployable artifact alongside the central infra.
-// Each entry in `products` becomes one fan-out goroutine in
-// runDeployProduct / runDestroyProduct.
+// product here means a DEPLOY ARTIFACT — one image-and-runtime pair the
+// orchestrator can ship. NOT a logical product surface.
+//
+// The codebase has three logical products as workspace packages:
+//   - @iedora/product-menu  (slices, drizzle, e2e)
+//   - @iedora/product-core  (auth + admin surface)
+//   - @iedora/product-house (apex brand landing)
+//
+// All three ship inside the same Next.js shell (`apps/web`), built into
+// ONE Docker image (`ghcr.io/eduvhc/web`), running in ONE container
+// (`infra-web`). Host-based rewrites in `apps/web/src/proxy.ts` fan
+// the three subdomains (menu., core., apex iedora.com) onto the same
+// node process. So at the deploy layer there is exactly ONE entry —
+// the `web` artifact below.
+//
+// A future product that needs a DIFFERENT runtime (Cloudflare Workers,
+// Vercel, static S3, …) would add a second entry here with its own
+// runtime_<kind>.go. Until then, "adding a product" is a workspace-
+// package + proxy-rewrite operation, NOT a registry edit.
 //
 // Polymorphism lives on `runtime` — see runtime.go for the interface,
 // runtime_docker.go for the only implementation today.
 //
-// Adding a product:
+// Adding a NEW deploy artifact (separate runtime):
 //
-//  1. Decide on a runtime (or implement a new one — runtime_*.go).
+//  1. Implement a new productRuntime in runtime_<kind>.go.
 //  2. Append one entry to `products` below.
-//  3. Add a .github/workflows/<name>.yml workflow that build-pushes the
-//     artifact and triggers deploy.yml with product=<name>.
+//  3. Add a .github/workflows/<name>.yml workflow that build-pushes
+//     the artifact and triggers deploy.yml with product=<name>.
 //
 // The orchestrator picks up the rest mechanically.
 type product struct {
 	// name — human label, surfaced in stderr lines. Lowercase, no spaces.
 	// Used as the workflow_call input to .github/workflows/deploy.yml.
+	// Matches the deploy artifact, not the logical product surface.
 	name string
 
-	// runtime — how this product is shipped. One implementation today
+	// runtime — how this artifact is shipped. One implementation today
 	// (dockerOnHetzner). Adding another (Vercel, Cloudflare Pages, etc.) =
 	// new struct in runtime_<kind>.go.
 	runtime productRuntime
 }
 
-// products — the explicit registry. Order is irrelevant; deploy/destroy
-// fan out in parallel.
+// products — the explicit registry of deploy artifacts. Order is
+// irrelevant; deploy/destroy fan out in parallel.
 //
-// NOTE: `house` was removed when iedora.com was folded into the menu
-// Next.js app (see apps/web/src/app/house/ + src/proxy.ts host
-// rewrite). Menu's container serves both menu.iedora.com and
-// iedora.com from the same image — no separate product needed.
+// One entry: `web` — the Next.js shell hosting all three logical
+// products (menu, core, house). See the type comment above.
 var products = []product{
 	{
 		name: "web",
@@ -50,7 +65,7 @@ var products = []product{
 			logOpts: map[string]string{
 				"max-size": "10m",
 			},
-			// Guardrail #4 — opts menu into the zero-downtime hot-swap
+			// Guardrail #4 — opts web into the zero-downtime hot-swap
 			// flow. Probe `/up` (returns 200 `{"ok":true,"db":"ok"}` on
 			// healthy DB connectivity) on container-local port 3000
 			// until ready, then atomically re-alias `infra-web`

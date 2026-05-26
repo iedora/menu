@@ -211,7 +211,7 @@ func (f *fakeSSH) respond(cmd string) scriptedResp {
 	return scriptedResp{}
 }
 
-// newTestDocker returns a dockerOnHetzner pre-wired with the menu
+// newTestDocker returns a dockerOnHetzner pre-wired with the web
 // container's identity + a Healthcheck. Tests tweak individual fields
 // (DrainDuration, Healthcheck.Timeout) before calling deployHotSwap.
 func newTestDocker(ssh sshExecutor) *dockerOnHetzner {

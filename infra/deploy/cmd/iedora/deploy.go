@@ -10,14 +10,19 @@ import (
 )
 
 // runDeployProduct is Stage 4 of the pipeline. Dispatches to the
-// product's runtime.Deploy. With no positional arg, fans out to every
-// product in parallel.
+// runtime.Deploy of every deploy artifact named in argv. With no
+// positional arg, fans out to every artifact in the registry in
+// parallel.
+//
+// "Product" here means deploy artifact — see products.go. Today the
+// registry has one entry (`web`), which itself hosts the menu / core /
+// house logical products via host-based rewrites in proxy.ts.
 //
 // Usage:
 //
-//	iedora deploy            — deploy every product (parallel fan-out).
-//	iedora deploy menu       — deploy just menu.
-//	iedora deploy house menu — multiple products in one call.
+//	iedora deploy            — deploy every artifact (parallel fan-out).
+//	iedora deploy web        — deploy just the `web` artifact.
+//	iedora deploy web foo    — multiple artifacts in one call (future).
 func runDeployProduct(ctx context.Context, argv []string) error {
 	currentMode.Require(mode.Live)
 

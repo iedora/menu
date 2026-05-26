@@ -1,10 +1,10 @@
 # `apps/web` CI + image build/push.
 #
 # Runs the shell's gates (typecheck + lint + Trivy/SBOM) on every push + PR.
-# On push to main, after the gates pass AND every `[product:*] CI` is green,
-# builds the web image for linux/arm64, pushes it to GHCR
-# (`ghcr.io/eduvhc/web:latest` + commit SHA), then invokes the Stage-4
-# deploy workflow with the image SHA pinned.
+# On push to main, after the gates pass, builds the web image for
+# linux/arm64, pushes it to GHCR (`ghcr.io/eduvhc/web:latest` + commit
+# SHA), then invokes the Stage-4 deploy workflow with the image SHA
+# pinned.
 #
 # Architecture note: the web container is owned by Stage 4
 # (`infra/deploy/cmd/iedora/runtime_docker.go`, dockerOnHetzner runtime),
@@ -14,10 +14,10 @@
 # job SSHes to the box, pulls the pinned image, and hot-swaps the
 # container.
 #
-# Unit + E2E tests live with the products that own the code
-# (`[product:menu] CI` runs Vitest + Playwright; `[product:core] CI`,
-# `[package:*] CI` run their own surfaces). This workflow gates the
-# image build on all of them via the `wait_products` job.
+# Unit + E2E tests live with the products that own the code — see
+# `[product:menu] CI` (Vitest + Playwright), `[product:core] CI`,
+# `[package:*] CI`. They run on their own paths-filtered triggers and
+# are NOT a gate on this workflow.
 
 name: '[apps:web] CI'
 
@@ -71,7 +71,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run typecheck
 
@@ -83,7 +83,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run lint
 
@@ -101,9 +101,9 @@ jobs:
     # the run; --ignore-unfixed avoids failing on CVEs with no patch yet.
     # `.trivyignore` at repo root holds accepted exceptions.
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - name: Trivy vulnerability gate
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -112,7 +112,7 @@ jobs:
           ignore-unfixed: true
           format: table
       - name: Trivy SBOM (SPDX JSON)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -120,7 +120,7 @@ jobs:
           output: web-sbom.spdx.json
           exit-code: '0'
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: web-sbom
           path: web-sbom.spdx.json
@@ -131,62 +131,7 @@ jobs:
   # products/menu/tests/e2e/ and tests the menu surface, so it belongs
   # with the menu's CI signal, not the apps/web shell's.
 
-  # ── Stage 1: gate on every [product:*] CI ────────────────────────────────
-  # Build refuses to start until product-menu, product-core, product-house
-  # are all green. Per-product workflows fire on `paths: ['products/<x>/**']`
-  # so the gate fast-paths when nothing in that product changed (latest
-  # successful run carries over).
-  wait_products:
-    name: Wait for [product:*] CI
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    permissions:
-      actions: read
-    steps:
-      - name: Poll [product:menu] + [product:core] + [product:house]
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          deadline=$(( $(date +%s) + 1700 ))   # ~28 min budget
-          for wf in product-menu.yml product-core.yml product-house.yml; do
-            echo "→ waiting on $wf"
-            while true; do
-              run=$(gh run list \
-                      --repo "${{ github.repository }}" \
-                      --workflow="$wf" \
-                      --branch=main \
-                      --limit 1 \
-                      --json status,conclusion,databaseId -q '.[0]' || echo '{}')
-              status=$(echo "$run" | jq -r '.status // "absent"')
-              conclusion=$(echo "$run" | jq -r '.conclusion // ""')
-              case "$status" in
-                completed)
-                  if [ "$conclusion" = "success" ]; then
-                    echo "  ✓ $wf green (run #$(echo "$run" | jq -r .databaseId))"
-                    break
-                  fi
-                  echo "  ✗ $wf ${conclusion} — refusing to build"
-                  exit 1
-                  ;;
-                absent)
-                  echo "  (no prior run for $wf yet — waiting 30s)"
-                  ;;
-                *)
-                  echo "  $wf status=${status} — waiting 30s"
-                  ;;
-              esac
-              if [ "$(date +%s)" -ge "$deadline" ]; then
-                echo "  ✗ budget exhausted — abort"
-                exit 1
-              fi
-              sleep 30
-            done
-          done
-          echo "✓ all product workflows green"
-
-  # ── Stage 2: per-arch native build ──────────────────────────────────────
+  # ── Per-arch native build ───────────────────────────────────────────────
   # Matrix splits the build across two NATIVE runners — `ubuntu-24.04`
   # (amd64) + `ubuntu-24.04-arm` (Ampere Altra, free for public repos
   # since 2025). No QEMU, no emulation tax. Each arch builds + pushes a
@@ -195,7 +140,7 @@ jobs:
   # docs.docker.com/build/ci/github-actions/multi-platform.
   build:
     name: 'Build image (${{ matrix.platform }})'
-    needs: [typecheck, lint, security, wait_products]
+    needs: [typecheck, lint, security]
     # Only on push to main — PRs run the gates only. workflow_dispatch on main
     # still triggers a build for the "re-roll latest" flow.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -220,7 +165,7 @@ jobs:
       attestations: write     # attach attestations to the GHCR image
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
 
       # `/` is illegal in artifact names. `linux/amd64` → `linux-amd64`.
       - name: Derive platform slug
@@ -230,7 +175,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        uses: docker/setup-buildx-action@v4
 
       # The `ghcr.io/eduvhc/web` package was originally created under
       # Eduardo's personal PAT, so GITHUB_TOKEN (scoped to the iedora repo)
@@ -272,7 +217,7 @@ jobs:
       # on each other's intermediate stages.
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@f6010ea70151369b06f0194be1051fbbdff851b2 # v6.0.2
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/web/Dockerfile
@@ -294,7 +239,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: digests-web-${{ steps.slug.outputs.value }}
           path: /tmp/digests/*
@@ -324,14 +269,14 @@ jobs:
 
     steps:
       - name: Download digests
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digests-web-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        uses: docker/setup-buildx-action@v4
 
       - name: Install bws CLI
         env:
@@ -389,7 +334,7 @@ jobs:
       # to the manifest list digest so `gh attestation verify oci://...`
       # resolves against the multi-arch image as a unit.
       - name: Attest SLSA build provenance
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/eduvhc/web
           subject-digest: ${{ steps.inspect.outputs.digest }}

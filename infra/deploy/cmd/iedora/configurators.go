@@ -47,16 +47,18 @@ var appConfigurators = []appConfigurator{
 	{
 		// drizzle-kit migrate against the `core` Postgres database
 		// (the @iedora/auth schema: user / session / organization /
-		// member / …). Runs FIRST so the menu container — which reads
+		// member / …). Runs FIRST so the web container — which reads
 		// `core.session` on every request — boots against a migrated
 		// schema. See infra/app-state/core-db-migrations/.
 		name: "core-db-migrations",
 		run:  coredbmigrations.Run,
 	},
 	{
-		// drizzle-kit migrate against menu's postgres database. SSHes
-		// to the box and `docker run`s migrate.mjs from the menu image
-		// at MENU_IMAGE_SHA. See infra/app-state/menu-db-migrations/.
+		// drizzle-kit migrate against the `menu` postgres database
+		// (postgres database name, owned by the menu slice of the web
+		// product). SSHes to the box and `docker run`s migrate.mjs
+		// from the web image at MENU_IMAGE_SHA.
+		// See infra/app-state/menu-db-migrations/.
 		name: "menu-db-migrations",
 		run:  menudbmigrations.Run,
 	},

@@ -43,7 +43,7 @@ jobs:
       run:
         working-directory: packages/auth
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run typecheck
 
@@ -55,7 +55,7 @@ jobs:
       run:
         working-directory: packages/auth
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run lint
 
@@ -67,6 +67,6 @@ jobs:
       run:
         working-directory: packages/auth
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run test

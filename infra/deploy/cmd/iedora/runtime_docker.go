@@ -216,7 +216,7 @@ func (d *dockerOnHetzner) Deploy(ctx context.Context) error {
 
 // deployNaive is the legacy `stop && rm && run` flow. Kept available for
 // any future Docker product that ships without an /up endpoint; no
-// current product wires it (menu's struct sets Healthcheck).
+// current product wires it (web's struct sets Healthcheck).
 func (d *dockerOnHetzner) deployNaive(ctx context.Context, ssh sshExecutor, host, image string, env map[string]string) error {
 	fmt.Fprintf(stderr, "→ docker stop+rm+run %s\n", d.containerName)
 	// Best-effort stop/rm — non-fatal if container didn't exist.
@@ -334,7 +334,7 @@ func (d *dockerOnHetzner) deployHotSwap(ctx context.Context, ssh sshExecutor, ho
 // (connection refused, non-200, exec error) is a transient miss — we
 // just retry until the budget runs out.
 //
-// We probe via `node -e` rather than `wget` because the menu image is
+// We probe via `node -e` rather than `wget` because the web image is
 // node-alpine slim — no `wget`/`curl` binary. `node` itself is the
 // container's entrypoint, so it's always present. The inline script
 // uses node:http (stdlib, no deps) and exits 0 only on 2xx — letting

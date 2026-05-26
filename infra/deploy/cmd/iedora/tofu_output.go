@@ -11,7 +11,7 @@ import (
 
 // runTofuOutput runs `tofu -chdir=tofu output -raw <name>` and returns
 // the trimmed stdout. Stage 4 (deploy) uses this to read Stage-2-minted
-// values (Hetzner IP, R2 creds, menu env) without keeping the full
+// values (Hetzner IP, R2 creds, app env) without keeping the full
 // Tofu wrapper that used to live in `tofu.go`.
 //
 // Empty stdout returns ("", nil) — the caller decides if that's an

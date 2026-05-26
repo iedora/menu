@@ -45,7 +45,7 @@ jobs:
       run:
         working-directory: products/menu
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run typecheck
 
@@ -57,7 +57,7 @@ jobs:
       run:
         working-directory: products/menu
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run lint
 
@@ -69,7 +69,7 @@ jobs:
       run:
         working-directory: products/menu
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - run: bun run test
 
@@ -108,7 +108,7 @@ jobs:
       run:
         working-directory: products/menu
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
 
       - name: Wait for S3Mock + create bucket
@@ -143,7 +143,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ strategy.job-index }}
           path: products/menu/playwright-report

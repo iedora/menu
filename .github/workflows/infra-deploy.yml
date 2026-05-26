@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout @ ${{ github.sha }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
 
@@ -68,7 +68,7 @@ jobs:
         # Needed for `go run`-style execution of `bin/bws-sync` (called
         # by Tofu's `terraform_data.bws_sync` local-exec provisioner) and
         # `bin/state-bucket-bootstrap` (Stage -1).
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -78,7 +78,7 @@ jobs:
         # Pin to the laptop's current major.minor (1.12.x). Bumping
         # without aligning the laptop first can corrupt the encrypted
         # state file (schema diffs between versions).
-        uses: opentofu/setup-opentofu@847eaa4afeb791b06daa46e8eafa8b1b68d7cfb4 # v2.0.1
+        uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: '1.12.0'
           tofu_wrapper: false
@@ -119,7 +119,7 @@ jobs:
 
       - name: Upload tofu apply JSON
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: tofu-apply-json
           path: ${{ runner.temp }}/tf-apply.json
