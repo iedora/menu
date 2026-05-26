@@ -1,7 +1,11 @@
 import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
 export default defineConfig({
+  // tsconfig.json has `jsx: "preserve"` for Next.js; @vitejs/plugin-react
+  // gives vitest its own JSX transform so `.test.tsx` files parse.
+  plugins: [react()],
   test: {
     // Unit tests live next to the code they test (co-located). `.test.tsx`
     // covers shared UI components rendered via `react-dom/server`.
