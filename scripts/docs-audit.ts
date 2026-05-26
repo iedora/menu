@@ -45,7 +45,7 @@ const CHECKS: Check[] = [
     reason: 'The slice-E2E refactor moved specs to src/features/<slice>/e2e/.',
     find: /tests\/e2e\/specs\//,
     mode: 'forbid',
-    paths: ['docs', 'AGENTS.md', 'products/menu/CLAUDE.md'],
+    paths: ['docs', 'AGENTS.md', 'apps/web/CLAUDE.md'],
     fix: 'Replace with src/features/<slice>/e2e/ (or tests/e2e/journeys/ for cross-slice).',
   },
   {
@@ -53,7 +53,7 @@ const CHECKS: Check[] = [
     reason: 'DB primitives moved to src/shared/testing/e2e-db.ts.',
     find: 'tests/e2e/helpers/db.ts',
     mode: 'forbid',
-    paths: ['docs', 'AGENTS.md', 'products/menu/CLAUDE.md', 'products/menu/src'],
+    paths: ['docs', 'AGENTS.md', 'apps/web/CLAUDE.md', 'apps/web/src'],
     fix: 'Replace with @/shared/testing/e2e-db.',
   },
   {
@@ -61,7 +61,7 @@ const CHECKS: Check[] = [
     reason: 'signInAs moved to src/features/auth/testing/sign-in.ts.',
     find: 'tests/e2e/helpers/sign-in.ts',
     mode: 'forbid',
-    paths: ['docs', 'AGENTS.md', 'products/menu/CLAUDE.md', 'products/menu/src'],
+    paths: ['docs', 'AGENTS.md', 'apps/web/CLAUDE.md', 'apps/web/src'],
     fix: 'Replace with @/features/auth/testing.',
   },
   {
@@ -70,7 +70,7 @@ const CHECKS: Check[] = [
       'Post-#21 cutover, menu.session is the authoritative row; only the cookie is JWE.',
     find: /no local user\/session table/i,
     mode: 'forbid',
-    paths: ['AGENTS.md', 'products/menu/CLAUDE.md', 'docs'],
+    paths: ['AGENTS.md', 'apps/web/CLAUDE.md', 'docs'],
     fix:
       'Update to "menu.session is the authoritative state; the cookie carries only {sid, sub, exp}".',
   },
@@ -79,7 +79,7 @@ const CHECKS: Check[] = [
     reason: 'CI uses adobe/s3mock since the LocalStack :latest paid-licence shift.',
     find: /LocalStack in CI/,
     mode: 'forbid',
-    paths: ['docs', 'AGENTS.md', 'products/menu/CLAUDE.md', 'products/menu/src'],
+    paths: ['docs', 'AGENTS.md', 'apps/web/CLAUDE.md', 'apps/web/src'],
     fix: 'Use "LocalStack in dev, adobe/s3mock in CI".',
   },
   {
@@ -95,7 +95,7 @@ const CHECKS: Check[] = [
     reason: 'Rule 14 must list testing/ alongside actions/client/server/ui/rsc.',
     find: /Six\*?\*? sanctioned exceptions/,
     mode: 'require',
-    paths: ['products/menu/CLAUDE.md'],
+    paths: ['apps/web/CLAUDE.md'],
     fix: 'Confirm rule 14 says "Six sanctioned exceptions" and includes testing/.',
   },
   {
@@ -104,7 +104,7 @@ const CHECKS: Check[] = [
       'CLAUDE.md rule 16: absolute URLs MUST be built via `publicUrl()` from @/shared/url. String-templating `env.MENU_PUBLIC_URL` skips the centralised guard against absolute-input injection.',
     find: /\$\{\s*env\.MENU_PUBLIC_URL\s*\}/,
     mode: 'forbid',
-    paths: ['products/menu/src'],
+    paths: ['apps/web/src'],
     fix: "Replace `${env.MENU_PUBLIC_URL}/path` with `publicUrl('/path').toString()`.",
   },
   {
@@ -113,7 +113,7 @@ const CHECKS: Check[] = [
       'CLAUDE.md rule 16: req.nextUrl carries the upstream Next bind (`0.0.0.0:3000` behind Caddy). Cloning then mutating leaks that into the Location header.',
     find: /req\.nextUrl\.clone\(\)/,
     mode: 'forbid',
-    paths: ['products/menu/src'],
+    paths: ['apps/web/src'],
     fix: "Use `publicUrl(req.nextUrl.pathname, req.nextUrl.searchParams)` instead.",
   },
   {
@@ -122,7 +122,7 @@ const CHECKS: Check[] = [
       'The slice landed in 5a57d82 + 8190a07 — keep the architecture doc in step with reality.',
     find: /restaurant-slug/,
     mode: 'require',
-    paths: ['docs/architecture.md', 'products/menu/CLAUDE.md'],
+    paths: ['docs/architecture.md', 'apps/web/CLAUDE.md'],
     fix: 'Add `restaurant-slug/` to the slice inventory in both files.',
   },
   {

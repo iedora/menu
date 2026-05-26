@@ -1,9 +1,9 @@
 {
-  "name": "@iedora/product-menu",
+  "name": "@iedora/product-house",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Menu product — restaurant menu builder. Pages, slices, and server functions consumed by @iedora/web (which boots Next.js).",
+  "description": "House product — apex brand landing for iedora.com. Pages + components consumed by @iedora/web.",
   "exports": {
     ".": "./src/index.ts"
   },

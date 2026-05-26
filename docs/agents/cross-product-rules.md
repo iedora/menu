@@ -1,6 +1,6 @@
 # Cross-product hard rules
 
-These bind every product that ships UI to humans (menu + house, plus any future surface). Imported into [AGENTS.md](../../AGENTS.md) so they load wherever an agent is working — under `products/menu/`, `products/menu/src/app/house/`, or the repo root.
+These bind every product that ships UI to humans (menu + house, plus any future surface). Imported into [AGENTS.md](../../AGENTS.md) so they load wherever an agent is working — under `apps/web/`, `apps/web/src/app/house/`, or the repo root.
 
 ## 1. Components carry `data-test-id`
 

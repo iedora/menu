@@ -6,7 +6,7 @@ import { env } from './env'
  * public origin. Every redirect on the server MUST go through here;
  * otherwise the URL inherits Next's internal bind
  * (`HOSTNAME=0.0.0.0 PORT=3000` from the runner stage of
- * `products/menu/Dockerfile`) and produces Location headers the
+ * `apps/web/Dockerfile`) and produces Location headers the
  * browser can't follow (`http://0.0.0.0:3000/r/<slug>`).
  *
  * Pure URL hygiene (path validation, no env) lives in

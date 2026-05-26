@@ -103,7 +103,7 @@ func run(ctx context.Context) error {
 
 	// One-shot migrator. The migrate script lives at the workspace path
 	// (preserved by Next's standalone tracing — see
-	// products/menu/next.config.ts::outputFileTracingIncludes).
+	// apps/web/next.config.ts::outputFileTracingIncludes).
 	fmt.Fprintln(os.Stderr, "→ core-db-migrations: docker run --rm node /app/packages/auth/scripts/migrate.mjs")
 	dockerCmd := fmt.Sprintf(
 		"docker run --rm --network %s -e %s %s node /app/packages/auth/scripts/migrate.mjs",

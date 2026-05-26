@@ -1,7 +1,7 @@
 // Local stack orchestrator. Thin shim over `docker compose` —
 // translates --only/--except into compose profiles, brings the stack
 // up, runs the `core` product's drizzle migrations against the local
-// `core` DB, composes products/menu/.env, then starts the menu
+// `core` DB, composes apps/web/.env, then starts the menu
 // container.
 //
 // All paths resolve relative to the repo root (the `go run` working
@@ -35,7 +35,7 @@ func main() {
 
 	repoRoot := findRepoRoot()
 	composeDir := filepath.Join(repoRoot, "dev")
-	menuDir := filepath.Join(repoRoot, "products/menu")
+	menuDir := filepath.Join(repoRoot, "apps/web")
 	envPath := filepath.Join(menuDir, ".env")
 	envLocalPath := filepath.Join(menuDir, ".env.local")
 
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	// 3. Compose menu's .env from local statics.
-	step(3, "compose products/menu/.env + .env.local")
+	step(3, "compose apps/web/.env + .env.local")
 	writeMenuEnvFiles(envPath, envLocalPath, selected)
 
 	// 4. Start menu now that .env exists.

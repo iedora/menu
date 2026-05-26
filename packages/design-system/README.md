@@ -136,5 +136,5 @@ Three guides, each focused on one workflow:
 
 ## See also
 
-- [`/products/menu/src/app/showcase`](../../products/menu/src/app/showcase) — live preview of every primitive in the running Next app.
+- [`/apps/web/src/app/showcase`](../../apps/web/src/app/showcase) — live preview of every primitive in the running Next app.
 - [`/products/house/src/pages/index.astro`](../../products/house/src/pages/index.astro) — the canonical editorial composition of the chrome primitives (Wordmark + MetaStrip + Statement + ScrollPinned + Shoji form).

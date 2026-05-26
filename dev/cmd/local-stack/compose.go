@@ -230,7 +230,7 @@ func printNextSteps(selected []string) {
 	if contains(selected, "menu") {
 		fmt.Printf("  → menu     http://localhost:3000\n")
 	} else {
-		fmt.Printf("  → menu     not in selection (HMR path: cd products/menu && bun run dev)\n")
+		fmt.Printf("  → menu     not in selection (HMR path: cd apps/web && bun run dev)\n")
 	}
 	if contains(selected, "openobserve") {
 		fmt.Printf("  → o2       http://localhost:5080  (dev@iedora.local / Password1!)\n")

@@ -1,4 +1,4 @@
-# Menu — `products/menu/`
+# Menu — `apps/web/`
 
 Menu-specific hard rules, file layout, and commands. Root `AGENTS.md` covers cross-cutting conventions.
 
@@ -49,7 +49,7 @@ Paths starting with `src/...` are menu-relative.
 ## File layout
 
 ```
-products/menu/
+apps/web/
   src/
     app/                             Next.js App Router
       (auth)/                          public auth pages (signup, login) — better-auth client
@@ -114,7 +114,7 @@ products/menu/
                                      menu-build-and-publish, qr-to-public-view, plan-upgrade, …)
 ```
 
-Dev: `go run ./dev/cmd/local-stack` brings up the local stack (docker compose at `dev/docker-compose.yml`) — same Dockerfile shape as prod. For HMR, `go run ./dev/cmd/local-stack --except menu && cd products/menu && bun run dev` (reads `.env` + `.env.local`).
+Dev: `go run ./dev/cmd/local-stack` brings up the local stack (docker compose at `dev/docker-compose.yml`) — same Dockerfile shape as prod. For HMR, `go run ./dev/cmd/local-stack --except menu && cd apps/web && bun run dev` (reads `.env` + `.env.local`).
 
 Prod: Stage 4 (`bin/iedora-env bin/iedora deploy menu` → `dockerOnHetzner` runtime in [`infra/deploy/cmd/iedora/runtime_docker.go`](../../infra/deploy/cmd/iedora/runtime_docker.go)) SSHes to the box, pulls `ghcr.io/eduvhc/menu:<sha>` (CI-pushed), runs migrations, and replaces the container. The container is NOT declared in `infra/iac/tofu/compose.tf` — only the shared services are.
 

@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Iedora monorepo — project conventions
 
-> Bun-workspaces monorepo. One Next.js product (`products/menu/`)
+> Bun-workspaces monorepo. One Next.js product (`apps/web/`)
 > serving both `menu.iedora.com` (menu app) and `iedora.com` (house
 > landing) through a Host-based rewrite in `src/proxy.ts`, plus
 > workspace packages (`packages/auth/`, `packages/design-system/`,
@@ -18,10 +18,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## What this is
 
-- **Menu** (menu.iedora.com — `products/menu/`) — SaaS multi-tenant restaurant menu builder. Each tenant is an organization that owns one or more `restaurant` rows. Admins build menus via drag-and-drop; the public menu renders from the same data.
-- **House** (iedora.com — `products/menu/src/app/house/`) — brand landing page. Lives inside the menu Next.js app; `src/proxy.ts` inspects Host and rewrites apex requests under `/house/*` internally. One container, one image, two hostnames.
+- **Menu** (menu.iedora.com — `apps/web/`) — SaaS multi-tenant restaurant menu builder. Each tenant is an organization that owns one or more `restaurant` rows. Admins build menus via drag-and-drop; the public menu renders from the same data.
+- **House** (iedora.com — `apps/web/src/app/house/`) — brand landing page. Lives inside the menu Next.js app; `src/proxy.ts` inspects Host and rewrites apex requests under `/house/*` internally. One container, one image, two hostnames.
 
-**Identity is `@iedora/auth`.** A shared workspace package (`packages/auth/`) wrapping [better-auth](https://better-auth.com) — email+password, organization plugin (for tenants), admin plugin (for the cross-tenant `iedora-admin` role). The auth instance runs IN-PROCESS inside every product; there is no separate IdP service. Sessions are owned by better-auth (`core.session` table) and the `better-auth.session_token` cookie is scoped on `.iedora.com` so a login on any iedora surface is readable on every other. Backed by a dedicated `core` Postgres database (better-auth tables live in the `core` schema, same instance as `menu`). See `packages/auth/README.md` for the consumer contract and `products/menu/src/features/auth/README.md` for the menu-side wiring + the role/scope taxonomy.
+**Identity is `@iedora/auth`.** A shared workspace package (`packages/auth/`) wrapping [better-auth](https://better-auth.com) — email+password, organization plugin (for tenants), admin plugin (for the cross-tenant `iedora-admin` role). The auth instance runs IN-PROCESS inside every product; there is no separate IdP service. Sessions are owned by better-auth (`core.session` table) and the `better-auth.session_token` cookie is scoped on `.iedora.com` so a login on any iedora surface is readable on every other. Backed by a dedicated `core` Postgres database (better-auth tables live in the `core` schema, same instance as `menu`). See `packages/auth/README.md` for the consumer contract and `apps/web/src/features/auth/README.md` for the menu-side wiring + the role/scope taxonomy.
 
 ## Stack
 
@@ -43,8 +43,8 @@ Cross-product rules live in [`docs/agents/cross-product-rules.md`](docs/agents/c
 
 Each product's CLAUDE.md is auto-loaded under its subtree.
 
-- **[products/menu/CLAUDE.md](products/menu/CLAUDE.md)** — 16 rules: tenant scoping, schema source-of-truth, auth in DAL (not layouts), `proxy.ts` (not middleware — and now also handles Host-based rewrite for iedora.com → `/house/*`), money in cents, dnd-kit position columns, registry pattern for templates/languages/plans, public-menu cache by tag, beacon view tracking, vertical slice boundaries, co-located E2E + testing surface per slice, **redirects via `publicUrl()`**.
-- **House** (iedora.com) lives at `products/menu/src/app/house/` — no separate CLAUDE.md; same cross-product rules apply.
+- **[apps/web/CLAUDE.md](apps/web/CLAUDE.md)** — 16 rules: tenant scoping, schema source-of-truth, auth in DAL (not layouts), `proxy.ts` (not middleware — and now also handles Host-based rewrite for iedora.com → `/house/*`), money in cents, dnd-kit position columns, registry pattern for templates/languages/plans, public-menu cache by tag, beacon view tracking, vertical slice boundaries, co-located E2E + testing surface per slice, **redirects via `publicUrl()`**.
+- **House** (iedora.com) lives at `apps/web/src/app/house/` — no separate CLAUDE.md; same cross-product rules apply.
 
 ## Slice pattern
 
@@ -57,7 +57,7 @@ The slice contract (file layout, cross-slice rules, the Next.js boundary, how to
 ```
 iedora/                                  repo root
   bun.lock                               single workspace lockfile
-  package.json                           workspaces: packages/* + products/menu
+  package.json                           workspaces: packages/* + apps/web
   go.mod, go.sum                         single Go module rooted at the repo root
   .github/                               composite setup action + one workflow per pipeline stage
   .mcp.json                              shadcn, postgres, bun, next-devtools, playwright MCP servers
@@ -127,7 +127,7 @@ Menu's container is NOT in the compose stack rendered by `infra/iac/tofu/compose
 
 ### Per-product
 
-- **Menu** — see [products/menu/CLAUDE.md](products/menu/CLAUDE.md) § Commands.
+- **Menu** — see [apps/web/CLAUDE.md](apps/web/CLAUDE.md) § Commands.
 - **Packages** — `bun run test` / `test:watch` (Vitest; no DB for `@iedora/observability`, jsdom for `@iedora/design-system`); `bun run typecheck`.
 
 ### Deploy
@@ -185,7 +185,7 @@ One workflow per workspace. Each is self-contained: own `paths:` trigger, own en
 1. `node_modules/next/dist/docs/` — bundled, version-matched Next.js docs.
 2. `node_modules/better-auth/` — auth instance, plugins, server APIs.
 3. `node_modules/drizzle-orm/` — query builder, types.
-4. `products/menu/src/features/<slice>/README.md` — every slice has a short doc.
+4. `apps/web/src/features/<slice>/README.md` — every slice has a short doc.
 5. `packages/<package>/README.md` — every shared package documents its surface.
 6. `docs/agents/slice-pattern.md` — slice contract + how to add a feature. (Auto-imported.)
 7. `docs/agents/cross-product-rules.md` — the 2 rules every frontend product enforces. (Auto-imported.)

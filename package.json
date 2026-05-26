@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "workspaces": [
     "packages/*",
-    "products/menu"
+    "products/*",
+    "apps/*"
   ],
   "scripts": {
     "docs:audit": "bun scripts/docs-audit.ts"

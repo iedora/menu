@@ -22,7 +22,7 @@ src/features/<slice>/
 └── e2e/<capability>.spec.ts      Playwright specs scoped to this slice
 ```
 
-Reference: `products/menu/src/features/auth/` — ports, two adapters, several use-cases, one co-located test. Larger slices (`menu-builder`, `menu-publishing`, `upload`) add `types.ts` / `format.ts` for domain helpers; smaller slices collapse the boilerplate (`i18n` has no adapter — the language registry is pure data).
+Reference: `apps/web/src/features/auth/` — ports, two adapters, several use-cases, one co-located test. Larger slices (`menu-builder`, `menu-publishing`, `upload`) add `types.ts` / `format.ts` for domain helpers; smaller slices collapse the boilerplate (`i18n` has no adapter — the language registry is pure data).
 
 ## The contract
 
@@ -59,7 +59,7 @@ Reference: `products/menu/src/features/auth/` — ports, two adapters, several u
 5. Wire **`index.ts`**: bind production adapter, wrap loaders in `React.cache()`, re-export types.
 6. If mutations, add **`actions.ts`** with `'use server'`. Each action: auth guard → use-case → revalidate.
 7. Co-located **`<slice>.test.ts`** — use `makeTestDb()` from `@/shared/testing/pglite`, hand-roll a port adapter against the test DB.
-8. **`testing/`** + **`e2e/`** — slice's E2E surface (`profile.ts` / `seeds.ts` / `routes.ts` / barrel) + Playwright specs. See [products/menu/CLAUDE.md](../../products/menu/CLAUDE.md) rule 15.
+8. **`testing/`** + **`e2e/`** — slice's E2E surface (`profile.ts` / `seeds.ts` / `routes.ts` / barrel) + Playwright specs. See [apps/web/CLAUDE.md](../../apps/web/CLAUDE.md) rule 15.
 9. Short **`README.md`** at the slice root.
 10. Compose the slice from `src/app/`. The route file should be a thin shell.
 

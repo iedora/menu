@@ -22,32 +22,32 @@
 #
 # Self-contained on purpose: one file is the entire menu CI surface.
 
-name: '[product:menu] CI'
+name: '[apps:web] CI'
 
 on:
   push:
     branches: [main]
     paths:
-      - 'products/menu/**'
+      - 'apps/web/**'
       - 'packages/design-system/**'
       - 'packages/eslint-config/**'
       - 'packages/iedora-observability/**'
       - 'bun.lock'
       - 'package.json'
       - 'tsconfig*.json'
-      - '.github/workflows/menu.yml'
+      - '.github/workflows/web.yml'
       - '.github/actions/setup/**'
   pull_request:
     branches: [main]
     paths:
-      - 'products/menu/**'
+      - 'apps/web/**'
       - 'packages/design-system/**'
       - 'packages/eslint-config/**'
       - 'packages/iedora-observability/**'
       - 'bun.lock'
       - 'package.json'
       - 'tsconfig*.json'
-      - '.github/workflows/menu.yml'
+      - '.github/workflows/web.yml'
       - '.github/actions/setup/**'
   # Re-trigger the real hosted runner without a new commit:
   #   gh workflow run menu.yml --ref <branch>
@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 5
     defaults:
       run:
-        working-directory: products/menu
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup
@@ -84,7 +84,7 @@ jobs:
     timeout-minutes: 5
     defaults:
       run:
-        working-directory: products/menu
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup
@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: products/menu
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup
@@ -183,9 +183,9 @@ jobs:
           - 9090:9090
     defaults:
       run:
-        working-directory: products/menu
+        working-directory: apps/web
     # No job-level env block — every test fixture (DATABASE_URL, S3_*,
-    # ZITADEL_*, MENU_SESSION_SECRET, …) lives in `products/menu/.env.test`.
+    # ZITADEL_*, MENU_SESSION_SECRET, …) lives in `apps/web/.env.test`.
     # The `*:test` scripts in package.json load it via `bun --env-file`,
     # so it's the single source of truth shared with local dev.
     steps:
@@ -230,7 +230,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report-${{ strategy.job-index }}
-          path: products/menu/playwright-report
+          path: apps/web/playwright-report
           retention-days: 14
 
   # ── Stage 1: per-arch native build ──────────────────────────────────────
@@ -308,7 +308,7 @@ jobs:
       # Build context: REPO ROOT (Bun workspace) — Dockerfile copies in
       # `package.json`, `bun.lock`, `tsconfig.base.json`, and every
       # workspace under `packages/` + `products/`. See
-      # products/menu/Dockerfile for the multi-stage layout.
+      # apps/web/Dockerfile for the multi-stage layout.
       #
       # `push-by-digest=true` + `name-canonical=true` → the registry
       # gets a tagless blob keyed by sha256. The merge job then runs
@@ -322,7 +322,7 @@ jobs:
         uses: docker/build-push-action@f6010ea70151369b06f0194be1051fbbdff851b2 # v6.0.2
         with:
           context: .
-          file: products/menu/Dockerfile
+          file: apps/web/Dockerfile
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/eduvhc/menu,push-by-digest=true,name-canonical=true,push=true
           provenance: true

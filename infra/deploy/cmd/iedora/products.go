@@ -30,7 +30,7 @@ type product struct {
 // fan out in parallel.
 //
 // NOTE: `house` was removed when iedora.com was folded into the menu
-// Next.js app (see products/menu/src/app/house/ + src/proxy.ts host
+// Next.js app (see apps/web/src/app/house/ + src/proxy.ts host
 // rewrite). Menu's container serves both menu.iedora.com and
 // iedora.com from the same image — no separate product needed.
 var products = []product{

@@ -1,0 +1,75 @@
+# @iedora/product-core CI.
+#
+# Workspace package at `products/core/` — pure-TS modules (slices,
+# components, server functions) consumed by `apps/web` (the Next.js
+# shell). No Next.js boot here; runs lint + typecheck + vitest.
+#
+# Phase 1 of #42: scaffolding only — the slice tree still lives in
+# apps/web/src/features/ and migrates in here incrementally.
+
+name: '[product:core] CI'
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'products/core/**'
+      - 'packages/eslint-config/**'
+      - 'bun.lock'
+      - 'package.json'
+      - '.github/workflows/product-core.yml'
+      - '.github/actions/setup/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'products/core/**'
+      - 'packages/eslint-config/**'
+      - 'bun.lock'
+      - 'package.json'
+      - '.github/workflows/product-core.yml'
+      - '.github/actions/setup/**'
+  workflow_dispatch:
+
+concurrency:
+  group: product-core-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: products/core
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup
+      - run: bun run typecheck
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: products/core
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup
+      - run: bun run lint
+
+  unit:
+    name: Unit (Vitest)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: products/core
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup
+      - run: bun run test

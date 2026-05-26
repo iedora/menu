@@ -16,7 +16,7 @@ Identity is `@iedora/auth` — a shared workspace package wrapping
 [better-auth](https://better-auth.com) (email+password, organization,
 admin plugins) that runs IN-PROCESS in every product. See
 `packages/auth/README.md` for the consumer contract and
-`products/menu/src/features/auth/` for the menu-side wiring.
+`apps/web/src/features/auth/` for the menu-side wiring.
 
 ## Run it locally
 
@@ -25,7 +25,7 @@ bun install                                  # at the repo root
 go run ./dev/cmd/local-stack                 # boots postgres, localstack,
                                              # openobserve
 bun run --cwd packages/auth db:migrate       # apply better-auth schema to core DB
-cd products/menu && bun run dev              # menu HMR (reads .env + .env.local)
+cd apps/web && bun run dev              # menu HMR (reads .env + .env.local)
 ```
 
 ## Ship it

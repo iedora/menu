@@ -25,7 +25,7 @@ COPY package.json bun.lock tsconfig.base.json ./
 # Every workspace package referenced from menu's package.json must be
 # present so `bun install` can resolve `"@iedora/design-system": "workspace:*"`.
 COPY packages packages
-COPY products/menu/package.json products/menu/package.json
+COPY apps/web/package.json apps/web/package.json
 
 # BuildKit cache mount keeps the Bun global cache warm across rebuilds on
 # the same builder host. The cache layer never ships in the image, so it
@@ -39,14 +39,14 @@ WORKDIR /workspace
 # Copy the ENTIRE /workspace from deps — this brings every workspace's
 # node_modules tree, including packages/design-system/node_modules where
 # `radix-ui` (and other workspace deps' transitives) live as symlinks into
-# Bun's .bun store. Copying only root + products/menu/node_modules was a
+# Bun's .bun store. Copying only root + apps/web/node_modules was a
 # bug that worked locally (homelab build context had the host's installed
 # node_modules) but failed in CI's clean Docker run.
 COPY --from=deps /workspace ./
-# Overlay menu source (deps only had products/menu/package.json).
-COPY products/menu products/menu
+# Overlay menu source (deps only had apps/web/package.json).
+COPY apps/web apps/web
 
-WORKDIR /workspace/products/menu
+WORKDIR /workspace/apps/web
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
@@ -70,20 +70,20 @@ ENV HOSTNAME=0.0.0.0
 RUN groupadd --system --gid 1001 nextjs && \
     useradd --system --uid 1001 --gid nextjs --no-create-home --shell /usr/sbin/nologin nextjs
 
-# Next standalone in a monorepo lays out under products/menu/. The traced
+# Next standalone in a monorepo lays out under apps/web/. The traced
 # node_modules sit at the workspace root inside standalone. server.js is at
-# products/menu/server.js — we WORKDIR into it for the CMD.
-COPY --from=builder --chown=nextjs:nextjs /workspace/products/menu/.next/standalone ./
-COPY --from=builder --chown=nextjs:nextjs /workspace/products/menu/.next/static ./products/menu/.next/static
-COPY --from=builder --chown=nextjs:nextjs /workspace/products/menu/public ./products/menu/public
+# apps/web/server.js — we WORKDIR into it for the CMD.
+COPY --from=builder --chown=nextjs:nextjs /workspace/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nextjs /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nextjs /workspace/apps/web/public ./apps/web/public
 
 # Next writes prerender + optimized-image caches under .next/cache at first
 # request. The standalone copy doesn't create that path; pre-create it
 # owned by the runtime user so the very first request doesn't EPERM.
-RUN mkdir -p ./products/menu/.next/cache && chown nextjs:nextjs ./products/menu/.next/cache
+RUN mkdir -p ./apps/web/.next/cache && chown nextjs:nextjs ./apps/web/.next/cache
 
 USER nextjs
-WORKDIR /app/products/menu
+WORKDIR /app/apps/web
 EXPOSE 3000
 
 # Caddy on the Hetzner box uses /up as the upstream health probe. /up

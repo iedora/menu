@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// writeMenuEnvFiles composes `products/menu/.env` from local-stack
+// writeMenuEnvFiles composes `apps/web/.env` from local-stack
 // statics. Excluded services drop out of the env entirely — operators
 // who want to point a key at a remote URL hand-edit `.env.local`
 // (gitignored, never touched by the orchestrator).

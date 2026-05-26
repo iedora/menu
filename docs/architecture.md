@@ -29,7 +29,7 @@ The full contract — file layout, ports/adapters/use-cases, cross-slice rules, 
 
 ## Menu's slice inventory
 
-Path: `products/menu/src/features/`.
+Path: `apps/web/src/features/`.
 
 - **`auth/`** — DAL guards + the role/scope taxonomy backed by `@iedora/auth` (better-auth). `verifySession`, `requireRestaurantAccess`, `requireRestaurantBySlug`, `requireActiveOrganization`, `requireScope`. `scopes.ts` maps `qr-codes:read|write|update|delete` strings to better-auth's `{qrCodes:['read']}` shape via `scopeToPermission()`; `requireScope` short-circuits when `session.user.role === 'iedora-admin'`. Memberships + org provisioning happen via `auth.api.*` (no direct SQL against the `core` schema).
 - **`billing/`** — invoice ledger (read-only today).
@@ -65,7 +65,7 @@ Editorial primitives every product renders out of. Paper, ink, cinnabar; Fraunce
 
 Consumed by menu and house. Tests in `packages/design-system/src/test/` (jsdom + Testing Library).
 
-Menu also keeps shadcn primitives under `products/menu/src/shared/ui/` — pieces without an editorial equivalent (e.g. `dropdown-menu`, `label`) stay menu-local until the design system grows to subsume them.
+Menu also keeps shadcn primitives under `apps/web/src/shared/ui/` — pieces without an editorial equivalent (e.g. `dropdown-menu`, `label`) stay menu-local until the design system grows to subsume them.
 
 ### `@iedora/observability` — `packages/iedora-observability/`
 
@@ -74,9 +74,9 @@ One-line OTel wiring per product. Wraps `@vercel/otel` — resource attrs + samp
 ## When to put code where
 
 - **Knows about menu's domain (menus, restaurants, plans, audit logs, OAuth grants)?**
-  → `products/menu/src/features/<slice>/`. New slice if no existing one fits; new use-case in an existing slice otherwise.
+  → `apps/web/src/features/<slice>/`. New slice if no existing one fits; new use-case in an existing slice otherwise.
 - **Primitive with no domain knowledge that menu uses?**
-  → `products/menu/src/shared/`. DB client, env validation, shadcn primitives, test fixtures, `cn()`.
+  → `apps/web/src/shared/`. DB client, env validation, shadcn primitives, test fixtures, `cn()`.
 - **Both products need the same code?**
   → A workspace package under `packages/`. Bar is real reuse, not "might someday." When in doubt, copy twice; promote on the third use.
 - **Visual chrome that the brand renders identically across products?**

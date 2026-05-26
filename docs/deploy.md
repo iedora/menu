@@ -88,7 +88,7 @@ old container while Stage 4 is mid-pull.
 
 Implementation: `gateMigrations` at
 [`infra/app-state/menu-db-migrations/lint.go`](../infra/app-state/menu-db-migrations/lint.go)
-scans `products/menu/drizzle/*.sql` for `DROP COLUMN` / `DROP TABLE`
+scans `apps/web/drizzle/*.sql` for `DROP COLUMN` / `DROP TABLE`
 / `ALTER COLUMN ... TYPE` / `RENAME COLUMN` / `RENAME TABLE`. In
 live mode, each destructive statement must carry an inline
 `-- iedora:expand-contract phase=contract references=<expand-tag>`
@@ -194,7 +194,7 @@ Per-product. Owned by each product's CI workflow:
 
 The previous separate `house.yml` workflow + Astro + CF Workers Static
 Assets deploy was retired when iedora.com was folded into the menu
-Next.js app — see `products/menu/src/app/house/`.
+Next.js app — see `apps/web/src/app/house/`.
 
 Local: `bun run typecheck`, `bun run test`, `bun run build`. Each
 product already has its own conventions.
@@ -250,7 +250,7 @@ State lives in the `iedora-tofu-state` R2 bucket via the OpenTofu
 - `infra/iac/tofu/` → `infra/iac/tofu/terraform.tfstate`
 
 (The previous standalone `house` product root was retired when iedora.com
-was folded into the menu Next.js app at `products/menu/src/app/house/` —
+was folded into the menu Next.js app at `apps/web/src/app/house/` —
 no more CF Workers Tofu plumbing.)
 
 The state object is still encrypted at rest by Tofu's PBKDF2 +
@@ -296,7 +296,7 @@ ghcr.io/<owner>/menu:<MENU_IMAGE_SHA> node /app/packages/auth/scripts/migrate.mj
 Runs **first** so the menu container — which reads `core.session` rows
 on every request — boots against a migrated schema. The migrate script
 lives in the menu image because `@iedora/auth` is a workspace dep:
-`products/menu/next.config.ts::outputFileTracingIncludes` force-bundles
+`apps/web/next.config.ts::outputFileTracingIncludes` force-bundles
 `packages/auth/{drizzle,scripts/migrate.mjs}` into Next's standalone
 output, so they're addressable at `/app/packages/auth/...` inside the
 container. Same image, same docker network, same pull dance as
@@ -522,7 +522,7 @@ flows via `workflow_run` triggers.
 |----------|-------|---------|
 | [`infra-deploy.yml`](../.github/workflows/infra-deploy.yml) | 2 | push to main on `infra/iac/**`, `internal/**`, `bin/state-bucket-bootstrap`, `go.{mod,sum}`. Manual dispatch. |
 | [`app-state.yml`](../.github/workflows/app-state.yml)       | 3 | `workflow_run` on infra-deploy success. Also: push on `infra/app-state/menu-db-migrations/**`, `infra/app-state/openobserve-dashboards/**`. Manual dispatch. |
-| [`menu.yml`](../.github/workflows/menu.yml)                 | 1+4 | push to main on `products/menu/**`. Build + push image (multi-arch), then dispatches `deploy.yml(product=menu, sha=...)`. Ships both menu.iedora.com AND iedora.com. |
+| [`menu.yml`](../.github/workflows/menu.yml)                 | 1+4 | push to main on `apps/web/**`. Build + push image (multi-arch), then dispatches `deploy.yml(product=menu, sha=...)`. Ships both menu.iedora.com AND iedora.com. |
 | [`deploy.yml`](../.github/workflows/deploy.yml)             | 4 | reusable `workflow_call` invoked by `menu.yml`. Generic over `product`. |
 
 Every workflow runs commands under `bin/iedora-env` so CI sees the same
@@ -545,7 +545,7 @@ Each service is gated by a compose profile matching its name.
 
 1. Translates `--only`/`--except` into compose profile flags.
 2. `docker compose up -d --wait` for everything except menu.
-3. Composes `products/menu/.env` from local-stack statics +
+3. Composes `apps/web/.env` from local-stack statics +
    a minted `IEDORA_CORE_SECRET` (persisted across runs).
 4. `docker compose up -d menu` — the menu container's `env_file:`
    picks up the just-written `.env`.
@@ -555,7 +555,7 @@ Auth tables in the `core` Postgres DB are applied via
 first boot, or by the menu container's startup script).
 
 Menu runs as a container by default (same image as prod). For HMR,
-opt out via `go run ./dev/cmd/local-stack --except menu` and `cd products/menu && bun
+opt out via `go run ./dev/cmd/local-stack --except menu` and `cd apps/web && bun
 run dev` — the orchestrator drops the in-container env values and
 writes `<please_fill>` placeholders into `.env.local` for the
 operator to point at remote URLs.
@@ -967,7 +967,7 @@ no single-apply path exposes. Run before merging any IaC change to
 
 Run before merging any change to the orchestrator (`infra/deploy/cmd/iedora/`,
 `infra/app-state/`, `infra/iac/tofu/*.tf`, `internal/*`, `bin/*`,
-`products/menu/**` (which now also hosts iedora.com), or `infra/iac/**/*.tf`). The sequence proves
+`apps/web/**` (which now also hosts iedora.com), or `infra/iac/**/*.tf`). The sequence proves
 the moving parts compose correctly against live cloud APIs — unit
 tests cover individual helpers but only this catches cross-API
 problems (DNS races, state-vs-cloud drift, one-shot reveal recovery).
@@ -1120,7 +1120,7 @@ as the operator / agent count rises:
 
 - **Stage isolation matches blast radius.** A bug in a Stage 3
   configurator can't touch Tofu state. A typo in
-  `products/menu/src/app/house/page.tsx` only affects the iedora.com
+  `apps/web/src/app/house/page.tsx` only affects the iedora.com
   landing — the menu app still ships. Each stage is independently
   runnable for surgical re-rolls (`bin/iedora-env bin/iedora app apply
   --only menu-db-migrations`).
