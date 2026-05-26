@@ -191,6 +191,20 @@ func runDryRun(cfg config) error {
 func runLive(ctx context.Context, cfg config) error {
 	api := realCFAPI{cfToken: cfg.cfToken}
 
+	// Day-2 short-circuit: if BWS already has all 3 IAC_BOOTSTRAP_TOFU_STATE_*
+	// keys AND the named CF token still exists with a matching ID, this
+	// is a converged state. Skip rotation (which would invalidate any
+	// in-flight tofu apply using the current creds). Day-1 falls through
+	// to the cold create path; partial-state recoveries (BWS missing or
+	// CF token gone) also fall through and trigger ensureToken's
+	// rotate-or-create logic.
+	if converged, err := alreadyConverged(ctx, api); err != nil {
+		return fmt.Errorf("convergence check: %w", err)
+	} else if converged {
+		fmt.Fprintln(stderr, "✓ state-bucket-bootstrap: already converged (Day-2 no-op)")
+		return nil
+	}
+
 	// Step 1: ensure the R2 bucket exists (idempotent).
 	if err := ensureBucket(ctx, api, cfg.accountID); err != nil {
 		return fmt.Errorf("ensure bucket: %w", err)
@@ -268,6 +282,53 @@ func writeBWS(ctx context.Context, accessKey, secretKey, bucket string) error {
 		fmt.Fprintf(stderr, "  ✓ %s\n", kv.key)
 	}
 	return nil
+}
+
+// alreadyConverged reports whether BWS + CF already hold the state-
+// bucket triple. Returns true ONLY when all three are true:
+//
+//  1. BWS has IAC_BOOTSTRAP_TOFU_STATE_{ACCESS_KEY,SECRET_KEY,BUCKET}
+//     with non-empty values.
+//  2. The named CF API token exists.
+//  3. The CF token's ID matches the access_key BWS reports.
+//
+// Anything else returns false — the caller falls through to the cold/
+// warm create-or-rotate path. We deliberately don't validate the
+// secret_key value (would require a round-trip S3 op); the access_key
+// ID match is enough to know we're not pointing at a different token.
+func alreadyConverged(ctx context.Context, api cfAPI) (bool, error) {
+	pid, err := bws.ProjectID(ctx)
+	if err != nil {
+		return false, fmt.Errorf("resolve BWS project id: %w", err)
+	}
+	secrets, err := bws.ListSecrets(ctx, pid)
+	if err != nil {
+		return false, fmt.Errorf("list BWS secrets: %w", err)
+	}
+	_, accessKey, hasAccess := bws.Find(secrets, bwsKeyAccessKey)
+	_, secretKey, hasSecret := bws.Find(secrets, bwsKeySecretKey)
+	_, bucketVal, hasBucket := bws.Find(secrets, bwsKeyBucket)
+	if !hasAccess || !hasSecret || !hasBucket {
+		return false, nil
+	}
+	if accessKey == "" || secretKey == "" || bucketVal != bucketName {
+		return false, nil
+	}
+
+	tok, err := api.FindAPITokenByName(ctx, tokenName)
+	if err != nil {
+		return false, fmt.Errorf("find token by name: %w", err)
+	}
+	if tok == nil {
+		return false, nil
+	}
+	if tok.ID != accessKey {
+		// BWS points at a token that no longer matches the named one
+		// (operator rotated manually, CF returned a different one).
+		// Fall through to re-converge.
+		return false, nil
+	}
+	return true, nil
 }
 
 // emergencyLeak prints the derived R2 credentials to stderr for the

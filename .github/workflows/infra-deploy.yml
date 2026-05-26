@@ -104,6 +104,13 @@ jobs:
           printf 'StrictHostKeyChecking accept-new\n' > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
+      - name: state-bucket-bootstrap (Day-1 mints, Day-2 no-op)
+        # Idempotent: if BWS already has the 3 IAC_BOOTSTRAP_TOFU_STATE_*
+        # keys + the CF token matches the access_key, exits 0 silently.
+        # First-ever run mints the R2 bucket + scoped token + writes BWS.
+        # Same binary the operator runs locally before `tofu init`.
+        run: bin/iedora-env bin/state-bucket-bootstrap
+
       - name: tofu init
         run: bin/iedora-env tofu -chdir=infra/iac/tofu init -input=false -upgrade
 
