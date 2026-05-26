@@ -185,20 +185,32 @@ fallback).
 
 ## Stage 1 — Build & Test
 
-Per-product. Owned by each product's CI workflow:
+Per-workspace CI, all triggered in parallel on push (paths-filtered):
 
-- **menu** (`.github/workflows/web.yml`) — typecheck, lint, unit
-  tests, E2E (Playwright), security scan, `docker buildx` (multi-arch:
-  `linux/amd64` for CI + `linux/arm64` for the Hetzner CAX box) →
-  `ghcr.io/<owner>/web:<sha>` + SLSA build provenance attestation. On
-  `main`, the workflow then triggers `deploy.yml` (Stage 4) with
-  `product=web` and `image_sha=<github.sha>`. Since the menu container
-  serves BOTH `menu.iedora.com` and `iedora.com` (host-based rewrite
-  in `src/proxy.ts`), one image deploy ships both sites.
+- **`[product:menu] CI`** (`.github/workflows/product-menu.yml`) —
+  typecheck + lint + Vitest (PGLite) + Playwright E2E for the menu
+  slices. Owns the menu product's quality bar.
+- **`[product:core] CI`**, **`[product:house] CI`** — typecheck +
+  lint + Vitest for the auth/admin surface and the apex landing.
+- **`[package:*] CI`** — same shape for each shared package
+  (`@iedora/auth`, `@iedora/design-system`, `@iedora/observability`,
+  …).
+- **`[apps:web] CI`** (`.github/workflows/web.yml`) — typecheck + lint
+  + Trivy/SBOM on the shell, then on push to main runs the **native
+  arm64 build** on `ubuntu-24.04-arm` → `docker buildx` →
+  `ghcr.io/eduvhc/web:latest` + `:<sha>` + SLSA build provenance
+  attestation. Single arch (Hetzner CAX is arm64); no QEMU, no
+  manifest list to stitch. On `main` the workflow then chains into
+  Stage 3 wait + Stage 4 deploy via `workflow_call` on `deploy.yml`.
+
+Per-product / per-package workflows are NOT a gate on `[apps:web] CI`
+— each runs on its own paths-filter and pushes a status to branch
+protection. The previous `wait_products` polling job was removed (it
+serialised what should run concurrently).
 
 The previous separate `house.yml` workflow + Astro + CF Workers Static
-Assets deploy was retired when iedora.com was folded into the menu
-Next.js app — see `apps/web/src/app/house/`.
+Assets deploy was retired when iedora.com was folded into the web
+Next.js shell — see `apps/web/src/app/house/`.
 
 Local: `bun run typecheck`, `bun run test`, `bun run build`. Each
 product already has its own conventions.
@@ -231,7 +243,7 @@ Plain `tofu apply` on [`infra/iac/tofu/`](../infra/iac/tofu/). Owns:
 
 **Does NOT own:**
 
-- The menu container — Stage 4 (`dockerOnHetzner`).
+- The web container — Stage 4 (`dockerOnHetzner`).
 - DB migrations, OO dashboards — Stage 3.
 - The `IEDORA_CORE_SECRET` for better-auth — Stage 4 (`appSecrets`,
   minted on first deploy).
@@ -297,9 +309,9 @@ organization / member / invitation / rate_limit). SSHes to the box,
 runs `docker run --rm --network iedora -e CORE_DATABASE_URL=...
 ghcr.io/<owner>/web:<MENU_IMAGE_SHA> node /app/packages/auth/scripts/migrate.mjs`.
 
-Runs **first** so the menu container — which reads `core.session` rows
+Runs **first** so the web container — which reads `core.session` rows
 on every request — boots against a migrated schema. The migrate script
-lives in the menu image because `@iedora/auth` is a workspace dep:
+lives in the web image because `@iedora/auth` is a workspace dep:
 `apps/web/next.config.ts::outputFileTracingIncludes` force-bundles
 `packages/auth/{drizzle,scripts/migrate.mjs}` into Next's standalone
 output, so they're addressable at `/app/packages/auth/...` inside the
@@ -310,7 +322,7 @@ container. Same image, same docker network, same pull dance as
 
 #### `menu-db-migrations` → [`infra/app-state/menu-db-migrations`](../infra/app-state/menu-db-migrations/) (in-process)
 
-drizzle-kit migrate against menu's postgres database. SSHes to the box,
+drizzle-kit migrate against the `menu` postgres database. SSHes to the box,
 runs `docker run --rm --network iedora -e DATABASE_URL=...
 ghcr.io/<owner>/web:<MENU_IMAGE_SHA> node scripts/migrate.mjs`.
 
@@ -326,7 +338,7 @@ in scope (universal), the binary `docker login ghcr.io
 
 **Why this is Stage 3 and not in Stage 4's `dockerOnHetzner`**: a bad
 migration fails loud in the deploy log without crash-looping the live
-menu container. Multi-replica future is also unblocked — migrations
+web container. Multi-replica future is also unblocked — migrations
 run once per deploy, not once per replica boot.
 
 #### `openobserve-dashboards` → [`infra/app-state/openobserve-dashboards`](../infra/app-state/openobserve-dashboards/) (in-process)
@@ -407,9 +419,10 @@ container — still bound to the live alias — keeps serving traffic.
 
 **Inputs**:
 - `MENU_IMAGE_SHA` env — set by CI (`github.sha`) or operator (export).
-  Default "latest".
+  Default "latest". (Env-var name kept its historical `MENU_` prefix;
+  it's the image SHA for the `web` artifact today.)
 - `IAC_BOOTSTRAP_HOST_IP` — universal-scope BWS key, written by Stage 2.
-- All `envFromBWS` keys — visible in `--stage deploy --product menu`
+- All `envFromBWS` keys — visible in `--stage deploy --product web`
   scope.
 
 **CF Tunnel routing**: `cloudflared` resolves `infra-web` by docker
@@ -439,9 +452,9 @@ dormant. If/when a Workers-shipped product comes back:
    the deploy shape is new (not Docker, not CF Workers), add a new
    `runtime_<kind>.go` implementing the `productRuntime{Deploy,
    Destroy}` interface.
-4. `.github/workflows/<name>.yml` — copy menu.yml, swap names.
+4. `.github/workflows/<name>.yml` — copy web.yml, swap names.
    Dispatches the reusable
-   [`deploy.yml`](../.github/workflows/deploy.yml) workflow with
+   [`deploy.yml`](../../.github/workflows/deploy.yml) workflow with
    `inputs.product = <name>`.
 
 Zero orchestrator code changes needed.
@@ -524,10 +537,12 @@ flows via `workflow_run` triggers.
 
 | Workflow | Stage | Trigger |
 |----------|-------|---------|
-| [`infra-deploy.yml`](../.github/workflows/infra-deploy.yml) | 2 | push to main on `infra/iac/**`, `internal/**`, `bin/state-bucket-bootstrap`, `go.{mod,sum}`. Manual dispatch. |
-| [`app-state.yml`](../.github/workflows/app-state.yml)       | 3 | `workflow_run` on infra-deploy success. Also: push on `infra/app-state/menu-db-migrations/**`, `infra/app-state/openobserve-dashboards/**`. Manual dispatch. |
-| [`web.yml`](../.github/workflows/web.yml)                 | 1+4 | push to main on `apps/web/**`. Build + push image (multi-arch), then dispatches `deploy.yml(product=web, sha=...)`. Ships both menu.iedora.com AND iedora.com. |
-| [`deploy.yml`](../.github/workflows/deploy.yml)             | 4 | reusable `workflow_call` invoked by `menu.yml`. Generic over `product`. |
+| [`infra-deploy.yml`](../../.github/workflows/infra-deploy.yml) | 2 | push to main on `infra/iac/**`, `internal/**`, `bin/state-bucket-bootstrap`, `go.{mod,sum}`. Manual dispatch. |
+| [`app-state.yml`](../../.github/workflows/app-state.yml)       | 3 | `workflow_run` on infra-deploy success. Also: push on `infra/app-state/menu-db-migrations/**`, `infra/app-state/openobserve-dashboards/**`. Manual dispatch. |
+| [`product-{menu,core,house}.yml`](../../.github/workflows/) | 1 | push to main on `products/<x>/**`. Per-product CI (typecheck + lint + test). No deploy chain — these are quality gates on branch protection. |
+| [`{auth,design-system,observability}.yml`](../../.github/workflows/) | 1 | push to main on `packages/<x>/**`. Per-package CI. |
+| [`web.yml`](../../.github/workflows/web.yml)                 | 1+4 | push to main on `apps/web/**`. Gates (typecheck + lint + security) → arm64 build + GHCR push → wait_app_state → `deploy.yml(product=web, sha=...)`. Ships menu.iedora.com + core.iedora.com + iedora.com (one image, host-based rewrite). |
+| [`deploy.yml`](../../.github/workflows/deploy.yml)             | 4 | reusable `workflow_call` invoked by `web.yml`. Generic over `product`. |
 
 Every workflow runs commands under `bin/iedora-env` so CI sees the same
 hydrated BWS env operators do — that helper exports the `TF_VAR_*`,
@@ -724,7 +739,7 @@ tunnel-then-reconcile flow on a fresh target.
 | Step | What it proves |
 |------|----------------|
 | 1. destroy | `tofu destroy` works from any state. R2 buckets emptied via rclone hooks; BWS keys scrubbed via `bin/bws-sync` batched destroy. |
-| 2. cold deploy | Full bootstrap: Tofu resources up, both Stage 3 configurators run cold, menu deploys (serves both menu.iedora.com AND iedora.com). |
+| 2. cold deploy | Full bootstrap: Tofu resources up, both Stage 3 configurators run cold, web deploys (serves menu.iedora.com + core.iedora.com + iedora.com from one image). |
 | 3. warm deploy | Idempotency at every stage. Stage 2: `0 added, 0 changed, 0 destroyed`. Stage 3: all "updated" or "no diff". Stage 4: re-pull same SHA → no container restart. |
 | 4. destroy (full) | R2 emptying works against real R2 (rclone). |
 | 5. cold deploy #2 | CF DNS / cert propagation races caught; configurators recover from a fresh estate. |
@@ -732,12 +747,13 @@ tunnel-then-reconcile flow on a fresh target.
 
 ### Expected state after a cold deploy
 
-- **Tofu state** (`infra/iac/tofu/`): ~26 resources (hcloud VPS/firewall/key, cloudflare R2/DNS/api_tokens incl. iedora.com apex + www, github_actions_secret/variable, random_password.*, terraform_data.{bws_sync,iedora_sync,data_bucket_purge,assets_bucket_purge}).
-- **BWS**: `DEPLOY_MENU_IEDORA_CORE_SECRET` minted by Stage 4 + `IAC_BOOTSTRAP_HOST_IP` + autogen passwords from `bws_sync`.
+- **Tofu state** (`infra/iac/tofu/`): ~23 resources (hcloud VPS/firewall/key, cloudflare R2/DNS/api_tokens incl. iedora.com apex + www + core, tunnel + tunnel-config, random_password.*, terraform_data.{bws_sync,iedora_sync,data_bucket_purge,assets_bucket_purge}).
+- **BWS**: `DEPLOY_IEDORA_CORE_SECRET` minted by Stage 4 + `IAC_BOOTSTRAP_HOST_IP` + autogen passwords from `bws_sync`.
 - **Box** (`ssh root@$HOST docker ps`): `infra-postgres`, `infra-cloudflared`, `infra-openobserve`, `infra-pg-backup` (compose-managed via `iedora.service`) + `infra-web` (Stage-4-owned, NOT in compose).
 - **Public endpoints**:
   - `https://menu.iedora.com/up` → 200 `{"ok":true,"db":"ok"}`
-  - `https://iedora.com` → 200 (house landing — served by menu container via `proxy.ts` Host rewrite)
+  - `https://core.iedora.com` → 200 (sign-in landing — served by web container via `proxy.ts` Host rewrite)
+  - `https://iedora.com` → 200 (apex landing — served by web container via `proxy.ts` Host rewrite)
 
 ## File map
 

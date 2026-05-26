@@ -95,14 +95,14 @@ bin/iedora-env tofu -chdir=infra/iac/tofu apply -auto-approve
 # 3. Stage 3 — app-state reconcilers. Runs in order:
 #    - core-db-migrations    drizzle-kit migrate against the `core` DB
 #                            (better-auth schema). FIRST so step 4's
-#                            menu container reads a migrated core.session.
+#                            web container reads a migrated core.session.
 #    - menu-db-migrations    drizzle-kit migrate against the `menu` DB.
 #    - openobserve-dashboards push embedded JSONs via SSH-L tunnel.
 bin/iedora-env bin/iedora app apply
 
-# 4. Stage 4 — deploy the menu container. Mints DEPLOY_IEDORA_CORE_SECRET
+# 4. Stage 4 — deploy the web container. Mints DEPLOY_IEDORA_CORE_SECRET
 #    on first run (better-auth session signing key, persisted to BWS).
-bin/iedora-env bin/iedora deploy menu
+bin/iedora-env bin/iedora deploy web
 
 # 6. Smoke test.
 curl -fsS https://menu.iedora.com/up                                    # {"ok":true,"db":"ok"}

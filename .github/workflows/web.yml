@@ -131,32 +131,22 @@ jobs:
   # products/menu/tests/e2e/ and tests the menu surface, so it belongs
   # with the menu's CI signal, not the apps/web shell's.
 
-  # ── Per-arch native build ───────────────────────────────────────────────
-  # Matrix splits the build across two NATIVE runners — `ubuntu-24.04`
-  # (amd64) + `ubuntu-24.04-arm` (Ampere Altra, free for public repos
-  # since 2025). No QEMU, no emulation tax. Each arch builds + pushes a
-  # tagless blob via `push-by-digest=true`; the digest is uploaded as an
-  # artifact so the merge job can stitch the manifest list. Pattern from
-  # docs.docker.com/build/ci/github-actions/multi-platform.
+  # ── Native arm64 build ──────────────────────────────────────────────────
+  # Runs on `ubuntu-24.04-arm` (Ampere Altra — free for public repos
+  # since 2025). No QEMU, no emulation tax, no manifest-list stitching:
+  # the Hetzner box is a CAX11 arm64 instance, so one arch is all we
+  # need. If a future consumer needs x86, re-introduce the matrix +
+  # merge pattern from docs.docker.com/build/ci/github-actions/multi-platform.
   build:
-    name: 'Build image (${{ matrix.platform }})'
+    name: Build image (arm64)
     needs: [typecheck, lint, security]
     # Only on push to main — PRs run the gates only. workflow_dispatch on main
     # still triggers a build for the "re-roll latest" flow.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        # arm64-only: the Hetzner box is a CAX11 (Ampere Altra arm64).
-        # Building amd64 was wasted CI time + GHCR storage with no
-        # consumer. If a future product needs x86 (Hetzner CX/CPX or
-        # operator-laptop pull), re-add `- platform: linux/amd64 ...`.
-        include:
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            bws_arch: aarch64-unknown-linux-gnu
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
 
     permissions:
       contents: read
@@ -166,13 +156,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      # `/` is illegal in artifact names. `linux/amd64` → `linux-amd64`.
-      - name: Derive platform slug
-        id: slug
-        run: echo "value=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
-        env:
-          PLATFORM: ${{ matrix.platform }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -185,11 +168,10 @@ jobs:
       - name: Install bws CLI
         env:
           BWS_VERSION: '2.0.0'
-          BWS_ARCH: ${{ matrix.bws_arch }}
         run: |
           set -euo pipefail
           curl -fsSL -o /tmp/bws.zip \
-            "https://github.com/bitwarden/sdk-sm/releases/download/bws-v${BWS_VERSION}/bws-${BWS_ARCH}-${BWS_VERSION}.zip"
+            "https://github.com/bitwarden/sdk-sm/releases/download/bws-v${BWS_VERSION}/bws-aarch64-unknown-linux-gnu-${BWS_VERSION}.zip"
           unzip -q /tmp/bws.zip -d /tmp/bws
           sudo install -m 0755 /tmp/bws/bws /usr/local/bin/bws
 
@@ -208,136 +190,36 @@ jobs:
       # workspace under `packages/` + `products/`. See
       # apps/web/Dockerfile for the multi-stage layout.
       #
-      # `push-by-digest=true` + `name-canonical=true` → the registry
-      # gets a tagless blob keyed by sha256. The merge job then runs
-      # `docker buildx imagetools create` to publish `:latest` /
-      # `:<sha>` as a manifest list fanning over both digests.
-      #
-      # GHA cache scope is per-arch so the two matrix legs don't stomp
-      # on each other's intermediate stages.
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/eduvhc/web,push-by-digest=true,name-canonical=true,push=true
-          provenance: true
-          sbom: true
-          cache-from: type=gha,scope=web-${{ steps.slug.outputs.value }}
-          cache-to: type=gha,mode=max,scope=web-${{ steps.slug.outputs.value }}
-
-      # Stash the digest as a 0-byte file named for the sha256. The
-      # merge job globs `*` over the unpacked artifacts and turns them
-      # back into `ghcr.io/eduvhc/web@sha256:<digest>` refs.
-      - name: Export digest
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v7
-        with:
-          name: digests-web-${{ steps.slug.outputs.value }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # ── Stage 1b: stitch the arm64 digest into a manifest list ───────────────
-  # Wraps the single arm64 digest pushed above into a manifest list tagged
-  # `:latest` + `:<sha>`. The list is the same shape that arm64+amd64
-  # would have produced — single-platform today, ready to fan out to
-  # multi-arch when a consumer needs x86.
-  merge:
-    name: Merge multi-arch manifest
-    needs: [build]
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      digest: ${{ steps.inspect.outputs.digest }}
-
-    permissions:
-      contents: read
-      packages: write
-      id-token: write         # Sigstore attestation on the merged manifest
-      attestations: write
-      actions: write          # dispatch the deploy workflow
-
-    steps:
-      - name: Download digests
-        uses: actions/download-artifact@v7
-        with:
-          path: /tmp/digests
-          pattern: digests-web-*
-          merge-multiple: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Install bws CLI
-        env:
-          BWS_VERSION: '2.0.0'
-        run: |
-          set -euo pipefail
-          curl -fsSL -o /tmp/bws.zip \
-            "https://github.com/bitwarden/sdk-sm/releases/download/bws-v${BWS_VERSION}/bws-x86_64-unknown-linux-gnu-${BWS_VERSION}.zip"
-          unzip -q /tmp/bws.zip -d /tmp/bws
-          sudo install -m 0755 /tmp/bws/bws /usr/local/bin/bws
-
-      - name: Log in to GHCR
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: |
-          set -euo pipefail
-          TOKEN=$(bws secret list "$BWS_PROJECT_ID" -o json \
-            | jq -r '.[] | select(.key=="IAC_BOOTSTRAP_GHCR_TOKEN") | .value')
-          [ -n "$TOKEN" ] || { echo "IAC_BOOTSTRAP_GHCR_TOKEN missing in BWS" >&2; exit 1; }
-          echo "$TOKEN" | docker login ghcr.io -u eduvhc --password-stdin
-
-      # `imagetools create` treats each `name@sha256:<digest>` source as
-      # one platform descriptor and rewrites the destination manifest
-      # list to fan over all of them.
-      #
       # Image refs:
       #   - `:latest` is the floating tag, useful for ad-hoc inspection.
       #   - `:<sha>` is what Stage 4 (dockerOnHetzner) actually pulls —
       #     immutable handle, also the subject of attestations + the
       #     rollback knob via `gh workflow run deploy.yml --field image_sha=…`.
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        run: |
-          set -euo pipefail
-          docker buildx imagetools create \
-            -t ghcr.io/eduvhc/web:latest \
-            -t ghcr.io/eduvhc/web:${{ github.sha }} \
-            $(printf 'ghcr.io/eduvhc/web@sha256:%s ' *)
-
-      # Pull the manifest list digest back so the attestation has a
-      # stable subject. `imagetools inspect --format` is the canonical
-      # way; `docker manifest inspect` returns parsed JSON, not the
-      # canonical byte stream.
-      - name: Inspect merged manifest digest
-        id: inspect
-        run: |
-          set -euo pipefail
-          DIGEST=$(docker buildx imagetools inspect "ghcr.io/eduvhc/web:${{ github.sha }}" --format '{{json .Manifest}}' \
-            | jq -r '.digest')
-          [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ] || { echo "failed to resolve manifest digest" >&2; exit 1; }
-          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/arm64
+          tags: |
+            ghcr.io/eduvhc/web:latest
+            ghcr.io/eduvhc/web:${{ github.sha }}
+          push: true
+          provenance: true
+          sbom: true
+          cache-from: type=gha,scope=web-arm64
+          cache-to: type=gha,mode=max,scope=web-arm64
 
       # ── Supply-chain attestations (SLSA build provenance) ──────────
       # Keyless Cosign signature via Sigstore + GitHub OIDC, attached
-      # to the manifest list digest so `gh attestation verify oci://...`
-      # resolves against the multi-arch image as a unit.
+      # to the resulting image digest so `gh attestation verify oci://...`
+      # resolves against the published artifact.
       - name: Attest SLSA build provenance
         uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/eduvhc/web
-          subject-digest: ${{ steps.inspect.outputs.digest }}
+          subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
   # ── Gate: wait for Stage 3 (DB migrations) to be green ──────────────────
@@ -352,7 +234,7 @@ jobs:
   # success from a prior CI run, this step returns ~immediately.
   wait_app_state:
     name: Wait for app-state
-    needs: merge
+    needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

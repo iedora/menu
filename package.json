@@ -7,7 +7,5 @@
     "products/*",
     "apps/*"
   ],
-  "scripts": {
-    "docs:audit": "bun scripts/docs-audit.ts"
-  }
+  "scripts": {}
 }
