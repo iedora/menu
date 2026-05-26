@@ -90,24 +90,10 @@ jobs:
       - uses: ./.github/actions/setup
       - run: bun run lint
 
-  unit:
-    name: Unit (Vitest)
-    runs-on: ubuntu-24.04
-    # ubuntu-24.04 ships Docker Engine. Most slices run against PGLite
-    # in-process; any future testcontainers-based suite picks the daemon
-    # up without extra setup.
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: apps/web
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/setup
-      - name: Run Vitest
-        # `bun run test` invokes the `vitest` binary whose Node shebang
-        # takes over, so testcontainers' `@testcontainers/*` modules run
-        # under Node here (they fail under Bun's runtime — oven-sh/bun#21342).
-        run: bun run test
+  # Note: unit + e2e tests moved to `[product:menu] CI` after the
+  # Phase 3b split (#42) — menu slices live in @iedora/product-menu now.
+  # apps/web keeps only the integration concerns: typecheck, lint,
+  # security scan, the Docker build, and the deploy gate.
 
   security:
     name: Security (Trivy + SBOM)
@@ -143,97 +129,67 @@ jobs:
           path: menu-sbom.spdx.json
           retention-days: 90
 
-  e2e:
-    name: E2E (Playwright)
-    needs: [typecheck, lint, unit]
+  # Note: E2E (Playwright) moved to `[product:menu] CI` (product-menu.yml)
+  # after the Phase 3b split (#42) — the menu's e2e harness lives at
+  # products/menu/tests/e2e/ and tests the menu surface, so it belongs
+  # with the menu's CI signal, not the apps/web shell's.
+
+  # ── Stage 1: gate on every [product:*] CI ────────────────────────────────
+  # Build refuses to start until product-menu, product-core, product-house
+  # are all green. Per-product workflows fire on `paths: ['products/<x>/**']`
+  # so the gate fast-paths when nothing in that product changed (latest
+  # successful run carries over).
+  wait_products:
+    name: Wait for [product:*] CI
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    # Matrix is parked at a single shard today. When the suite grows past
-    # ~10 minutes locally, bump to `[1/2, 2/2]` (or 4) and Playwright will
-    # split specs across runners. The infra (per-worker DB fork) is already
-    # in place — see src/shared/testing/e2e-db.ts and the
-    # `MENU_TEST_ISOLATE_WORKERS` env switch.
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ['1/1']
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_PASSWORD: Password1!
-          POSTGRES_DB: menu_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-      # adobe/s3mock — open-source S3 mock, ~50MB, auto-creates buckets via
-      # `initialBuckets`. Replaces LocalStack because `localstack/localstack:
-      # latest` started requiring LOCALSTACK_AUTH_TOKEN for any startup (their
-      # Pro shift in 2024-2026). S3Mock covers the slice of S3 we exercise
-      # (PutObject / HeadObject / DeleteObject / presigned URLs).
-      s3mock:
-        image: adobe/s3mock:latest
-        env:
-          initialBuckets: menu-test
-        ports:
-          - 9090:9090
-    defaults:
-      run:
-        working-directory: apps/web
-    # No job-level env block — every test fixture (DATABASE_URL, S3_*,
-    # ZITADEL_*, MENU_SESSION_SECRET, …) lives in `apps/web/.env.test`.
-    # The `*:test` scripts in package.json load it via `bun --env-file`,
-    # so it's the single source of truth shared with local dev.
+    timeout-minutes: 30
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: read
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/setup
-
-      - name: Wait for S3Mock + create bucket
-        # adobe/s3mock's `initialBuckets` env didn't seed the bucket in
-        # this image build (still NoSuchBucket on PUT). Belt-and-braces:
-        # wait for readiness, then PUT the bucket explicitly. S3Mock
-        # accepts unauthenticated PUT /<bucket> by default.
-        run: |
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:9090/ >/dev/null 2>&1; then
-              echo "S3Mock ready"; break
-            fi
-            sleep 1
-          done
-          curl -fsS -X PUT http://localhost:9090/menu-test
-          echo "menu-test bucket ready"
-
-      - name: Apply DB migrations
-        run: bun run db:migrate:test
-
-      - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
-
-      # `next build` runs under Node (it's a Node-shebanged binary) even
-      # when invoked via `bun run`. The unstable combo flagged by
-      # oven-sh/bun#23944 is `bun build` (the Bun bundler) on next,
-      # not script-running through bun.
-      - name: Build menu
-        run: bun run build:test
-
-      - name: Run Playwright
+      - name: Poll [product:menu] + [product:core] + [product:house]
         env:
-          CI: 'true'
-        run: bun run test:e2e -- --grep-invert "@flaky" --shard=${{ matrix.shard }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          deadline=$(( $(date +%s) + 1700 ))   # ~28 min budget
+          for wf in product-menu.yml product-core.yml product-house.yml; do
+            echo "→ waiting on $wf"
+            while true; do
+              run=$(gh run list \
+                      --repo "${{ github.repository }}" \
+                      --workflow="$wf" \
+                      --branch=main \
+                      --limit 1 \
+                      --json status,conclusion,databaseId -q '.[0]' || echo '{}')
+              status=$(echo "$run" | jq -r '.status // "absent"')
+              conclusion=$(echo "$run" | jq -r '.conclusion // ""')
+              case "$status" in
+                completed)
+                  if [ "$conclusion" = "success" ]; then
+                    echo "  ✓ $wf green (run #$(echo "$run" | jq -r .databaseId))"
+                    break
+                  fi
+                  echo "  ✗ $wf ${conclusion} — refusing to build"
+                  exit 1
+                  ;;
+                absent)
+                  echo "  (no prior run for $wf yet — waiting 30s)"
+                  ;;
+                *)
+                  echo "  $wf status=${status} — waiting 30s"
+                  ;;
+              esac
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "  ✗ budget exhausted — abort"
+                exit 1
+              fi
+              sleep 30
+            done
+          done
+          echo "✓ all product workflows green"
 
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: playwright-report-${{ strategy.job-index }}
-          path: apps/web/playwright-report
-          retention-days: 14
-
-  # ── Stage 1: per-arch native build ──────────────────────────────────────
+  # ── Stage 2: per-arch native build ──────────────────────────────────────
   # Matrix splits the build across two NATIVE runners — `ubuntu-24.04`
   # (amd64) + `ubuntu-24.04-arm` (Ampere Altra, free for public repos
   # since 2025). No QEMU, no emulation tax. Each arch builds + pushes a
@@ -242,7 +198,7 @@ jobs:
   # docs.docker.com/build/ci/github-actions/multi-platform.
   build:
     name: 'Build image (${{ matrix.platform }})'
-    needs: [typecheck, lint, unit, security, e2e]
+    needs: [typecheck, lint, security, wait_products]
     # Only on push to main — PRs run the gates only. workflow_dispatch on main
     # still triggers a build for the "re-roll latest" flow.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

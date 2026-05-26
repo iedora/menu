@@ -1,11 +1,10 @@
 # @iedora/product-menu CI.
 #
-# Workspace package at `products/menu/` — pure-TS modules (slices,
-# components, server functions) consumed by `apps/web` (the Next.js
-# shell). No Next.js boot here; runs lint + typecheck + vitest.
-#
-# Phase 1 of #42: scaffolding only — the slice tree still lives in
-# apps/web/src/features/ and migrates in here incrementally.
+# Workspace package at `products/menu/` — slices, drizzle schema +
+# migrations, e2e test harness, all the menu surface code. Consumed
+# by `apps/web` (the Next.js shell). Runs typecheck + lint + vitest +
+# Playwright e2e (assembles a production menu build against Postgres +
+# S3 mock services and drives chromium specs against it).
 
 name: '[product:menu] CI'
 
@@ -65,7 +64,7 @@ jobs:
   unit:
     name: Unit (Vitest)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: products/menu
@@ -73,3 +72,79 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup
       - run: bun run test
+
+  e2e:
+    name: E2E (Playwright)
+    needs: [typecheck, lint, unit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Matrix parked at single shard. Bump to ['1/2', '2/2'] when the
+    # suite grows past ~10 min. Per-worker DB isolation already in
+    # place under products/menu/src/shared/testing/.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/1']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: Password1!
+          POSTGRES_DB: menu_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      s3mock:
+        image: adobe/s3mock:latest
+        env:
+          initialBuckets: menu-test
+        ports:
+          - 9090:9090
+    defaults:
+      run:
+        working-directory: products/menu
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup
+
+      - name: Wait for S3Mock + create bucket
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:9090/ >/dev/null 2>&1; then
+              echo "S3Mock ready"; break
+            fi
+            sleep 1
+          done
+          curl -fsS -X PUT http://localhost:9090/menu-test
+          echo "menu-test bucket ready"
+
+      - name: Apply DB migrations
+        run: bun run db:migrate:test
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Build menu (production)
+        # next build runs under Node even when invoked via bun run.
+        # oven-sh/bun#23944 only affects `bun build` (the Bun bundler).
+        # Build runs at the apps/web level — products/menu pages are
+        # mounted there via re-exports.
+        working-directory: apps/web
+        run: bun --env-file=../../products/menu/.env.test next build
+
+      - name: Run Playwright
+        env:
+          CI: 'true'
+        run: bun run test:e2e -- --grep-invert "@flaky" --shard=${{ matrix.shard }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-${{ strategy.job-index }}
+          path: products/menu/playwright-report
+          retention-days: 14
