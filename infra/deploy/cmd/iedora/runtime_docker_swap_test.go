@@ -38,15 +38,15 @@ func TestDeployHotSwap(t *testing.T) {
 				{match: "node -e", stdout: `{"ok":true,"db":"ok"}`},
 			},
 			wantSeq: []string{
-				"'docker' 'run' '-d' '--name' 'infra-menu-web-next'",
-				"docker exec infra-menu-web-next node -e",
-				"(docker network disconnect iedora infra-menu-web 2>/dev/null || true) && docker network disconnect iedora infra-menu-web-next && docker network connect --alias infra-menu-web --alias infra-menu-web-next iedora infra-menu-web-next",
-				"docker stop infra-menu-web 2>/dev/null",
-				"docker rename infra-menu-web-next infra-menu-web",
+				"'docker' 'run' '-d' '--name' 'infra-web-next'",
+				"docker exec infra-web-next node -e",
+				"(docker network disconnect iedora infra-web 2>/dev/null || true) && docker network disconnect iedora infra-web-next && docker network connect --alias infra-web --alias infra-web-next iedora infra-web-next",
+				"docker stop infra-web 2>/dev/null",
+				"docker rename infra-web-next infra-web",
 			},
 			wantAbsent: []string{
 				// No rollback in the happy path.
-				"docker network disconnect iedora infra-menu-web-next 2>/dev/null",
+				"docker network disconnect iedora infra-web-next 2>/dev/null",
 			},
 			wantErrSub: "",
 		},
@@ -57,14 +57,14 @@ func TestDeployHotSwap(t *testing.T) {
 				{match: "node -e", stdout: `{"ok":false,"db":"err"}`},
 			},
 			wantSeq: []string{
-				"'docker' 'run' '-d' '--name' 'infra-menu-web-next'",
-				"docker exec infra-menu-web-next node -e",
+				"'docker' 'run' '-d' '--name' 'infra-web-next'",
+				"docker exec infra-web-next node -e",
 				// Rollback runs the stop+rm+disconnect combo.
-				"docker stop infra-menu-web-next 2>/dev/null; docker rm infra-menu-web-next 2>/dev/null; docker network disconnect iedora infra-menu-web-next 2>/dev/null",
+				"docker stop infra-web-next 2>/dev/null; docker rm infra-web-next 2>/dev/null; docker network disconnect iedora infra-web-next 2>/dev/null",
 			},
 			wantAbsent: []string{
 				"docker rename",
-				"--alias infra-menu-web --alias infra-menu-web-next",
+				"--alias infra-web --alias infra-web-next",
 			},
 			wantErrSub: "probe",
 		},
@@ -74,9 +74,9 @@ func TestDeployHotSwap(t *testing.T) {
 				{match: "node -e", err: errors.New("exit 1")},
 			},
 			wantSeq: []string{
-				"'docker' 'run' '-d' '--name' 'infra-menu-web-next'",
-				"docker exec infra-menu-web-next node -e",
-				"docker stop infra-menu-web-next 2>/dev/null; docker rm infra-menu-web-next 2>/dev/null",
+				"'docker' 'run' '-d' '--name' 'infra-web-next'",
+				"docker exec infra-web-next node -e",
+				"docker stop infra-web-next 2>/dev/null; docker rm infra-web-next 2>/dev/null",
 			},
 			wantAbsent: []string{
 				"docker rename",
@@ -91,18 +91,18 @@ func TestDeployHotSwap(t *testing.T) {
 				// after the cold-deploy tolerance change. Fail it to trigger
 				// the swap-error path. The first disconnect of the old
 				// container is now `|| true`-wrapped so it can't fail.
-				{match: "network disconnect iedora infra-menu-web-next", err: errors.New("no such network")},
+				{match: "network disconnect iedora infra-web-next", err: errors.New("no such network")},
 			},
 			wantSeq: []string{
-				"'docker' 'run' '-d' '--name' 'infra-menu-web-next'",
-				"docker exec infra-menu-web-next node -e",
-				"(docker network disconnect iedora infra-menu-web 2>/dev/null || true) &&",
+				"'docker' 'run' '-d' '--name' 'infra-web-next'",
+				"docker exec infra-web-next node -e",
+				"(docker network disconnect iedora infra-web 2>/dev/null || true) &&",
 				// Rollback runs after the swap fails.
-				"docker stop infra-menu-web-next 2>/dev/null; docker rm infra-menu-web-next 2>/dev/null",
+				"docker stop infra-web-next 2>/dev/null; docker rm infra-web-next 2>/dev/null",
 			},
 			wantAbsent: []string{
 				"docker rename",
-				"docker stop infra-menu-web 2>/dev/null", // reap should NOT run
+				"docker stop infra-web 2>/dev/null", // reap should NOT run
 			},
 			wantErrSub: "alias swap",
 		},
@@ -119,7 +119,7 @@ func TestDeployHotSwap(t *testing.T) {
 			d.Healthcheck.Interval = 10 * time.Millisecond
 
 			env := map[string]string{"NODE_ENV": "production"}
-			err := d.deployHotSwap(context.Background(), fake, "10.0.0.1", "ghcr.io/eduvhc/menu:abc", env)
+			err := d.deployHotSwap(context.Background(), fake, "10.0.0.1", "ghcr.io/eduvhc/web:abc", env)
 
 			if tc.wantErrSub == "" && err != nil {
 				t.Fatalf("deployHotSwap err = %v, want nil", err)
@@ -157,13 +157,13 @@ func TestDeployNaiveFallback(t *testing.T) {
 	d.Healthcheck = nil // opt OUT of hot-swap
 
 	env := map[string]string{"NODE_ENV": "production"}
-	if err := d.deployNaive(context.Background(), fake, "10.0.0.1", "ghcr.io/eduvhc/menu:abc", env); err != nil {
+	if err := d.deployNaive(context.Background(), fake, "10.0.0.1", "ghcr.io/eduvhc/web:abc", env); err != nil {
 		t.Fatalf("deployNaive err = %v", err)
 	}
 
 	assertSequence(t, fake.calls, []string{
-		"docker stop infra-menu-web 2>/dev/null; docker rm infra-menu-web 2>/dev/null",
-		"'docker' 'run' '-d' '--name' 'infra-menu-web'",
+		"docker stop infra-web 2>/dev/null; docker rm infra-web 2>/dev/null",
+		"'docker' 'run' '-d' '--name' 'infra-web'",
 	})
 	for _, got := range fake.calls {
 		if strings.Contains(got, "-next") {
@@ -216,10 +216,10 @@ func (f *fakeSSH) respond(cmd string) scriptedResp {
 // (DrainDuration, Healthcheck.Timeout) before calling deployHotSwap.
 func newTestDocker(ssh sshExecutor) *dockerOnHetzner {
 	return &dockerOnHetzner{
-		containerName:  "infra-menu-web",
-		imageRepo:      "ghcr.io/eduvhc/menu",
+		containerName:  "infra-web",
+		imageRepo:      "ghcr.io/eduvhc/web",
 		networkName:    "iedora",
-		networkAliases: []string{"infra-menu-web"},
+		networkAliases: []string{"infra-web"},
 		restart:        "unless-stopped",
 		cmd:            []string{"node", "server.js"},
 		logOpts:        map[string]string{"max-size": "10m"},

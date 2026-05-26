@@ -103,11 +103,11 @@ stderr but don't block. Tested via
 replacement is healthy. The contract:
 
 1. Pull image.
-2. Start the incoming container as `infra-menu-web-next` on the
+2. Start the incoming container as `infra-web-next` on the
    `iedora` network.
 3. HTTP-probe `/up` on the new container until 200 OK (Go-native, no
    `curl` shell-outs).
-4. Atomically re-alias `infra-menu-web` (network alias swap — the CF Tunnel
+4. Atomically re-alias `infra-web` (network alias swap — the CF Tunnel
    resolves the new container via docker DNS on the next request).
 5. Stop + remove the old container.
 
@@ -183,12 +183,12 @@ fallback).
 
 Per-product. Owned by each product's CI workflow:
 
-- **menu** (`.github/workflows/menu.yml`) — typecheck, lint, unit
+- **menu** (`.github/workflows/web.yml`) — typecheck, lint, unit
   tests, E2E (Playwright), security scan, `docker buildx` (multi-arch:
   `linux/amd64` for CI + `linux/arm64` for the Hetzner CAX box) →
-  `ghcr.io/<owner>/menu:<sha>` + SLSA build provenance attestation. On
+  `ghcr.io/<owner>/web:<sha>` + SLSA build provenance attestation. On
   `main`, the workflow then triggers `deploy.yml` (Stage 4) with
-  `product=menu` and `image_sha=<github.sha>`. Since the menu container
+  `product=web` and `image_sha=<github.sha>`. Since the menu container
   serves BOTH `menu.iedora.com` and `iedora.com` (host-based rewrite
   in `src/proxy.ts`), one image deploy ships both sites.
 
@@ -291,7 +291,7 @@ drizzle-kit migrate against the `core` Postgres database — the
 `@iedora/auth` schema (user / session / account / verification /
 organization / member / invitation / rate_limit). SSHes to the box,
 runs `docker run --rm --network iedora -e CORE_DATABASE_URL=...
-ghcr.io/<owner>/menu:<MENU_IMAGE_SHA> node /app/packages/auth/scripts/migrate.mjs`.
+ghcr.io/<owner>/web:<MENU_IMAGE_SHA> node /app/packages/auth/scripts/migrate.mjs`.
 
 Runs **first** so the menu container — which reads `core.session` rows
 on every request — boots against a migrated schema. The migrate script
@@ -308,7 +308,7 @@ container. Same image, same docker network, same pull dance as
 
 drizzle-kit migrate against menu's postgres database. SSHes to the box,
 runs `docker run --rm --network iedora -e DATABASE_URL=...
-ghcr.io/<owner>/menu:<MENU_IMAGE_SHA> node scripts/migrate.mjs`.
+ghcr.io/<owner>/web:<MENU_IMAGE_SHA> node scripts/migrate.mjs`.
 
 The migrate script holds `pg_advisory_lock(727072073)` for
 concurrent-deploy safety. Inputs: `MENU_IMAGE_SHA` env (default
@@ -373,28 +373,28 @@ For Docker-runtime products that run on the shared Hetzner VPS.
    AUTOGEN secrets) + `envFromTofu` (DATABASE_URL, OTEL endpoint, S3
    creds, etc. — composed values from Tofu state).
 4. SSH to box, `docker login ghcr.io`, `docker pull <image>:<sha>`.
-5. `docker run -d --name infra-menu-web-next --network-alias
-   infra-menu-web-next ...` — start the incoming container alongside
+5. `docker run -d --name infra-web-next --network-alias
+   infra-web-next ...` — start the incoming container alongside
    the live one. Only the `-next` alias is bound, so the CF Tunnel
    keeps routing traffic to the OLD container.
-6. Probe `docker exec infra-menu-web-next wget -qO- -T 5
+6. Probe `docker exec infra-web-next wget -qO- -T 5
    http://localhost:3000/up` every 500ms until the body contains
    `"ok":true` (60s budget). On timeout / failure: best-effort tear
-   down `infra-menu-web-next` and surface the probe error — the live
+   down `infra-web-next` and surface the probe error — the live
    container is never touched.
 7. Atomic cutover in one SSH command:
-   `docker network disconnect iedora infra-menu-web &&
-   docker network disconnect iedora infra-menu-web-next &&
-   docker network connect --alias infra-menu-web --alias
-   infra-menu-web-next iedora infra-menu-web-next`. Docker DNS
+   `docker network disconnect iedora infra-web &&
+   docker network disconnect iedora infra-web-next &&
+   docker network connect --alias infra-web --alias
+   infra-web-next iedora infra-web-next`. Docker DNS
    re-resolves the alias for the cloudflared container, so the
    next request through the tunnel lands on the new container.
 8. Drain for `DrainDuration` (default 10s) — pure Go sleep, no shell
    sleep — so in-flight requests on the old container finish before
    SIGTERM.
-9. `docker stop infra-menu-web && docker rm infra-menu-web` — reap
+9. `docker stop infra-web && docker rm infra-web` — reap
    the old container.
-10. `docker rename infra-menu-web-next infra-menu-web` so the next
+10. `docker rename infra-web-next infra-web` so the next
     deploy starts from the same naming baseline.
 
 Rollback semantics: a failure at step 6 or 7 runs `docker stop / rm /
@@ -408,7 +408,7 @@ container — still bound to the live alias — keeps serving traffic.
 - All `envFromBWS` keys — visible in `--stage deploy --product menu`
   scope.
 
-**CF Tunnel routing**: `cloudflared` resolves `infra-menu-web` by docker
+**CF Tunnel routing**: `cloudflared` resolves `infra-web` by docker
 network alias via the tunnel ingress rules in `tunnel.tf`. Between deploys
 (container stopped) it returns 502 — correct behavior; restored as soon
 as Stage 4 lands.
@@ -522,7 +522,7 @@ flows via `workflow_run` triggers.
 |----------|-------|---------|
 | [`infra-deploy.yml`](../.github/workflows/infra-deploy.yml) | 2 | push to main on `infra/iac/**`, `internal/**`, `bin/state-bucket-bootstrap`, `go.{mod,sum}`. Manual dispatch. |
 | [`app-state.yml`](../.github/workflows/app-state.yml)       | 3 | `workflow_run` on infra-deploy success. Also: push on `infra/app-state/menu-db-migrations/**`, `infra/app-state/openobserve-dashboards/**`. Manual dispatch. |
-| [`menu.yml`](../.github/workflows/menu.yml)                 | 1+4 | push to main on `apps/web/**`. Build + push image (multi-arch), then dispatches `deploy.yml(product=menu, sha=...)`. Ships both menu.iedora.com AND iedora.com. |
+| [`web.yml`](../.github/workflows/web.yml)                 | 1+4 | push to main on `apps/web/**`. Build + push image (multi-arch), then dispatches `deploy.yml(product=web, sha=...)`. Ships both menu.iedora.com AND iedora.com. |
 | [`deploy.yml`](../.github/workflows/deploy.yml)             | 4 | reusable `workflow_call` invoked by `menu.yml`. Generic over `product`. |
 
 Every workflow runs commands under `bin/iedora-env` so CI sees the same
@@ -572,7 +572,7 @@ Most day-2 work is SSH against the box. Resolve the host once and re-use:
 HOST=$(bin/iedora-env --stage iac -- tofu -chdir=infra/iac/tofu\1output -raw hetzner_ipv4)
 
 # Logs
-ssh root@$HOST docker logs -f --tail=200 infra-menu-web        # or infra-postgres / infra-cloudflared / …
+ssh root@$HOST docker logs -f --tail=200 infra-web        # or infra-postgres / infra-cloudflared / …
 
 # psql
 ssh -t root@$HOST docker exec -it infra-postgres psql -U postgres
@@ -847,8 +847,8 @@ the affected stage; the rest have explicit recovery steps below.
 | `tofu output X empty` | Stage 2 wasn't run, OR an `outputs.tf` entry was added but not applied. | `bin/iedora-env tofu -chdir=infra/iac/tofu apply`. |
 | `unauthorized` from `docker pull ghcr.io/...` | `IAC_BOOTSTRAP_GHCR_TOKEN` expired OR not in scope. | Regenerate the GHCR PAT, `bws secret edit`. The configurator's `docker login` step uses `--password-stdin` so the token never appears in `docker history`. |
 | `Type 'string \| undefined' is not assignable to parameter of type 'string'` in `proxy.ts` during `next build` | `noUncheckedIndexedAccess` is on; `(host ?? '').split(':')[0]` is `string \| undefined`. | `… .split(':')[0] ?? ''`. Or any guard before `houseHosts.has(host)`. |
-| `iedora.com` / `menu.iedora.com` → 502 from the tunnel | `infra-menu-web` upstream isn't running (Stage 4 didn't deploy, or container crashed). | `ssh root@$HOST docker ps` — confirm `infra-menu-web` listed. If missing: `bin/iedora-env bin/iedora deploy menu`. |
-| Hot-swap window (~150ms) where `menu.iedora.com` 502s mid-deploy | The brief alias-unbind during `docker network disconnect/connect`. | Retry the request; the alias rebinds within the second. If persistent: both `infra-menu-web` and `infra-menu-web-next` running means the rename never landed — rename manually. |
+| `iedora.com` / `menu.iedora.com` → 502 from the tunnel | `infra-web` upstream isn't running (Stage 4 didn't deploy, or container crashed). | `ssh root@$HOST docker ps` — confirm `infra-web` listed. If missing: `bin/iedora-env bin/iedora deploy menu`. |
+| Hot-swap window (~150ms) where `menu.iedora.com` 502s mid-deploy | The brief alias-unbind during `docker network disconnect/connect`. | Retry the request; the alias rebinds within the second. If persistent: both `infra-web` and `infra-web-next` running means the rename never landed — rename manually. |
 
 ### CI
 
@@ -1002,7 +1002,7 @@ tunnel-then-reconcile flow on a fresh target.
 
 - **Tofu state** (`infra/iac/tofu/`): ~26 resources (hcloud VPS/firewall/key, cloudflare R2/DNS/api_tokens incl. iedora.com apex + www, github_actions_secret/variable, random_password.*, terraform_data.{bws_sync,iedora_sync,data_bucket_purge,assets_bucket_purge}).
 - **BWS**: `DEPLOY_MENU_IEDORA_CORE_SECRET` minted by Stage 4 + `IAC_BOOTSTRAP_HOST_IP` + autogen passwords from `bws_sync`.
-- **Box** (`ssh root@$HOST docker ps`): `infra-postgres`, `infra-cloudflared`, `infra-openobserve`, `infra-pg-backup` (compose-managed via `iedora.service`) + `infra-menu-web` (Stage-4-owned, NOT in compose).
+- **Box** (`ssh root@$HOST docker ps`): `infra-postgres`, `infra-cloudflared`, `infra-openobserve`, `infra-pg-backup` (compose-managed via `iedora.service`) + `infra-web` (Stage-4-owned, NOT in compose).
 - **Public endpoints**:
   - `https://menu.iedora.com/up` → 200 `{"ok":true,"db":"ok"}`
   - `https://iedora.com` → 200 (house landing — served by menu container via `proxy.ts` Host rewrite)

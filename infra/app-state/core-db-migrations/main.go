@@ -81,7 +81,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("core_database_url empty — likely a Tofu schema drift")
 	}
 
-	image := fmt.Sprintf("ghcr.io/%s/menu:%s", owner, sha)
+	image := fmt.Sprintf("ghcr.io/%s/web:%s", owner, sha)
 
 	// docker login once before the pull. Same shape as menu-db-migrations
 	// — cheap to re-login (Docker dedupes on the saved token).

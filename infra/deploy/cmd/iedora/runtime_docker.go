@@ -30,7 +30,7 @@ type dockerOnHetzner struct {
 	containerName string
 
 	// imageRepo — fully-qualified image name without tag (e.g.
-	// "ghcr.io/eduvhc/menu"). Combined with image SHA at deploy time.
+	// "ghcr.io/eduvhc/web"). Combined with image SHA at deploy time.
 	imageRepo string
 
 	// imageSHAEnv — env var the orchestrator reads to find the tag/SHA
@@ -561,7 +561,7 @@ func shellSingleQuote(s string) string {
 }
 
 // ghcrOwnerFromImageRepo extracts the namespace from a full GHCR image
-// repo path. `ghcr.io/eduvhc/menu` → `eduvhc`. Empty string on unexpected
+// repo path. `ghcr.io/eduvhc/web` → `eduvhc`. Empty string on unexpected
 // shapes — the docker login below errors out clearly in that case.
 func ghcrOwnerFromImageRepo(repo string) string {
 	prefix := "ghcr.io/"

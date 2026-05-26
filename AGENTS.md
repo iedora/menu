@@ -148,7 +148,7 @@ Stage 4: Deploy            bin/iedora-env bin/iedora deploy <product>
 - **Preflight** — `bin/iedora-env bin/iedora doctor` (PATH, BWS auth, bootstrap secrets).
 - Day-2 ops (logs / psql / backup / restore / rotate / wipe) are raw SSH against the Hetzner box.
 
-Menu image builds happen in CI (`.github/workflows/menu.yml`) on every push to main: buildx (multi-arch — `linux/amd64` for CI, `linux/arm64` for the CAX Hetzner box), pushed to `ghcr.io/$GHCR_USER/menu:<sha>`. The menu workflow then dispatches `deploy.yml` with `product: menu` + `image_sha: <sha>`; the `dockerOnHetzner` runtime SSHs to the box, pulls the image, runs migrations, and replaces the container with a zero-downtime hot-swap. Since the menu container serves BOTH `menu.iedora.com` and `iedora.com` (host-based rewrite in `proxy.ts`), the same deploy ships both. Rollback: `gh workflow run deploy.yml --field product=menu --field image_sha=<older-sha>`.
+Menu image builds happen in CI (`.github/workflows/web.yml`) on every push to main: buildx (multi-arch — `linux/amd64` for CI, `linux/arm64` for the CAX Hetzner box), pushed to `ghcr.io/$GHCR_USER/web:<sha>`. The menu workflow then dispatches `deploy.yml` with `product: web` + `image_sha: <sha>`; the `dockerOnHetzner` runtime SSHs to the box, pulls the image, runs migrations, and replaces the container with a zero-downtime hot-swap. Since the menu container serves BOTH `menu.iedora.com` and `iedora.com` (host-based rewrite in `proxy.ts`), the same deploy ships both. Rollback: `gh workflow run deploy.yml --field product=web --field image_sha=<older-sha>`.
 
 ## CI
 

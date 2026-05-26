@@ -2,7 +2,7 @@
 #
 # Runs the menu gates (typecheck + lint + Vitest + Trivy/SBOM) on every push +
 # PR. On push to main, after the gates pass, builds the menu image for
-# linux/amd64 + linux/arm64, pushes it to GHCR (`ghcr.io/eduvhc/menu:latest`
+# linux/amd64 + linux/arm64, pushes it to GHCR (`ghcr.io/eduvhc/web:latest`
 # + commit SHA), then dispatches the Stage-4 deploy workflow with the
 # image SHA pinned.
 #
@@ -218,7 +218,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write         # `docker push ghcr.io/eduvhc/menu`
+      packages: write         # `docker push ghcr.io/eduvhc/web`
       id-token: write         # Sigstore attestations (SLSA provenance + SBOM)
       attestations: write     # attach attestations to the GHCR image
 
@@ -235,7 +235,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
 
-      # The `ghcr.io/eduvhc/menu` package was originally created under
+      # The `ghcr.io/eduvhc/web` package was originally created under
       # Eduardo's personal PAT, so GITHUB_TOKEN (scoped to the iedora repo)
       # can't push to it. IAC_BOOTSTRAP_GHCR_TOKEN is the same PAT, mirrored to
       # BWS + GHA secrets via Tofu. Fetch from BWS to keep it off the
@@ -280,7 +280,7 @@ jobs:
           context: .
           file: apps/web/Dockerfile
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/eduvhc/menu,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/eduvhc/web,push-by-digest=true,name-canonical=true,push=true
           provenance: true
           sbom: true
           cache-from: type=gha,scope=menu-${{ steps.slug.outputs.value }}
@@ -288,7 +288,7 @@ jobs:
 
       # Stash the digest as a 0-byte file named for the sha256. The
       # merge job globs `*` over the unpacked artifacts and turns them
-      # back into `ghcr.io/eduvhc/menu@sha256:<digest>` refs.
+      # back into `ghcr.io/eduvhc/web@sha256:<digest>` refs.
       - name: Export digest
         run: |
           set -euo pipefail
@@ -370,9 +370,9 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx imagetools create \
-            -t ghcr.io/eduvhc/menu:latest \
-            -t ghcr.io/eduvhc/menu:${{ github.sha }} \
-            $(printf 'ghcr.io/eduvhc/menu@sha256:%s ' *)
+            -t ghcr.io/eduvhc/web:latest \
+            -t ghcr.io/eduvhc/web:${{ github.sha }} \
+            $(printf 'ghcr.io/eduvhc/web@sha256:%s ' *)
 
       # Pull the manifest list digest back so the attestation has a
       # stable subject. `imagetools inspect --format` is the canonical
@@ -382,7 +382,7 @@ jobs:
         id: inspect
         run: |
           set -euo pipefail
-          DIGEST=$(docker buildx imagetools inspect "ghcr.io/eduvhc/menu:${{ github.sha }}" --format '{{json .Manifest}}' \
+          DIGEST=$(docker buildx imagetools inspect "ghcr.io/eduvhc/web:${{ github.sha }}" --format '{{json .Manifest}}' \
             | jq -r '.digest')
           [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ] || { echo "failed to resolve manifest digest" >&2; exit 1; }
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
@@ -394,7 +394,7 @@ jobs:
       - name: Attest SLSA build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
-          subject-name: ghcr.io/eduvhc/menu
+          subject-name: ghcr.io/eduvhc/web
           subject-digest: ${{ steps.inspect.outputs.digest }}
           push-to-registry: true
 
@@ -456,16 +456,16 @@ jobs:
           done
 
   # ── Stage 4: deploy the freshly-built image ─────────────────────────────
-  # Invokes the reusable deploy.yml workflow with product=menu + this
+  # Invokes the reusable deploy.yml workflow with product=web + this
   # commit's SHA. The dockerOnHetzner runtime (products.go) reads
   # MENU_IMAGE_SHA from env to pin the image — no more TF_VAR + tofu
   # apply round-trip. Rollback path: `gh workflow run deploy.yml
-  # --field product=menu --field image_sha=<older-sha>`.
+  # --field product=web --field image_sha=<older-sha>`.
   deploy:
     needs: wait_app_state
     uses: ./.github/workflows/deploy.yml
     with:
-      product: menu
+      product: web
       image_sha: ${{ github.sha }}
     secrets:
       BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}

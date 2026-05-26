@@ -120,7 +120,7 @@ resource "cloudflare_dns_record" "menu_iedora" {
   content = local.tunnel_cname
   ttl     = 1 # ttl=1 = automatic when proxied=true
   proxied = true
-  comment = "CF Tunnel → infra-menu-web on the Hetzner box"
+  comment = "CF Tunnel → infra-web on the Hetzner box"
 }
 
 resource "cloudflare_dns_record" "core_iedora" {

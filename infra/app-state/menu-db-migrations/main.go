@@ -10,7 +10,7 @@
 // deploy, not once per replica boot.
 //
 // Implementation: SSH to the box, run `docker run --rm` against
-// `ghcr.io/<owner>/menu:<sha>` invoking the existing `node scripts/
+// `ghcr.io/<owner>/web:<sha>` invoking the existing `node scripts/
 // migrate.mjs`. The migrate script holds a `pg_advisory_lock(727072073)`
 // for concurrent-deploy safety, but the lock is single-writer at the
 // configurator layer anyway (only one Stage 3 runs at a time per
@@ -109,7 +109,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("menu_database_url empty — likely a Tofu schema drift")
 	}
 
-	image := fmt.Sprintf("ghcr.io/%s/menu:%s", owner, sha)
+	image := fmt.Sprintf("ghcr.io/%s/web:%s", owner, sha)
 
 	// `docker login` once before pulling. The kreuzwerker/docker provider's
 	// `registry_auth` only applies to Tofu-managed `docker_image` resources;

@@ -35,13 +35,13 @@ type product struct {
 // iedora.com from the same image — no separate product needed.
 var products = []product{
 	{
-		name: "menu",
+		name: "web",
 		runtime: &dockerOnHetzner{
-			containerName:  "infra-menu-web",
-			imageRepo:      "ghcr.io/eduvhc/menu",
+			containerName:  "infra-web",
+			imageRepo:      "ghcr.io/eduvhc/web",
 			imageSHAEnv:    "MENU_IMAGE_SHA",
 			networkName:    "iedora",
-			networkAliases: []string{"infra-menu-web"},
+			networkAliases: []string{"infra-web"},
 			restart:        "unless-stopped",
 			cmd: []string{"node", "server.js"},
 			// Migrations are NOT here — they're a Stage 3 configurator
@@ -53,7 +53,7 @@ var products = []product{
 			// Guardrail #4 — opts menu into the zero-downtime hot-swap
 			// flow. Probe `/up` (returns 200 `{"ok":true,"db":"ok"}` on
 			// healthy DB connectivity) on container-local port 3000
-			// until ready, then atomically re-alias `infra-menu-web`
+			// until ready, then atomically re-alias `infra-web`
 			// from the old container to the new one. Timeout / Interval /
 			// DrainDuration left zero → defaults (60s / 500ms / 10s).
 			Healthcheck: &Healthcheck{Path: "/up", Port: 3000},

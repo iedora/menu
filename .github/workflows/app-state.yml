@@ -52,7 +52,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Wait for ghcr.io/eduvhc/menu:latest
+      - name: Wait for ghcr.io/eduvhc/web:latest
         # Both Stage-3 configurators (`core-db-migrations`,
         # `menu-db-migrations`) `docker run --rm <menu-image>` on the
         # box. On a fresh Day 1, the menu image is being built in
@@ -71,10 +71,10 @@ jobs:
           deadline=$(( $(date +%s) + 1800 ))   # 30 min budget
           while true; do
             if gh api -H "Accept: application/vnd.github+json" \
-                 /users/eduvhc/packages/container/menu/versions \
+                 /users/eduvhc/packages/container/web/versions \
                  --jq '.[].metadata.container.tags[]' 2>/dev/null \
                  | grep -qx 'latest'; then
-              echo "✓ ghcr.io/eduvhc/menu:latest is available"
+              echo "✓ ghcr.io/eduvhc/web:latest is available"
               break
             fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
