@@ -79,16 +79,37 @@ func main() {
 
 func dispatchIac(ctx context.Context, argv []string) error {
 	if len(argv) == 0 {
-		return fmt.Errorf("iac requires a subcommand: apply | destroy")
+		return fmt.Errorf("iac requires a subcommand: apply | destroy | ip")
 	}
 	switch argv[0] {
 	case "apply":
 		return runIacApply(ctx, argv[1:])
 	case "destroy":
 		return runIacDestroy(ctx, argv[1:])
+	case "ip":
+		return runIacIP(ctx, argv[1:])
 	default:
-		return fmt.Errorf("iac: unknown subcommand %q (want apply | destroy)", argv[0])
+		return fmt.Errorf("iac: unknown subcommand %q (want apply | destroy | ip)", argv[0])
 	}
+}
+
+// runIacIP prints the provisioned Hetzner box's IPv4 to stdout (or nothing
+// if the box hasn't been provisioned yet). Used by CI workflows that need
+// the IP for `ssh-keyscan` / SSH agent setup BEFORE running a heavier
+// orchestrator subcommand. Centralises the `tofu output -raw hetzner_ipv4`
+// pattern that previously lived inline in three workflow files, each
+// preceded by its own copy-pasted `tofu init` step. Lazy init in
+// `runTofuOutput` handles the backend-init prerequisite automatically.
+func runIacIP(ctx context.Context, argv []string) error {
+	if len(argv) > 0 {
+		return fmt.Errorf("iac ip takes no arguments")
+	}
+	currentMode.Require(mode.Live)
+	out, _ := runTofuOutput(ctx, nil, "output", "-raw", "hetzner_ipv4")
+	if out != "" {
+		fmt.Println(out)
+	}
+	return nil
 }
 
 func dispatchApp(ctx context.Context, argv []string) error {
@@ -109,6 +130,7 @@ func usage() {
 Stage subcommands:
   iac apply             Bring up shared infra via Tofu.
   iac destroy           Tear down shared infra.
+  iac ip                Print the provisioned Hetzner box IPv4 (empty if none).
   app apply             Run every app-state configurator (Stage 3).
   deploy [products…]    Ship product artifacts (Stage 4). Empty list = all.
   destroy [products…]   Tear down product artifacts. Empty list = all.

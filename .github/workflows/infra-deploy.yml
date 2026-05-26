@@ -105,17 +105,16 @@ jobs:
           tofu_wrapper: false
 
       - name: Read Hetzner IP (existing-box detection)
-        # Source of truth is the encrypted tfstate in git. Run a Tofu
-        # init + output now (before SSH config) so we can pre-populate
-        # known_hosts. Empty output is fine — first apply for a fresh
-        # repo provisions the VPS and writes the output.
+        # Source of truth is the encrypted tfstate via R2. `bin/iedora iac ip`
+        # lazily runs `tofu init -input=false` on first call (sync.Once
+        # inside the orchestrator), so no separate init step is needed.
+        # The subsequent `task infra:up` runs its own `tofu init -upgrade`
+        # to refresh provider versions before applying. Empty output is
+        # fine — first apply for a fresh repo provisions the VPS.
         id: host
         run: |
           set -euo pipefail
-          bin/with-secrets --stage iac -- \
-            tofu -chdir=infra/tofu init -upgrade -input=false >/dev/null
-          HOST=$(bin/with-secrets --stage iac -- \
-            tofu -chdir=infra/tofu output -raw hetzner_ipv4 2>/dev/null || echo "")
+          HOST=$(bin/with-secrets --stage iac -- bin/iedora iac ip 2>/dev/null || echo "")
           if [ -n "$HOST" ]; then
             echo "::add-mask::$HOST"
             echo "host=$HOST" >> "$GITHUB_OUTPUT"

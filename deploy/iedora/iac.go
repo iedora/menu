@@ -24,25 +24,23 @@ import (
 // Idempotent. Designed to run on every deploy; a warm run is a fast
 // no-diff refresh. Does NOT touch any product container (menu_web is owned
 // by Stage 4) and does NOT configure Zitadel app state (owned by Stage 3).
-//
-// Flags:
-//
-//	--skip-init   skip the leading `tofu init` (CI runs it as a separate step)
 func runIacApply(ctx context.Context, argv []string) error {
 	currentMode.Require(mode.Live)
 
 	fs := flag.NewFlagSet("iac apply", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	skipInit := fs.Bool("skip-init", false, "skip leading tofu init")
 	if err := fs.Parse(argv); err != nil {
 		return err
 	}
 
-	if !*skipInit {
-		fmt.Fprintln(stderr, "→ tofu init")
-		if err := initIfNeeded(ctx, true); err != nil {
-			return fmt.Errorf("tofu init: %w", err)
-		}
+	// Explicit init with -upgrade. Subsequent tofu calls in this process
+	// will see sync.Once already triggered and skip re-init; this is the
+	// only path that honours the upgrade flag, hence the explicit call
+	// instead of relying on the lazy path that always runs without
+	// upgrade.
+	fmt.Fprintln(stderr, "→ tofu init -upgrade")
+	if err := initIfNeeded(ctx, true); err != nil {
+		return fmt.Errorf("tofu init: %w", err)
 	}
 
 	parallel := "-parallelism=20"
@@ -120,11 +118,8 @@ func runIacDestroy(ctx context.Context, argv []string) error {
 		return err
 	}
 
-	fmt.Fprintln(stderr, "→ tofu init")
-	if err := initIfNeeded(ctx, false); err != nil {
-		return fmt.Errorf("tofu init: %w", err)
-	}
-
+	// First runTofu* call below will lazily `tofu init -input=false` via
+	// sync.Once — no explicit init needed (destroy doesn't want -upgrade).
 	priorIP, _ := runTofuOutput(ctx, nil, "output", "-raw", "hetzner_ipv4")
 
 	// ── Step 1: state-rm VPS-coupled resources ──────────────────────────

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 // tofuCmd builds a `tofu -chdir=tofu` command with optional extra args. stdin
@@ -29,6 +30,9 @@ func tofuCmd(ctx context.Context, extraEnv []string, args ...string) *exec.Cmd {
 
 // runTofu streams output to the user's terminal. Use for apply/destroy/init.
 func runTofu(ctx context.Context, extraEnv []string, args ...string) error {
+	if err := initIfNeeded(ctx, false); err != nil {
+		return err
+	}
 	cmd := tofuCmd(ctx, extraEnv, args...)
 	cmd.Stdout = os.Stderr // tofu writes most of its prose to stdout; we want it interleaved with logs but on stderr so a future plumbed-into-pipe caller can still capture clean output
 	cmd.Stderr = os.Stderr
@@ -42,6 +46,9 @@ func runTofu(ctx context.Context, extraEnv []string, args ...string) error {
 // instead of failing — pitfall #1 in the brief. We always test for empty
 // stdout, never the exit code.)
 func runTofuOutput(ctx context.Context, extraEnv []string, args ...string) (string, error) {
+	if err := initIfNeeded(ctx, false); err != nil {
+		return "", err
+	}
 	cmd := tofuCmd(ctx, extraEnv, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -75,18 +82,38 @@ func runTofuList(ctx context.Context, extraEnv []string) ([]string, error) {
 	return clean, nil
 }
 
-// initIfNeeded runs `tofu init -input=false`. The upgrade flag is opt-in
-// since plain init is cheaper and we don't always want to bump providers
-// inside an automated apply run.
+// initIfNeeded runs `tofu init -input=false` at most once per process.
+// Idempotent across callers via sync.Once — subsequent invocations are
+// free regardless of the requested upgrade flag.
+//
+// Every public tofu wrapper (`runTofu`, `runTofuOutput`, `runTofuList`)
+// calls this implicitly before its first shell-out, so callers don't
+// need to remember to init. Explicit callers (the `iac apply` path,
+// which wants `-upgrade`) still call it directly to FIX the upgrade flag
+// before any lazy call beats them to it; that's why the parameter is
+// honoured on the first call instead of being dropped silently.
+//
+// Backend implication: with Rule 2's R2 backend (`backend "s3"`), every
+// fresh runner / fresh repo clone hits "Backend initialization required"
+// on the first `tofu output`. The implicit init here removes that
+// failure mode entirely — no separate `tofu init` step needed in CI.
+var (
+	tofuInitOnce sync.Once
+	tofuInitErr  error
+)
+
 func initIfNeeded(ctx context.Context, upgrade bool) error {
-	args := []string{"init", "-input=false"}
-	if upgrade {
-		args = append(args, "-upgrade")
-	}
-	// Init has chatty stdout we don't want polluting the operator's view;
-	// only show stderr (errors + warnings).
-	cmd := tofuCmd(ctx, nil, args...)
-	cmd.Stdout = io.Discard
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	tofuInitOnce.Do(func() {
+		args := []string{"init", "-input=false"}
+		if upgrade {
+			args = append(args, "-upgrade")
+		}
+		// Init has chatty stdout we don't want polluting the operator's view;
+		// only show stderr (errors + warnings).
+		cmd := tofuCmd(ctx, nil, args...)
+		cmd.Stdout = io.Discard
+		cmd.Stderr = os.Stderr
+		tofuInitErr = cmd.Run()
+	})
+	return tofuInitErr
 }

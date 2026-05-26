@@ -122,6 +122,10 @@ jobs:
         # the migrate one-shot, and the stop+rm+run sequence. Skipped
         # for products whose runtime doesn't shell SSH (CF Workers,
         # future Vercel, etc.) — `task deploy:house` never touches this.
+        #
+        # `bin/iedora iac ip` reads the box's IPv4 via Tofu, lazily
+        # running `tofu init -input=false` on first call. Pre-populates
+        # known_hosts so the first SSH doesn't trip on a host-key prompt.
         env:
           SSH_KEY: ${{ secrets.IAC_BOOTSTRAP_SSH_PRIVATE_KEY }}
         run: |
@@ -130,12 +134,7 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # Read the box's public IPv4 from Tofu output. `task deploy:<product>`
-          # repeats this internally (the runtime resolves it lazily), but
-          # we need it here to pre-populate known_hosts so the first SSH
-          # doesn't fail on a host-key prompt.
-          HOST=$(bin/with-secrets --stage iac -- \
-            tofu -chdir=infra/tofu output -raw hetzner_ipv4 2>/dev/null || true)
+          HOST=$(bin/with-secrets --stage iac -- bin/iedora iac ip 2>/dev/null || true)
           if [ -n "$HOST" ]; then
             echo "::add-mask::$HOST"
             ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true

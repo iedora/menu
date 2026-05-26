@@ -92,19 +92,11 @@ jobs:
           tofu_version: '1.12.0'
           tofu_wrapper: false
 
-      - name: tofu init (R2 backend)
-        # `task app:apply` shells out to `tofu output -raw hetzner_ipv4`
-        # via `bin/with-secrets --stage iac`. With Rule 2's R2 backend
-        # (`backend "s3"`), `tofu output` errors with "Backend
-        # initialization required" unless an init has run on this
-        # runner. Local state used to make this implicit; the R2
-        # backend doesn't. Idempotent + cached via `-input=false`.
-        run: |
-          set -euo pipefail
-          bin/with-secrets --stage iac -- \
-            tofu -chdir=infra/tofu init -input=false
-
       - name: Configure SSH (SA-key fetch needs SSH on cold runs)
+        # `bin/iedora iac ip` resolves the box IP via Tofu and runs
+        # `tofu init -input=false` lazily on first call (sync.Once inside
+        # the orchestrator), so the R2 backend prerequisite is handled
+        # without a separate init step in this workflow.
         env:
           SSH_KEY: ${{ secrets.IAC_BOOTSTRAP_SSH_PRIVATE_KEY }}
         run: |
@@ -113,8 +105,7 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          HOST=$(bin/with-secrets --stage iac -- \
-            tofu -chdir=infra/tofu output -raw hetzner_ipv4 2>/dev/null || true)
+          HOST=$(bin/with-secrets --stage iac -- bin/iedora iac ip 2>/dev/null || true)
           if [ -n "$HOST" ]; then
             echo "::add-mask::$HOST"
             ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
