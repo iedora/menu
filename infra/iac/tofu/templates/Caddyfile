@@ -20,3 +20,10 @@ ${zitadel_hostname} {
 ${menu_hostname} {
   reverse_proxy http://infra-menu-web:3000
 }
+
+# iedora.com (apex + www) — same upstream as menu. The menu Next.js
+# app's proxy.ts inspects Host and rewrites apex requests under
+# /house/* internally.
+${zone_name}, www.${zone_name} {
+  reverse_proxy http://infra-menu-web:3000
+}

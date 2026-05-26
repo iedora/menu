@@ -130,3 +130,28 @@ resource "cloudflare_dns_record" "auth_iedora" {
   proxied = false
   comment = "Direct to Hetzner — grey cloud bypasses CF Free gRPC block (#19)"
 }
+
+# iedora.com (apex) — brand landing page. Same Hetzner box as menu;
+# the menu Next.js app's proxy.ts rewrites apex requests under
+# /house/* internally, so one container serves both hosts.
+resource "cloudflare_dns_record" "iedora_apex" {
+  zone_id = data.cloudflare_zone.iedora.zone_id
+  name    = var.zone_name
+  type    = "A"
+  content = hcloud_server.iedora.ipv4_address
+  ttl     = 60
+  proxied = false
+  comment = "Apex iedora.com — brand landing served by menu's Next.js (proxy.ts host rewrite)"
+}
+
+# www.iedora.com → redirect target. Caddy handles both apex + www at
+# the same upstream; this record just makes the alias resolvable.
+resource "cloudflare_dns_record" "iedora_www" {
+  zone_id = data.cloudflare_zone.iedora.zone_id
+  name    = "www.${var.zone_name}"
+  type    = "A"
+  content = hcloud_server.iedora.ipv4_address
+  ttl     = 60
+  proxied = false
+  comment = "www.iedora.com → same upstream as the apex"
+}

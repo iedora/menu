@@ -26,6 +26,7 @@ locals {
     acme_email       = var.infra_openobserve_root_user_email
     zitadel_hostname = var.zitadel_hostname
     menu_hostname    = var.menu_public_hostname
+    zone_name        = var.zone_name
   })
 
   # init.sql lives at /etc/iedora/postgres-init/init.sql, bind-mounted

@@ -165,16 +165,14 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
-// tofuOutput shells out to `bin/with-secrets --stage iac -- tofu output
-// -raw <name>` against `infra/iac/tofu/`. We re-enter the iac stage
-// rather than reading state directly because state is encrypted — only
-// the with-secrets wrapper has the passphrase.
+// tofuOutput shells out to `tofu -chdir=infra/iac/tofu output -raw
+// <name>` and returns the trimmed stdout. The state-passphrase + AWS
+// (R2 backend) env vars are already hydrated by `bin/iedora-env` —
+// no nested wrapper needed.
 func tofuOutput(ctx context.Context, name string) (string, error) {
 	iac := iacDir()
-	// `bin/` is at the repo root: <iac>/../../bin (iac → infra → repo).
-	withSecrets := filepath.Join(filepath.Dir(filepath.Dir(iac)), "bin", "with-secrets")
-	cmd := exec.CommandContext(ctx, withSecrets, "--stage", "iac", "--",
-		"tofu", "-chdir="+filepath.Join(iac, "tofu"), "output", "-raw", name)
+	cmd := exec.CommandContext(ctx, "tofu",
+		"-chdir="+filepath.Join(iac, "tofu"), "output", "-raw", name)
 	cmd.Env = os.Environ()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

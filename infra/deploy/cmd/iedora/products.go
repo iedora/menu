@@ -28,16 +28,12 @@ type product struct {
 
 // products — the explicit registry. Order is irrelevant; deploy/destroy
 // fan out in parallel.
+//
+// NOTE: `house` was removed when iedora.com was folded into the menu
+// Next.js app (see products/menu/src/app/house/ + src/proxy.ts host
+// rewrite). Menu's container serves both menu.iedora.com and
+// iedora.com from the same image — no separate product needed.
 var products = []product{
-	{
-		name:    "house",
-		runtime: &cloudflareWorker{
-			productName: "house",
-			infraRel:    "products/house/infra",
-			siteRel:     "products/house",
-			build:       []string{"bun", "run", "build"},
-		},
-	},
 	{
 		name: "menu",
 		runtime: &dockerOnHetzner{

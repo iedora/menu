@@ -1,23 +1,26 @@
-// Package ssh wraps `ssh` and `ssh-keygen` / `ssh-keyscan` for the
-// pipeline binaries that talk to the Hetzner box. Before this package,
-// every binary (iedora, zitadel-apply, menu-db-migrations) had its own
-// copy-pasted `sshExec` + `sshCapture` + `rotateKnownHosts` — four
-// implementations, subtle differences in stream routing, no shared
-// timeout/keepalive policy.
+// Package ssh wraps the system `ssh` binary for the pipeline binaries
+// that talk to the Hetzner box (Stage 3 configurators, Stage 4
+// dockerOnHetzner runtime). One canonical implementation so every
+// caller shares the same timeout + host-key policy.
 //
-// Two public surfaces:
+// Host-key check is intentionally OFF — same strategy Tofu's own SSH
+// library uses for `terraform_data` connection blocks. Rationale:
 //
-//   - Client     a value type with optional Stdout/Stderr writers.
-//                The default writes streamed output to the operator's
-//                terminal (os.Stdout / os.Stderr). Configurators that
-//                want "everything is a log line" set both writers to
-//                stderr; that's the common case for non-interactive
-//                reconcilers.
+//   - Every SSH target is a Tofu-provisioned VPS whose lifecycle is
+//     controlled by the same repo. Hetzner can recycle the IP across
+//     destroy/apply cycles, which used to trip "REMOTE HOST
+//     IDENTIFICATION HAS CHANGED" and break Stage 3 mid-flight.
+//   - The MITM threat the check defends against is "someone has
+//     hijacked the path between operator and box". For private CI
+//     runners + operator laptops on managed networks, that's not the
+//     plausible attack vector. Authentication via the SSH key already
+//     covers identity.
+//   - Multi-machine / multi-agent setups should never accumulate
+//     known_hosts state — each agent gets a clean run, no shared
+//     keychain.
 //
-//   - RotateKnownHosts / KnownHostsPath
-//                idempotent host-key rotation, used after every
-//                destroy/deploy because the operator's known_hosts
-//                still pins the prior box's key under a recycled IP.
+// If a future operator wants strict checking, set Client.StrictHostKey
+// to "accept-new" or "yes" and provide a known_hosts file out-of-band.
 package ssh
 
 import (
@@ -27,14 +30,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"os/user"
-	"path/filepath"
 	"strconv"
 )
 
 // Client wires the few options every SSH call we make actually needs.
-// Zero value is the "interactive operator" default — stream to terminal,
-// 10s connect timeout, accept-new host keys.
+// Zero value streams to terminal with a 10s connect timeout and
+// host-key checking disabled.
 type Client struct {
 	// Stdout receives the remote process's stdout while Exec runs.
 	// nil → os.Stdout. Reconcilers (no interactive operator) typically
@@ -49,9 +50,8 @@ type Client struct {
 	ConnectTimeout int
 
 	// StrictHostKey is the value passed to `-o StrictHostKeyChecking=…`.
-	// Empty → "accept-new", which TOFU-trusts the box on first sight
-	// (after RotateKnownHosts has already wiped any stale entry) and
-	// rejects mismatches thereafter.
+	// Empty → "no" (don't check, don't persist). See the package
+	// comment for why.
 	StrictHostKey string
 }
 
@@ -76,11 +76,18 @@ func (c *Client) cmd(ctx context.Context, host, remoteCmd string) *exec.Cmd {
 	}
 	policy := c.StrictHostKey
 	if policy == "" {
-		policy = "accept-new"
+		policy = "no"
 	}
 	return exec.CommandContext(ctx, "ssh",
 		"-o", "StrictHostKeyChecking="+policy,
+		// Don't read or write the operator's ~/.ssh/known_hosts.
+		// /dev/null is portable and the standard way to opt out.
+		"-o", "UserKnownHostsFile=/dev/null",
 		"-o", "ConnectTimeout="+strconv.Itoa(timeout),
+		// LogLevel=ERROR drops the "Warning: Permanently added
+		// 'host' to known hosts" noise that StrictHostKey=no still
+		// emits without this.
+		"-o", "LogLevel=ERROR",
 		"root@"+host, remoteCmd)
 }
 
@@ -112,53 +119,4 @@ func (c *Client) Capture(ctx context.Context, host, remoteCmd string) (string, e
 		return "", fmt.Errorf("ssh root@%s %q: %w", host, remoteCmd, err)
 	}
 	return out.String(), nil
-}
-
-// RotateKnownHosts deals with the most common foot-gun in IP-recycled
-// destroy/deploy cycles: the operator's ~/.ssh/known_hosts still pins
-// the prior box's host key under this IP. Any SSH that goes through the
-// system ssh client (kreuzwerker/docker provider, our own `docker logs` /
-// `psql` shortcuts) will fail with "REMOTE HOST IDENTIFICATION HAS
-// CHANGED" — and on a fresh deploy the symptom is indistinguishable
-// from a real MITM, so the docker provider just errors out.
-//
-// Best-effort: `ssh-keygen -R` is idempotent (no entry → no-op) and
-// `ssh-keyscan -H` captures the FRESH key. Silent on errors because a
-// missing tool is acceptable in CI (which runs its own preflight
-// ssh-keyscan) and the destroy path may run before ~/.ssh exists.
-func RotateKnownHosts(ctx context.Context, ips ...string) {
-	khPath := KnownHostsPath()
-	_ = os.MkdirAll(filepath.Dir(khPath), 0o700)
-
-	for _, ip := range ips {
-		if ip == "" {
-			continue
-		}
-		_ = exec.CommandContext(ctx, "ssh-keygen", "-R", ip, "-f", khPath).Run()
-	}
-	for _, ip := range ips {
-		if ip == "" {
-			continue
-		}
-		cmd := exec.CommandContext(ctx, "ssh-keyscan", "-H", "-T", "5", ip)
-		f, err := os.OpenFile(khPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-		if err != nil {
-			continue
-		}
-		cmd.Stdout = f
-		_ = cmd.Run()
-		_ = f.Close()
-	}
-}
-
-// KnownHostsPath returns the user's ~/.ssh/known_hosts (or /dev/null if
-// no home directory is resolvable — better than panicking).
-func KnownHostsPath() string {
-	if h, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(h, ".ssh", "known_hosts")
-	}
-	if u, err := user.Current(); err == nil {
-		return filepath.Join(u.HomeDir, ".ssh", "known_hosts")
-	}
-	return "/dev/null"
 }

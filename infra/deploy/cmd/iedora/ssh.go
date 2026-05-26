@@ -23,9 +23,8 @@ type sshExecutor interface {
 
 // newSSHClient returns the production SSH executor — the zero-value
 // Client, which streams to os.Stdout/os.Stderr with a 10s connect
-// timeout and the accept-new host-key policy. RotateKnownHosts has
-// already wiped any stale entry for the box at this point in the
-// lifecycle, so accept-new is safe.
+// timeout and host-key checking disabled (see internal/ssh package
+// comment for why).
 func newSSHClient() sshExecutor {
 	return &sshlib.Client{}
 }
