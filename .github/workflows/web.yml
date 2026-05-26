@@ -178,12 +178,18 @@ jobs:
       - name: Log in to GHCR
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        # `bin/iedora-env` auto-discovers BWS_PROJECT_ID from the
+        # token's accessible projects + hydrates every secret as env.
+        # That's why every OTHER bws-touching workflow uses it. The
+        # earlier raw `bws secret list "$BWS_PROJECT_ID"` here was the
+        # one workflow that broke the pattern.
         run: |
           set -euo pipefail
-          TOKEN=$(bws secret list "$BWS_PROJECT_ID" -o json \
-            | jq -r '.[] | select(.key=="IAC_BOOTSTRAP_GHCR_TOKEN") | .value')
-          [ -n "$TOKEN" ] || { echo "IAC_BOOTSTRAP_GHCR_TOKEN missing in BWS" >&2; exit 1; }
-          echo "$TOKEN" | docker login ghcr.io -u eduvhc --password-stdin
+          bin/iedora-env bash -c '
+            set -euo pipefail
+            [ -n "${IAC_BOOTSTRAP_GHCR_TOKEN:-}" ] || { echo "IAC_BOOTSTRAP_GHCR_TOKEN missing in BWS" >&2; exit 1; }
+            echo "$IAC_BOOTSTRAP_GHCR_TOKEN" | docker login ghcr.io -u eduvhc --password-stdin
+          '
 
       # Build context: REPO ROOT (Bun workspace) — Dockerfile copies in
       # `package.json`, `bun.lock`, `tsconfig.base.json`, and every
