@@ -269,8 +269,9 @@ jobs:
                      --limit 1 \
                      --json databaseId -q '.[0].databaseId // "0"')
 
-          echo "→ dispatching app-state.yml on main"
-          gh workflow run app-state.yml --repo "$REPO" --ref main
+          echo "→ dispatching app-state.yml on main with image_sha=${GITHUB_SHA}"
+          gh workflow run app-state.yml --repo "$REPO" --ref main \
+            -f image_sha="${GITHUB_SHA}"
 
           # Poll for a new run created AFTER our snapshot. GHA can take
           # a few seconds to register a workflow_dispatch run.

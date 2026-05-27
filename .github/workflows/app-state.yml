@@ -1,36 +1,41 @@
 # Stage 3 (AppState) — runs every Stage-3 configurator against the live
 # infra. Registry at `infra/deploy/cmd/iedora/configurators.go`.
 #
-# Triggers:
+# Sole trigger: `workflow_dispatch`. Dispatched by:
 #
-#   workflow_dispatch                — primary trigger. Dispatched
-#                                      explicitly by web.yml's
-#                                      `run_app_state` job before
-#                                      Stage 4 deploys, or by
-#                                      operators when reconciling
-#                                      app state out-of-band.
-#   push (paths-filtered)            — push to main touching the
-#                                      reconciler code or a
-#                                      configurator's source tree.
+#   - web.yml's `run_app_state` job (the primary path: a successful
+#     apps:web build pushes the image, then dispatches this workflow
+#     against the just-built SHA to apply migrations before deploy).
+#   - operators reconciling app state out-of-band.
 #
-# Previously this also had a `workflow_run` trigger on `[infra] Deploy`
-# completion. Removed: the cascade was unreliable (fired ~half the
-# time in practice), and the dispatch-and-follow pattern in web.yml
-# is deterministic — we know which specific run gates the deploy.
+# The previous push + workflow_run triggers were both removed:
+#
+#   workflow_run on [infra] Deploy — fired ~half the time in practice
+#                                    (GHA quirk; tracked as CI-4
+#                                    historical note in tech-debt).
+#
+#   push on infra/app-state/**     — racy: configurator-only commits
+#                                    auto-triggered app-state BEFORE
+#                                    the matching web image was built,
+#                                    leaving Stage 3 to pull the
+#                                    previous :latest image and fail
+#                                    on missing files. The dispatch-
+#                                    from-web pattern guarantees image
+#                                    ordering. Configurator-only
+#                                    changes are validated either via
+#                                    operator dispatch or on the next
+#                                    web-touching commit.
 
 name: '[infra] App state'
 
 on:
-  workflow_dispatch: {}
-  push:
-    branches: [main]
-    paths:
-      - 'infra/app-state/**'
-      - 'infra/deploy/cmd/iedora/configurators.go'
-      - 'internal/**'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/app-state.yml'
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: 'Image SHA tag to pull (default :latest). web.yml passes github.sha here.'
+        type: string
+        required: false
+        default: latest
 
 concurrency:
   group: app-state
@@ -62,23 +67,21 @@ jobs:
           unzip -q /tmp/bws.zip -d /tmp/bws
           sudo install -m 0755 /tmp/bws/bws /usr/local/bin/bws
 
-      - name: Wait for ghcr.io/eduvhc/web:latest
-        # Both Stage-3 configurators (`core-db-migrations`,
-        # `menu-db-migrations`) `docker run --rm <web-image>` on the
-        # box. On a fresh Day 1, the web image is being built in
-        # parallel by `web.yml`; if `[infra] Deploy` finishes first this
-        # workflow would crash on `docker pull`. Block here until GHCR
-        # exposes a `latest` tag for `ghcr.io/eduvhc/web`.
+      - name: Wait for ghcr.io/eduvhc/web:${{ inputs.image_sha }}
+        # web.yml dispatches us with inputs.image_sha = github.sha
+        # AFTER its build job pushes the image. The GHCR `web` package
+        # is PRIVATE, so the repo's GITHUB_TOKEN can't see it via the
+        # user-packages API. Use IAC_BOOTSTRAP_GHCR_TOKEN (the PAT
+        # used to push) which has read access to owner's private
+        # packages — alias it to GH_TOKEN so the gh CLI picks it up.
         #
-        # The GHCR `web` package is PRIVATE. The repo's GITHUB_TOKEN
-        # (scoped to iedora repo, not the user's packages) can't see
-        # it, so we can't poll via the user-packages API with that
-        # token. Use IAC_BOOTSTRAP_GHCR_TOKEN (the same PAT used to
-        # push the image) which has read access to the owner's
-        # private packages — alias it to GH_TOKEN so the gh CLI picks
-        # it up.
+        # Polling by SHA (not :latest) is deterministic: we know
+        # exactly which image version this app-state run is gating.
+        # Operators dispatching manually default to :latest (the
+        # last successfully pushed build).
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+          IMAGE_SHA: ${{ inputs.image_sha }}
         run: |
           set -euo pipefail
           bin/iedora-env bash -c '
@@ -90,15 +93,15 @@ jobs:
               if gh api -H "Accept: application/vnd.github+json" \
                    /user/packages/container/web/versions \
                    --jq ".[].metadata.container.tags[]" 2>/dev/null \
-                   | grep -qx "latest"; then
-                echo "✓ ghcr.io/eduvhc/web:latest is available"
+                   | grep -qx "$IMAGE_SHA"; then
+                echo "✓ ghcr.io/eduvhc/web:$IMAGE_SHA is available"
                 break
               fi
               if [ "$(date +%s)" -ge "$deadline" ]; then
-                echo "✗ ghcr.io/eduvhc/web:latest still missing after 30 min — abort"
+                echo "✗ ghcr.io/eduvhc/web:$IMAGE_SHA still missing after 30 min — abort"
                 exit 1
               fi
-              echo "ghcr.io/eduvhc/web:latest not yet pushed — waiting 30s"
+              echo "ghcr.io/eduvhc/web:$IMAGE_SHA not yet pushed — waiting 30s"
               sleep 30
             done
           '
@@ -143,4 +146,10 @@ jobs:
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
 
       - name: bin/iedora app apply
+        env:
+          # Configurators read IMAGE_SHA via os.Getenv (default "latest")
+          # — see infra/app-state/{core,menu}-db-migrations/main.go.
+          # Pass the dispatch input through so the migrators pull the
+          # SAME tag we just verified above.
+          IMAGE_SHA: ${{ inputs.image_sha }}
         run: bin/iedora-env bin/iedora app apply
