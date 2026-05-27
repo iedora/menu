@@ -60,7 +60,14 @@ const eslintConfig = defineConfig([
     },
   },
   ...vitest(),
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'eslint.config.mjs']),
+  globalIgnores([
+    '.next/**',
+    'out/**',
+    'build/**',
+    'dist/**',
+    'next-env.d.ts',
+    'eslint.config.mjs',
+  ]),
 ])
 
 export default eslintConfig

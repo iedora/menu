@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --build",
     "build:test": "bun --env-file=.env.test next build"
   },
   "dependencies": {

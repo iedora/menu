@@ -1,15 +1,15 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireActiveOrganization } from '@/features/auth'
+import { requireActiveOrganization } from '@iedora/product-menu/features/auth'
 import {
   getOrganizationAnalytics,
   isAnalyticsRange,
   type AnalyticsRange,
-} from '@/features/metrics'
-import { getOrganizationPlan, planHas } from '@/features/plans'
-import { KpiCard, ScansCard, ScansChart } from '@/features/dashboard-home/ui/analytics-cards'
-import { DashboardPage } from '@/shared/ui/dashboard-page'
+} from '@iedora/product-menu/features/metrics'
+import { getOrganizationPlan, planHas } from '@iedora/product-menu/features/plans'
+import { KpiCard, ScansCard, ScansChart } from '@iedora/product-menu/features/dashboard-home/ui/analytics-cards'
+import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 
 const DEFAULT_RANGE: AnalyticsRange = '30d'
 

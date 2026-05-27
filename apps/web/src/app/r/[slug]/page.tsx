@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 import {
   loadPublicMenu,
   PublicMenuView,
-} from '@/features/menu-publishing/rsc/public-menu-view'
+} from '@iedora/product-menu/features/menu-publishing/rsc/public-menu-view'
 
 /**
  * Branded / marketing URL for the public menu. The QR sticker URL

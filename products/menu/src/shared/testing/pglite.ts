@@ -1,51 +1,24 @@
 import path from 'node:path'
-import { PGlite } from '@electric-sql/pglite'
-import { drizzle } from 'drizzle-orm/pglite'
-import { migrate } from 'drizzle-orm/pglite/migrator'
+import { makeTestDb as makeTestDbGeneric, type TestDb as GenericTestDb } from '@iedora/db/testing'
 import * as schema from '@/shared/db/schema'
 
-const MIGRATIONS_FOLDER = path.join(process.cwd(), 'drizzle')
-
-export interface TestDb {
-  client: PGlite
-  db: ReturnType<typeof drizzle<typeof schema>>
-  /** Closes the in-memory client. Call in afterEach/afterAll. */
-  cleanup: () => Promise<void>
-}
-
 /**
- * Creates an isolated in-memory Postgres for one test (or one suite, if you
- * want to share it). Applies every migration in ./drizzle, then returns a
- * Drizzle client. PGLite is real Postgres semantics — json, indexes,
- * transactions all work. ~1s for the first call (WASM init), <100ms per
- * subsequent migrate against the same process.
+ * One isolated in-memory Postgres for each test (or suite). Binds the
+ * generic PGLite fixture from `@iedora/db/testing` to menu's schema +
+ * migrations folder. See `@iedora/db/testing` for the lifecycle
+ * contract.
  *
- * The fixture matches the production wiring: `casing: 'snake_case'` mirrors
- * `drizzle.config.ts` so column names resolve identically.
- *
- * Menu owns one Postgres schema (`menu.*`); the migration runner emits
- * `CREATE SCHEMA IF NOT EXISTS menu` itself but PGLite occasionally lags
- * behind real Postgres on `CREATE SCHEMA` inside the migrator's
- * transaction wrapping — so we proactively ensure the schema exists
- * before applying any SQL. Belt-and-braces, cheap.
+ * Menu owns one Postgres schema (`menu.*`); the migration runner
+ * creates it but PGLite occasionally lags real Postgres on
+ * `CREATE SCHEMA` inside the migrator's transaction wrapping, so the
+ * generic fixture pre-creates it when `pgSchema` is set.
  */
-export async function makeTestDb(): Promise<TestDb> {
-  const client = new PGlite()
-  const db = drizzle(client, { schema, casing: 'snake_case' })
-  // The migrator creates its journal table under `menu` (see drizzle.config.ts).
-  // Ensure the schema exists before it tries to write the first journal row,
-  // independent of which migration body runs first.
-  await client.exec(`CREATE SCHEMA IF NOT EXISTS "menu";`)
-  await migrate(db, {
-    migrationsFolder: MIGRATIONS_FOLDER,
+export type TestDb = GenericTestDb<typeof schema>
+
+export function makeTestDb(): Promise<TestDb> {
+  return makeTestDbGeneric(schema, {
+    migrationsFolder: path.join(process.cwd(), 'drizzle'),
     migrationsTable: '__drizzle_migrations',
-    migrationsSchema: 'menu',
+    pgSchema: 'menu',
   })
-  return {
-    client,
-    db,
-    cleanup: async () => {
-      await client.close()
-    },
-  }
 }

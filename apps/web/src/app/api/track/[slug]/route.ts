@@ -1,14 +1,14 @@
 import { cookies } from 'next/headers'
-import { db } from '@/shared/db/client'
-import { viewSeen } from '@/shared/db/schema'
+import { db } from '@iedora/product-menu/shared/db/client'
+import { viewSeen } from '@iedora/product-menu/shared/db/schema'
 import {
   isLanguageCode,
   pickLanguage,
   type LanguageCode,
-} from '@/features/i18n'
-import { loadRestaurantSnapshot } from '@/features/menu-publishing'
-import { incrementDailyView } from '@/features/metrics'
-import { enforceRateLimit, extractClientIp } from '@/features/rate-limit'
+} from '@iedora/product-menu/features/i18n'
+import { loadRestaurantSnapshot } from '@iedora/product-menu/features/menu-publishing'
+import { incrementDailyView } from '@iedora/product-menu/features/metrics'
+import { enforceRateLimit, extractClientIp } from '@iedora/product-menu/features/rate-limit'
 
 /**
  * Pixel-beacon endpoint for public-menu view tracking. Decoupled from the

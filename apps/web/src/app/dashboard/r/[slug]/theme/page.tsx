@@ -1,17 +1,17 @@
 import { getTranslations } from 'next-intl/server'
-import { requireRestaurantBySlug } from '@/features/auth'
-import { resolveTheme } from '@/features/menu-publishing/rsc/theme'
-import { loadMenuTree, localizeTree } from '@/features/menu-publishing'
-import type { PublicMenu, PublicMenuData } from '@/features/menu-publishing/rsc/types'
+import { requireRestaurantBySlug } from '@iedora/product-menu/features/auth'
+import { resolveTheme } from '@iedora/product-menu/features/menu-publishing/rsc/theme'
+import { loadMenuTree, localizeTree } from '@iedora/product-menu/features/menu-publishing'
+import type { PublicMenu, PublicMenuData } from '@iedora/product-menu/features/menu-publishing/rsc/types'
 import {
   getThemeEditorData,
   type ThemeEditorRestaurantRow,
-} from '@/features/restaurant-identity'
-import { ThemeEditor } from '@/features/restaurant-identity/ui/theme-editor'
-import { DashboardPage } from '@/shared/ui/dashboard-page'
+} from '@iedora/product-menu/features/restaurant-identity'
+import { ThemeEditor } from '@iedora/product-menu/features/restaurant-identity/ui/theme-editor'
+import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 import { notFound } from 'next/navigation'
-import type { RestaurantTheme } from '@/shared/db/schema'
-import type { LanguageCode, LocalizedText } from '@/features/i18n'
+import type { RestaurantTheme } from '@iedora/product-menu/shared/db/schema'
+import type { LanguageCode, LocalizedText } from '@iedora/product-menu/features/i18n'
 
 type EditorData = PublicMenuData & {
   rawTheme: RestaurantTheme | null

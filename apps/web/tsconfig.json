@@ -4,12 +4,36 @@
     "lib": ["dom", "dom.iterable", "es2023"],
     "allowJs": true,
     "incremental": true,
+    "noEmit": true,
     "jsx": "preserve",
     "plugins": [{ "name": "next" }],
     "paths": {
+      // The `../../products/menu/src/*` entry is LOAD-BEARING for Next's
+      // bundler — products/menu's source files use internal `@/`
+      // imports (legacy from when menu was a Next app). Composite + .d.ts
+      // hides those paths from tsc, but Next's webpack/turbopack still
+      // reads the .ts sources and applies tsconfig paths there.
+      //
+      // NEW products should use RELATIVE imports internally (like
+      // packages/auth, packages/design-system, etc.) so this list stays
+      // length=1. Adding a second product with internal `@/` would
+      // require a competing path entry — ambiguous and to be avoided.
       "@/*": ["./src/*", "../../products/menu/src/*"]
     }
   },
+  // Project references — workspace packages that emit their own `.d.ts`
+  // get listed here. `tsc --build` orchestrates: builds each
+  // referenced project first (incremental, cached), then typechecks
+  // this one. The referenced projects' internal path mappings stay
+  // hidden behind their .d.ts outputs.
+  //
+  // Adding a new product:
+  //   1. Make the product's tsconfig composite (see products/menu/tsconfig.json).
+  //   2. Append `{ "path": "../../products/<name>" }` here.
+  //   3. Add the package to dependencies + transpilePackages as usual.
+  "references": [
+    { "path": "../../products/menu" }
+  ],
   "include": [
     "next-env.d.ts",
     "**/*.ts",

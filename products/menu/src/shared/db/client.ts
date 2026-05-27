@@ -1,62 +1,25 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
-import { sql } from 'drizzle-orm'
-import postgres from 'postgres'
+import 'server-only'
+import { createDb } from '@iedora/db'
 import { env } from '@/shared/env'
 import * as schema from './schema'
 
 /**
- * T3-style globalThis singleton for the postgres-js client.
+ * Menu's Postgres client. Connects to the `menu` database (served from
+ * the shared `infra-postgres` container in prod). Drizzle types are
+ * scoped to `./schema` — no leak of other products' tables.
  *
- * Why: in dev, Next 16 HMR re-evaluates server modules on every code change,
- * which would create a new pool on each reload and eventually exhaust
- * Postgres connections. Caching on `globalThis` makes the client survive
- * module reloads in dev; in production each worker still gets exactly one
- * pool (no global cache needed).
+ * The shared drizzle + postgres-js wiring lives in `@iedora/db`; this
+ * file just binds it to menu's env + schema. cacheKey is unique
+ * per-product so HMR-safe caches don't collide if a future feature
+ * imports another product's db handle in the same process.
  */
-type DbClient = ReturnType<typeof postgres>
+const handle = createDb(env.DATABASE_URL, schema, { cacheKey: 'iedora/menu' })
 
-const globalForDb = globalThis as unknown as {
-  conn?: DbClient
-}
-
-const conn: DbClient =
-  globalForDb.conn ??
-  postgres(env.DATABASE_URL, {
-    max: 10,
-    prepare: false,
-  })
-
-if (env.NODE_ENV !== 'production') {
-  globalForDb.conn = conn
-}
-
-export const db = drizzle(conn, { schema, casing: 'snake_case' })
+export const db = handle.db
 export type DB = typeof db
 
-/**
- * Round-trip the connection with `SELECT 1`, racing against a timeout.
- * Used by the apps/web /up health route — keeping the drizzle-orm
- * dependency inside this package (apps/web shouldn't need to import
- * drizzle-orm directly just to ping the DB).
- */
-export async function pingDb(timeoutMs: number): Promise<void> {
-  await Promise.race([
-    db.execute(sql`SELECT 1`),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`db ping timed out after ${timeoutMs}ms`)), timeoutMs),
-    ),
-  ])
-}
+/** Round-trip the connection with `SELECT 1`, racing a timeout. */
+export const pingDb = handle.ping
 
-/**
- * Graceful pool drain. Called from `instrumentation.ts` on SIGTERM/SIGINT
- * (container restart on `tofu apply` with a new image SHA). `timeout` is
- * seconds, matching postgres-js's `sql.end({ timeout })` semantics —
- * pending queries get that long to finish before sockets are closed.
- */
-export async function closeDb(opts: { timeout?: number } = {}): Promise<void> {
-  await conn.end({ timeout: opts.timeout ?? 5 })
-  if (globalForDb.conn === conn) {
-    globalForDb.conn = undefined
-  }
-}
+/** Graceful pool drain. Call from instrumentation.ts on SIGTERM/SIGINT. */
+export const closeDb = handle.close

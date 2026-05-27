@@ -4,8 +4,8 @@ import { headers } from 'next/headers'
 import {
   loadPublicMenu,
   PublicMenuView,
-} from '@/features/menu-publishing/rsc/public-menu-view'
-import { resolveQrCode } from '@/features/qr-codes'
+} from '@iedora/product-menu/features/menu-publishing/rsc/public-menu-view'
+import { resolveQrCode } from '@iedora/product-menu/features/qr-codes'
 
 /**
  * Sticker URL for the public menu. Scans land here — we render the menu

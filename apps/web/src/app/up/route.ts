@@ -1,4 +1,4 @@
-import { pingDb } from '@/shared/db/client'
+import { pingDb } from '@iedora/product-menu/shared/db/client'
 
 /**
  * Healthcheck endpoint. Hit by the proxy + uptime monitors.

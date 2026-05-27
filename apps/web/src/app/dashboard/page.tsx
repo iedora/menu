@@ -1,17 +1,17 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireActiveOrganization } from '@/features/auth'
-import { listRestaurantsWithCounts } from '@/features/dashboard-home'
-import { getOrganizationMonthlyViews } from '@/features/metrics'
-import { canAddRestaurant, getOrganizationPlan } from '@/features/plans'
+import { requireActiveOrganization } from '@iedora/product-menu/features/auth'
+import { listRestaurantsWithCounts } from '@iedora/product-menu/features/dashboard-home'
+import { getOrganizationMonthlyViews } from '@iedora/product-menu/features/metrics'
+import { canAddRestaurant, getOrganizationPlan } from '@iedora/product-menu/features/plans'
 import { Card, CardDesc, CardTitle } from '@iedora/design-system'
-import { DashboardPage as PageShell } from '@/shared/ui/dashboard-page'
+import { DashboardPage as PageShell } from '@iedora/product-menu/shared/ui/dashboard-page'
 import {
   EditorialList,
   formatEditedAt,
   formatIndex,
   type EditorialRowData,
-} from '@/shared/ui/editorial-list'
+} from '@iedora/product-menu/shared/ui/editorial-list'
 
 const VIEW_NUDGE_RATIO = 0.8
 

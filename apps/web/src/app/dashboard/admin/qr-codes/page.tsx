@@ -1,10 +1,10 @@
 import { headers } from 'next/headers'
-import { requireScope, SCOPES } from '@/features/auth'
-import { listQrCodesForAdmin } from '@/features/qr-codes'
-import { computeQrStats } from '@/features/qr-codes/stats'
-import { QrCodesAdmin } from '@/features/qr-codes/ui/qr-codes-admin'
-import { listRestaurantsCrossTenant } from '@/features/restaurant-identity'
-import { DashboardPage } from '@/shared/ui/dashboard-page'
+import { requireScope, SCOPES } from '@iedora/product-menu/features/auth'
+import { listQrCodesForAdmin } from '@iedora/product-menu/features/qr-codes'
+import { computeQrStats } from '@iedora/product-menu/features/qr-codes/stats'
+import { QrCodesAdmin } from '@iedora/product-menu/features/qr-codes/ui/qr-codes-admin'
+import { listRestaurantsCrossTenant } from '@iedora/product-menu/features/restaurant-identity'
+import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 
 /**
  * Cross-tenant admin surface for binding QR codes to restaurants.

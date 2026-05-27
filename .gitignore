@@ -101,3 +101,4 @@ next-env.d.ts
 
 # Playwright testkit handoff
 products/menu/tests/e2e/.testkit.json
+dist/

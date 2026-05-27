@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
-import { requireRestaurantBySlug } from '@/features/auth'
-import { loadBuilderData } from '@/features/menu-builder'
-import { MenuBuilder } from '@/features/menu-builder/ui/builder'
-import { DashboardPage } from '@/shared/ui/dashboard-page'
+import { requireRestaurantBySlug } from '@iedora/product-menu/features/auth'
+import { loadBuilderData } from '@iedora/product-menu/features/menu-builder'
+import { MenuBuilder } from '@iedora/product-menu/features/menu-builder/ui/builder'
+import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 
 export default async function MenuBuilderPage({
   params,

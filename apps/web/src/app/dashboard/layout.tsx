@@ -14,15 +14,15 @@ import {
   getSession,
   IEDORA_ADMIN_ROLE,
   SCOPES,
-} from '@/features/auth'
-import { listRestaurantsWithCounts } from '@/features/dashboard-home'
-import { getOrganizationPlan, planHas } from '@/features/plans'
-import { LogoutButton } from '@/features/dashboard-home/ui/logout-button'
-import { UserLocaleSwitcher } from '@/features/dashboard-home/ui/user-locale-switcher'
+} from '@iedora/product-menu/features/auth'
+import { listRestaurantsWithCounts } from '@iedora/product-menu/features/dashboard-home'
+import { getOrganizationPlan, planHas } from '@iedora/product-menu/features/plans'
+import { LogoutButton } from '@iedora/product-menu/features/dashboard-home/ui/logout-button'
+import { UserLocaleSwitcher } from '@iedora/product-menu/features/dashboard-home/ui/user-locale-switcher'
 import {
   ActiveSidebarLinks,
   type ActiveSidebarItem,
-} from '@/shared/ui/active-sidebar-links'
+} from '@iedora/product-menu/shared/ui/active-sidebar-links'
 
 export default async function DashboardLayout({
   children,

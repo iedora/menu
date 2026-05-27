@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Wordmark } from '@iedora/design-system'
-import { getSession } from '@/features/auth'
+import { getSession } from '@iedora/product-menu/features/auth'
 import { signInUrl } from '@iedora/brand'
-import { publicUrl } from '@/shared/url'
+import { publicUrl } from '@iedora/product-menu/shared/url'
 import { OnboardingForm } from './onboarding-form'
 
 export default async function OnboardingPage() {

@@ -3,16 +3,42 @@
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "es2023"],
     "allowJs": true,
-    "incremental": true,
     "jsx": "preserve",
+    // Composite project — apps/web references this via `tsc --build`.
+    // We emit ONLY `.d.ts` files to `./dist/`; runtime keeps reading
+    // the `.ts` sources via Next's transpilePackages. The `.d.ts`
+    // outputs are what apps/web sees when typechecking — internal
+    // `@/` paths get resolved during this project's compile, so
+    // apps/web never has to know they exist.
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    // base sets noEmit:true; composite requires emit, so flip it back
+    // for this project (we still only emit .d.ts via emitDeclarationOnly).
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.mts"
-  ],
-  "exclude": ["node_modules", ".next", "playwright-report", "test-results"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.mts"],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "playwright-report",
+    "test-results",
+    "dist",
+    "tests",
+    // Tests + test surfaces live in tsconfig.tests.json (no emit).
+    // Composite mode wants the published-surface graph to be closed,
+    // and slice tests + `testing/` directories pull in test-only deps.
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/testing/**",
+    "src/**/e2e/**",
+    "src/**/*.live.test.ts"
+  ]
 }

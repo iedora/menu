@@ -1,9 +1,9 @@
 import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
-import { requireRestaurantBySlug } from '@/features/auth'
-import { listQrCodesForRestaurant } from '@/features/qr-codes'
-import { RestaurantQrShelf } from '@/features/restaurant-identity/ui/restaurant-qr-shelf'
-import { DashboardPage } from '@/shared/ui/dashboard-page'
+import { requireRestaurantBySlug } from '@iedora/product-menu/features/auth'
+import { listQrCodesForRestaurant } from '@iedora/product-menu/features/qr-codes'
+import { RestaurantQrShelf } from '@iedora/product-menu/features/restaurant-identity/ui/restaurant-qr-shelf'
+import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 
 export default async function QrPage({
   params,

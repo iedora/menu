@@ -4,8 +4,8 @@ import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Button } from '@iedora/design-system'
-import { setOrganizationPlan } from '@/features/plans/actions'
-import type { PlanCode } from '@/features/plans'
+import { setOrganizationPlan } from '@iedora/product-menu/features/plans/actions'
+import type { PlanCode } from '@iedora/product-menu/features/plans'
 
 /**
  * Plan-switch button rendered at the bottom of each plan card.

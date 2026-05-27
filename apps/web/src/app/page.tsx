@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getEffectiveOrganizationId, getSession } from '@/features/auth'
+import { getEffectiveOrganizationId, getSession } from '@iedora/product-menu/features/auth'
 import LandingPage from './_components/landing/landing-page'
 
 export default async function Home() {

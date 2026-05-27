@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireActiveOrganization } from '@/features/auth'
-import { getInvoiceYears, getInvoicesForYear } from '@/features/billing'
-import { PLANS, getOrganizationPlan } from '@/features/plans'
-import { DashboardPage } from '@/shared/ui/dashboard-page'
+import { requireActiveOrganization } from '@iedora/product-menu/features/auth'
+import { getInvoiceYears, getInvoicesForYear } from '@iedora/product-menu/features/billing'
+import { PLANS, getOrganizationPlan } from '@iedora/product-menu/features/plans'
+import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 import { Badge } from '@iedora/design-system'
 import { UpgradeButton } from './upgrade-button'
 

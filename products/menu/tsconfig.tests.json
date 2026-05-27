@@ -1,0 +1,37 @@
+{
+  // Test/script/config typecheck — non-composite, no emit. Includes
+  // ONLY the entry files (tests, configs, scripts); the src/ files
+  // those entries import get walked transitively by tsc via the
+  // `@/*` path mapping. This lets the main tsconfig (composite) own
+  // src/ exclusively while still letting tests reach `@/features/...`.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "es2023"],
+    "allowJs": true,
+    "jsx": "preserve",
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/testing/**/*.ts",
+    "src/**/testing/**/*.tsx",
+    "src/**/e2e/**/*.ts",
+    "src/**/e2e/**/*.tsx",
+    "src/**/*.live.test.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "scripts/**/*.ts",
+    "instrumentation.ts",
+    "instrumentation.node.ts",
+    "vitest.config.ts",
+    "vitest.config.live.ts",
+    "playwright.config.ts",
+    "drizzle.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".next"]
+}

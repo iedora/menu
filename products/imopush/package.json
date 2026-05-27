@@ -1,0 +1,46 @@
+{
+  "name": "@iedora/product-imopush",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "imopush product — TBD. Scaffold only; slices + drizzle schema land in follow-up commits. Uses RELATIVE imports internally (no @/ path mapping) so apps/web's tsconfig stays clean as products land.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "db:generate": "bun --bun drizzle-kit generate",
+    "db:migrate": "bun --bun drizzle-kit migrate",
+    "db:push": "bun --bun drizzle-kit push",
+    "db:studio": "bun --bun drizzle-kit studio"
+  },
+  "dependencies": {
+    "@iedora/auth": "workspace:*",
+    "@iedora/db": "workspace:*",
+    "@iedora/design-system": "workspace:*",
+    "@iedora/observability": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9",
+    "server-only": "^0.0.1",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@iedora/eslint-config": "workspace:*",
+    "@types/node": "^22.19.19",
+    "@types/react": "^19.2.14",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.4",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^4.1.7"
+  }
+}
