@@ -67,21 +67,26 @@ jobs:
           unzip -q /tmp/bws.zip -d /tmp/bws
           sudo install -m 0755 /tmp/bws/bws /usr/local/bin/bws
 
-      - name: Wait for ghcr.io/eduvhc/web:${{ inputs.image_sha }}
-        # web.yml dispatches us with inputs.image_sha = github.sha
-        # AFTER its build job pushes the image. The GHCR `web` package
-        # is PRIVATE, so the repo's GITHUB_TOKEN can't see it via the
-        # user-packages API. Use IAC_BOOTSTRAP_GHCR_TOKEN (the PAT
-        # used to push) which has read access to owner's private
-        # packages — alias it to GH_TOKEN so the gh CLI picks it up.
+      - name: Wait for ghcr.io/eduvhc/migrate:latest
+        # Stage-3 configurators `docker run --rm` the migrate image to
+        # apply DB migrations. The migrate image is independent of
+        # the web image — built by `.github/workflows/migrate.yml`
+        # whenever migration SQL or migrate scripts change. It may
+        # NOT be at the same SHA as the web image (most pushes don't
+        # touch migrations).
         #
-        # Polling by SHA (not :latest) is deterministic: we know
-        # exactly which image version this app-state run is gating.
-        # Operators dispatching manually default to :latest (the
-        # last successfully pushed build).
+        # We poll for `:latest` — the most recently pushed migrator.
+        # If migrate.yml was triggered by this same push, by the
+        # time we get here it has finished. If migrations didn't
+        # change in this push, `:latest` is the previous good
+        # migrate image (correct — no new migrations to apply, run
+        # is a no-op).
+        #
+        # GHCR `migrate` package is PRIVATE (same as web); use
+        # IAC_BOOTSTRAP_GHCR_TOKEN (PAT) instead of GITHUB_TOKEN
+        # which can't see user-owned private packages.
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-          IMAGE_SHA: ${{ inputs.image_sha }}
         run: |
           set -euo pipefail
           bin/iedora-env bash -c '
@@ -91,17 +96,17 @@ jobs:
             deadline=$(( $(date +%s) + 1800 ))   # 30 min budget
             while true; do
               if gh api -H "Accept: application/vnd.github+json" \
-                   /user/packages/container/web/versions \
+                   /user/packages/container/migrate/versions \
                    --jq ".[].metadata.container.tags[]" 2>/dev/null \
-                   | grep -qx "$IMAGE_SHA"; then
-                echo "✓ ghcr.io/eduvhc/web:$IMAGE_SHA is available"
+                   | grep -qx "latest"; then
+                echo "✓ ghcr.io/eduvhc/migrate:latest is available"
                 break
               fi
               if [ "$(date +%s)" -ge "$deadline" ]; then
-                echo "✗ ghcr.io/eduvhc/web:$IMAGE_SHA still missing after 30 min — abort"
+                echo "✗ ghcr.io/eduvhc/migrate:latest still missing after 30 min — abort"
                 exit 1
               fi
-              echo "ghcr.io/eduvhc/web:$IMAGE_SHA not yet pushed — waiting 30s"
+              echo "ghcr.io/eduvhc/migrate:latest not yet pushed — waiting 30s"
               sleep 30
             done
           '

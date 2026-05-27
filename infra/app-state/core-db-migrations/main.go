@@ -81,7 +81,13 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("core_database_url empty — likely a Tofu schema drift")
 	}
 
-	image := fmt.Sprintf("ghcr.io/%s/web:%s", owner, sha)
+	// Use the dedicated migrate image (built by .github/workflows/migrate.yml).
+	// DOCKER-2: decoupled from the web image so SQL/migrator changes don't
+	// force a ~10min Next rebuild. The migrate image is always `:latest` —
+	// most recently published by migrate.yml. If migrations didn't change
+	// in this commit, latest IS the previously-good migrator (no-op apply).
+	image := fmt.Sprintf("ghcr.io/%s/migrate:latest", owner)
+	_ = sha // kept for log compatibility
 
 	// docker login once before the pull. Same shape as menu-db-migrations
 	// — cheap to re-login (Docker dedupes on the saved token).
@@ -101,14 +107,13 @@ func run(ctx context.Context) error {
 		fmt.Fprintf(os.Stderr, "  ! pull failed (continuing — using cached if present): %v\n", err)
 	}
 
-	// One-shot migrator. The migrate script + its drizzle/ folder are
-	// bundled in apps/web/Dockerfile's `migrate-bundler` stage and
-	// land at `/app/migrate/core/`. Self-contained ESM with deps
-	// inlined — see DOCKER-1 in docs/tech-debt.md for the history of
-	// why this replaced the Next-standalone piggyback.
-	fmt.Fprintln(os.Stderr, "→ core-db-migrations: docker run --rm node /app/migrate/core/scripts/migrate.mjs")
+	// One-shot migrator from the dedicated migrate image. Distroless
+	// runtime; node is the ENTRYPOINT (set in infra/migrate/Dockerfile),
+	// the script path is the CMD passed at docker-run time.
+	// Layout: /migrate/core/scripts/migrate.mjs + /migrate/core/drizzle/
+	fmt.Fprintln(os.Stderr, "→ core-db-migrations: docker run --rm migrate /migrate/core/scripts/migrate.mjs")
 	dockerCmd := fmt.Sprintf(
-		"docker run --rm --network %s -e %s %s node /app/migrate/core/scripts/migrate.mjs",
+		"docker run --rm --network %s -e %s %s /migrate/core/scripts/migrate.mjs",
 		shellQuote(network),
 		shellQuote("CORE_DATABASE_URL="+dbURL),
 		shellQuote(image),

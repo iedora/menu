@@ -37,3 +37,14 @@ test-results/
 .vscode/
 .idea/
 .claude/
+
+# TypeScript incremental build output
+**/*.tsbuildinfo
+**/tsconfig.tests.json
+
+# Test coverage
+coverage/
+
+# Go build/test artifacts (keeps context smaller)
+**/go-build/
+**/vendor/

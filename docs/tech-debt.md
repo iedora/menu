@@ -39,58 +39,20 @@ inline. Extract to `.github/scripts/wait-app-state.sh` or composite
 actions. `app-state.yml`, `deploy.yml`, `infra-deploy.yml` have
 similar but smaller blocks (30-40 each).
 
-### CI-5: workflows over-trigger on irrelevant changes
-**size:** S · **risk:** low
+### CI-5: ~~workflows over-trigger on irrelevant changes~~ → resolved
+**size:** ~~S~~ · **risk:** ~~low~~
 
-Two distinct over-triggering issues observed in practice:
+**(a) CodeQL paths-ignore → paths allowlist:** `codeql.yml` now uses
+`paths:` with JS/TS-only globs (`**/*.ts`, `**/*.tsx`, `**/*.mts`,
+`**/*.js`, `**/*.mjs`, `**/*.cjs`, `bun.lock`, `package.json`). No
+longer triggers on HCL/Go/markdown/config-only changes. Weekly cron
+still catches anything missed.
 
-**(a) `[security] CodeQL`** runs on every push to main except for the
-narrow `paths-ignore` list (`*.md`, `docs/**`, `LICENSE*`,
-`.gitignore`, `.editorconfig`). That means it fires on:
-- Any workflow file edit (`.github/workflows/*.yml`) — no source code
-  scanned, but a full 20-min SAST runs anyway.
-- Tofu HCL changes (`infra/iac/tofu/**`) — no JS/TS to scan.
-- Go-only changes (`infra/**/*.go`, `internal/**`) — JS/TS analyzer
-  doesn't apply.
-- Config-only changes (`vitest.config.ts`, `drizzle.config.ts`, etc.)
-  — touches no business code.
-
-Fix: switch from `paths-ignore` (denylist) to `paths` (allowlist),
-listing only paths that contain JS/TS source:
-```yaml
-paths:
-  - '**/*.ts'
-  - '**/*.tsx'
-  - '**/*.mts'
-  - '**/*.js'
-  - '**/*.mjs'
-  - '**/*.cjs'
-  - 'bun.lock'
-  - 'package.json'
-```
-Weekly cron still catches anything missed.
-
-Previous reasoning (in codeql.yml header comment): "SAST signal lives
-in cross-cutting taint flow — a vuln in a shared package can surface
-only when reached from a product's entrypoint". Valid argument, but
-the same logic doesn't apply when ZERO JS/TS files change — there's
-nothing new to taint-flow into.
-
-**Required before landing the optimization — security coverage audit:**
-Confirm that EVERY security-relevant path is still scanned by SOMETHING
-on every change to it. Coverage matrix to verify:
-
-| Path | What scans it today | Still scanned after CI-5? |
-|---|---|---|
-| `apps/web/**`, `products/**`, `packages/**` | CodeQL (push+PR) + Trivy in web.yml | YES (paths allowlist matches) |
-| `bun.lock` | dependency-review (PR) + Trivy (every web.yml run) | YES (allowlisted) |
-| `infra/**` Go code | nothing today (CodeQL JS/TS-only) | NO CHANGE — gap exists, not new |
-| Tofu HCL `infra/iac/tofu/**` | nothing | NO CHANGE — out of CodeQL scope |
-| `.github/workflows/**` | nothing (actionlint local, not CI) | NO CHANGE — separate issue (SEC-2 below) |
-
-The audit IS the gate — don't land CI-5 without confirming each row
-above is acceptable. Add a SEC-1 ticket for Go code SAST coverage if
-desired (CodeQL `go` analyzer or staticcheck).
+**(b) Per-workspace paths:** `bun.lock` + `package.json` removed from
+all 6 per-workspace workflow triggers (`auth`, `design-system`,
+`observability`, `product-core`, `product-menu`, `product-imopush`).
+Kept in `web.yml` because the web image bundles every workspace —
+dep changes must rebuild it.
 
 ### SEC-1: Go code has no SAST coverage
 **size:** M · **risk:** low
@@ -117,20 +79,6 @@ actions (now using tag refs — see tech-debt note on CI elsewhere).
 Fix: add a workflow that runs `actionlint` + optionally
 `pinact`/`zizmor` on every PR + push that touches
 `.github/workflows/**`. ~5 min CI cost, blocks bad practice early.
-
-**(b) Per-product / per-package CIs include `bun.lock` + `package.json`
-in their paths.** Any dep update (e.g. bumping a dev dep at the
-workspace root) triggers EVERY product + package CI to re-run, even
-when their own code is untouched. Bun workspaces hoist deps to the
-root, so a `bun.lock` diff often touches every workspace's effective
-deps — but the per-product CI is meant to gate the product's own
-typecheck + lint + test, not whether any of its transitive deps
-changed.
-
-Fix: drop `bun.lock` + `package.json` from the per-workspace paths
-filters. A workspace-root `[deps] CI` workflow (TBD — could just be
-`bun install --frozen-lockfile` + smoke-typecheck of every workspace)
-would handle the "dep change broke something" case once.
 
 ### CI-4: ~~cross-workflow gating via `gh run list` polling~~ → resolved
 **size:** ~~L~~ · **risk:** ~~med~~
@@ -213,39 +161,47 @@ Rejected alternatives at decision time:
   requires opening Postgres reach to the runner network — touching
   the firewall is bigger blast radius than wanted.
 
-### DOCKER-2: migrate bundle still couples to Next image build
+### DOCKER-2: ~~migrate bundle still couples to Next image build~~ → resolved
 **size:** M · **risk:** low
 
-DOCKER-1's fix bundled migrate scripts as a separate Dockerfile
-stage (`migrate-bundler`), but kept the output in the SAME image as
-the Next.js app. Cost: any SQL-file change in
-`packages/auth/drizzle/` or `products/menu/drizzle/` invalidates the
-deps-stage COPY which propagates to the Next builder stage, forcing
-a full ~10min Next rebuild for a 1-keyword migration fix.
+**Resolved by splitting off `ghcr.io/eduvhc/migrate`** — a dedicated
+distroless one-shot migrator image.
 
-Schema migrations land much more often than Next code changes.
-Coupling them to Next's build cycle was a deferred trade-off (see
-DOCKER-1 — option (a) "Dedicated migrate image" was rejected for
-"two pushes per deploy", which mispriced the SQL-vs-code change
-frequency).
+What landed:
 
-Fix: split off a separate `ghcr.io/eduvhc/migrate:<sha>` image.
+  infra/migrate/Dockerfile (new)
+    Multi-stage build: `oven/bun` bundler → `gcr.io/distroless/nodejs24-debian12:nonroot`
+    runtime (~50 MB, no shell). The bundler stage runs the same
+    `bun build --target=node --format=esm` as before; runtime carries
+    ONLY the bundled .mjs + the drizzle/ folders, with node as
+    ENTRYPOINT.
 
-  - `infra/migrate/Dockerfile` (new): just the migrate-bundler stage,
-    plus a small runtime layer (node-slim + the bundles + sql).
-    ~50MB.
-  - `.github/workflows/migrate.yml` (new): builds + pushes on
-    `packages/auth/drizzle/**`, `packages/auth/scripts/**`,
-    `products/menu/drizzle/**`, `products/menu/scripts/**` changes.
-  - Stage-3 configurators (Go) switch image:
-      ghcr.io/eduvhc/web:<sha>  → ghcr.io/eduvhc/migrate:<sha>
-  - apps/web/Dockerfile: drops the migrate-bundler stage and the
-    `/app/migrate` copy. Next image stays focused on serving HTTP.
-  - web.yml's `run_app_state` dispatch passes the migrate SHA, not
-    the web SHA. (They drift independently now.)
+  .github/workflows/migrate.yml (new)
+    Triggers ONLY on paths that affect migrator content:
+    packages/auth/{drizzle,scripts}/**, products/menu/{drizzle,scripts}/**,
+    bun.lock, the Dockerfile + workflow itself. Schema-only changes
+    no longer touch the Next build.
 
-Deferred until DOCKER-1's bundle approach validates end-to-end at
-least once. Tracked here so the work isn't lost.
+  Stage-3 configurators (Go) switched image ref:
+    ghcr.io/eduvhc/web:<sha> → ghcr.io/eduvhc/migrate:latest
+    Distroless ENTRYPOINT is node, so docker-run passes the script
+    path as a CMD arg directly (no `node` prefix needed).
+
+  apps/web/Dockerfile
+    Removed the `migrate-bundler` stage + the runtime COPY of
+    /app/migrate. Web image is again the Next.js shell only —
+    smaller image, faster rebuilds on app changes.
+
+  apps/web/next.config.ts
+    Untouched (the `outputFileTracingIncludes` for migrate files was
+    already removed in DOCKER-1's resolution).
+
+**Sources consulted**:
+- [altan.fyi — Drizzle migrations in a monorepo](https://altan.fyi/drizzle-migration-monorepo/)
+- [Chainguard — Migrating to Node.js distroless](https://edu.chainguard.dev/chainguard/migration/migrating-node/)
+- [Teads Engineering — Distroless cut image size 50%](https://medium.com/teads-engineering/how-i-cut-docker-image-size-by-switching-to-a-distroless-base-image-4ccf260aad50)
+- [andrewlock.net — DB migrations in K8s: Jobs over init containers](https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-8-running-database-migrations-using-jobs-and-init-containers/)
+  (our docker-run-rm shape is the same one-shot pattern, just outside K8s.)
 
 ## TypeScript / monorepo
 

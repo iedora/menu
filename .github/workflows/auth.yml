@@ -12,8 +12,6 @@ on:
     paths:
       - 'packages/auth/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/auth.yml'
       - '.github/actions/setup/**'
   pull_request:
@@ -21,8 +19,6 @@ on:
     paths:
       - 'packages/auth/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/auth.yml'
       - '.github/actions/setup/**'
   workflow_dispatch:

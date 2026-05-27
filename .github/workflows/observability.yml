@@ -12,8 +12,6 @@ on:
     paths:
       - 'packages/iedora-observability/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/observability.yml'
       - '.github/actions/setup/**'
   pull_request:
@@ -21,8 +19,6 @@ on:
     paths:
       - 'packages/iedora-observability/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/observability.yml'
       - '.github/actions/setup/**'
   # `gh workflow run observability.yml --ref <branch>` — manual re-trigger.

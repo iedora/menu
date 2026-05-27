@@ -8,34 +8,36 @@
 # language. The `language` matrix is one entry today (TS+JS combined)
 # but stays a matrix so adding (say) `go` later is a one-line change.
 #
-# Paths filter (paths-ignore only):
-#   SAST signal lives in cross-cutting taint flow — a vuln in a shared
-#   package can surface only when reached from a product's entrypoint,
-#   so partial scans by source-file globs miss reachable findings.
-#   That argues against any INCLUDE filter. We do exclude pure-docs
-#   paths though — a README / changelog / .gitignore edit can't
-#   introduce a code vuln, and the weekly cron picks up anything we'd
-#   miss between code-bearing commits.
+# Paths filter (allowlist):
+#   Only scans JS/TS source — no value in running a 20-min SAST when
+#   only HCL/Go/markdown/config changed. Weekly cron still catches
+#   anything missed between code-bearing commits.
 
 name: '[security] CodeQL'
 
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - '.gitignore'
-      - '.editorconfig'
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - 'bun.lock'
+      - 'package.json'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - '.gitignore'
-      - '.editorconfig'
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - 'bun.lock'
+      - 'package.json'
   schedule:
     # Monday 04:30 UTC — aligned with Renovate's weekly window so the
     # security signal lands on the same morning Eduardo reviews PRs.

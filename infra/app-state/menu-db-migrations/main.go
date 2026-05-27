@@ -109,7 +109,9 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("menu_database_url empty — likely a Tofu schema drift")
 	}
 
-	image := fmt.Sprintf("ghcr.io/%s/web:%s", owner, sha)
+	// Use the dedicated migrate image (DOCKER-2 — decoupled from web).
+	image := fmt.Sprintf("ghcr.io/%s/migrate:latest", owner)
+	_ = sha // kept for log compatibility
 
 	// `docker login` once before pulling. The kreuzwerker/docker provider's
 	// `registry_auth` only applies to Tofu-managed `docker_image` resources;
@@ -143,13 +145,11 @@ func run(ctx context.Context) error {
 	// DNS resolves. Env passed via `-e` is operator-readable in `docker
 	// inspect` for ~seconds (until --rm cleans up); fine for a deploy
 	// step, not appropriate for a long-running container.
-	// Bundled migrate script + drizzle/ folder live at
-	// `/app/migrate/menu/` — built in apps/web/Dockerfile's
-	// `migrate-bundler` stage. Self-contained ESM with deps inlined;
-	// no Node module-resolution dance into the standalone tree.
-	fmt.Fprintln(os.Stderr, "→ menu-db-migrations: docker run --rm node /app/migrate/menu/scripts/migrate.mjs")
+	// One-shot migrator from the dedicated migrate image.
+	// Layout: /migrate/menu/scripts/migrate.mjs + /migrate/menu/drizzle/
+	fmt.Fprintln(os.Stderr, "→ menu-db-migrations: docker run --rm migrate /migrate/menu/scripts/migrate.mjs")
 	dockerCmd := fmt.Sprintf(
-		"docker run --rm --network %s -e %s %s node /app/migrate/menu/scripts/migrate.mjs",
+		"docker run --rm --network %s -e %s %s /migrate/menu/scripts/migrate.mjs",
 		shellQuote(network),
 		shellQuote("DATABASE_URL="+dbURL),
 		shellQuote(image),

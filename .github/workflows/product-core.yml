@@ -15,8 +15,6 @@ on:
     paths:
       - 'products/core/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/product-core.yml'
       - '.github/actions/setup/**'
   pull_request:
@@ -24,8 +22,6 @@ on:
     paths:
       - 'products/core/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/product-core.yml'
       - '.github/actions/setup/**'
   workflow_dispatch:

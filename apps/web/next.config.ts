@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
   // ESM file each, all deps inlined). The Next standalone output is
   // for the request-serving path only. Industry-standard pattern;
   // refs are in DOCKER-1 in docs/tech-debt.md.
+  // Version skew protection — forces hard navigation when the client
+  // holds assets from a previous deployment. Passed as
+  // DEPLOYMENT_VERSION build-arg from CI (typically GITHUB_SHA).
+  deploymentId: process.env.DEPLOYMENT_VERSION,
   allowedDevOrigins: ['menu.733113.xyz'],
 }
 

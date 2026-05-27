@@ -14,8 +14,6 @@ on:
       - 'products/imopush/**'
       - 'packages/db/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/product-imopush.yml'
       - '.github/actions/setup/**'
   pull_request:
@@ -24,8 +22,6 @@ on:
       - 'products/imopush/**'
       - 'packages/db/**'
       - 'packages/eslint-config/**'
-      - 'bun.lock'
-      - 'package.json'
       - '.github/workflows/product-imopush.yml'
       - '.github/actions/setup/**'
   workflow_dispatch:

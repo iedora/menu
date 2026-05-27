@@ -23,10 +23,10 @@ name: '[apps:web] CI'
 
 on:
   # The web image bundles every workspace that ships into apps/web's
-  # standalone output PLUS the migrate scripts + drizzle SQL from
-  # packages/auth + products/menu (migrate-bundler stage). Any change
-  # in any of these workspaces must rebuild the image — otherwise
-  # Stage 3 runs old bundled code.
+  # standalone output. Migrations live in a SEPARATE image now
+  # (`ghcr.io/eduvhc/migrate`, see `.github/workflows/migrate.yml` and
+  # DOCKER-2 in docs/tech-debt.md) — schema changes don't trigger
+  # this workflow anymore.
   push:
     branches: [main]
     paths:
