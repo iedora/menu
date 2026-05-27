@@ -22,13 +22,23 @@
 name: '[apps:web] CI'
 
 on:
+  # The web image bundles every workspace that ships into apps/web's
+  # standalone output PLUS the migrate scripts + drizzle SQL from
+  # packages/auth + products/menu (migrate-bundler stage). Any change
+  # in any of these workspaces must rebuild the image — otherwise
+  # Stage 3 runs old bundled code.
   push:
     branches: [main]
     paths:
       - 'apps/web/**'
+      - 'packages/auth/**'
+      - 'packages/brand/**'
+      - 'packages/db/**'
       - 'packages/design-system/**'
       - 'packages/eslint-config/**'
       - 'packages/iedora-observability/**'
+      - 'products/core/**'
+      - 'products/menu/**'
       - 'bun.lock'
       - 'package.json'
       - 'tsconfig*.json'
@@ -38,9 +48,14 @@ on:
     branches: [main]
     paths:
       - 'apps/web/**'
+      - 'packages/auth/**'
+      - 'packages/brand/**'
+      - 'packages/db/**'
       - 'packages/design-system/**'
       - 'packages/eslint-config/**'
       - 'packages/iedora-observability/**'
+      - 'products/core/**'
+      - 'products/menu/**'
       - 'bun.lock'
       - 'package.json'
       - 'tsconfig*.json'
