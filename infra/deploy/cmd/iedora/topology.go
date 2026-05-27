@@ -1,5 +1,13 @@
 package main
 
+import "strings"
+
+// trustedOriginsEnv is the env-var name (and Tofu output name when
+// lowercased) for the CSRF allowlist. Distinct from per-surface
+// fields because the value spans EVERY trusted surface — it's a
+// global derivation, not a property of a single surface.
+const trustedOriginsEnv = "CORE_TRUSTED_ORIGINS"
+
 // surface is a logical product surface — a hostname-keyed fachada
 // served by the web container. Distinct from `product` (a deploy
 // artifact, see products.go): three surfaces (menu, core, house)
@@ -165,6 +173,29 @@ func trustedOriginsLocal(port int) string {
 		}
 	}
 	return string(b)
+}
+
+// surfaceTofuEnv returns the surface-derived portion of the
+// envFromTofu mapping (Tofu output name → container env var name).
+// One entry per surface URL env, plus the global trusted-origins
+// entry. The Tofu output name is the lowercase form of the env var
+// name — outputs.tf must follow that convention.
+//
+// Merged with the infra-static portion in products.go to form the
+// full envFromTofu the runtime consumes.
+func surfaceTofuEnv() map[string]string {
+	out := map[string]string{
+		strings.ToLower(trustedOriginsEnv): trustedOriginsEnv,
+	}
+	for _, s := range surfaces {
+		if s.publicURLEnv != "" {
+			out[strings.ToLower(s.publicURLEnv)] = s.publicURLEnv
+		}
+		if s.nextPublicEnv != "" {
+			out[strings.ToLower(s.nextPublicEnv)] = s.nextPublicEnv
+		}
+	}
+	return out
 }
 
 func itoa(n int) string {
