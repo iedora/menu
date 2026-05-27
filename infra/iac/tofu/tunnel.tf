@@ -1,5 +1,5 @@
-# Cloudflare Zero Trust Tunnel — replaces the on-box Caddy reverse-
-# proxy + LE TLS plumbing.
+# Cloudflare Zero Trust Tunnel — the only public ingress into the
+# Hetzner box.
 #
 # How it works:
 #
@@ -13,8 +13,7 @@
 #
 #   - No port 80/443 inbound on the firewall. The box is only
 #     reachable on port 22 (SSH).
-#   - Zero ACME state on the box — no LE rate limits, no caddy-data
-#     volume, no DNS-01 plugin, no custom Caddy build.
+#   - Zero ACME state on the box — CF owns TLS termination.
 #   - All routing config lives in Tofu (this file) — visible in `tofu
 #     plan` diffs, version-controlled, easy to add a 5th hostname.
 #
@@ -39,42 +38,25 @@ resource "random_password" "tunnel_secret" {
   special = false
 }
 
-# Ingress rules — every public hostname pinned to its in-network
-# container. The path matcher on /ui/v2/* mirrors the previous
-# Caddyfile @login handler.
+# Ingress rules — derived from var.surfaces (which comes from the
+# Go surface registry via `iedora emit-topology`). Adding a surface =
+# append in topology.go + regen the .auto.tfvars.json. Catch-all at
+# the end is required by CF Tunnel.
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "iedora" {
   account_id = var.account_id
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.iedora.id
   config = {
-    ingress = [
-      # ── menu.iedora.com ───────────────────────────────────────
-      {
-        hostname = var.menu_public_hostname
-        service  = "http://infra-web:3000"
-      },
-      # ── core.iedora.com ───────────────────────────────────────
-      # Same upstream as menu; proxy.ts rewrites under /core/* and
-      # gates direct visits to /core/* on other hosts (404).
-      {
-        hostname = "core.${var.zone_name}"
-        service  = "http://infra-web:3000"
-      },
-      # ── iedora.com (apex + www) ───────────────────────────────
-      # Both go to the menu container; proxy.ts rewrites apex requests
-      # under /house/* internally.
-      {
-        hostname = var.zone_name
-        service  = "http://infra-web:3000"
-      },
-      {
-        hostname = "www.${var.zone_name}"
-        service  = "http://infra-web:3000"
-      },
-      # Catch-all — required by CF Tunnel.
-      {
-        service = "http_status:404"
-      },
-    ]
+    ingress = concat(
+      flatten([
+        for s in var.surfaces : [
+          for sub in s.subdomains : {
+            hostname = sub == "" ? var.zone_name : "${sub}.${var.zone_name}"
+            service  = s.service
+          }
+        ]
+      ]),
+      [{ service = "http_status:404" }],
+    )
   }
 }
 

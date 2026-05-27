@@ -87,9 +87,31 @@ variable "infra_ssh_private_key" {
 }
 
 variable "menu_public_hostname" {
-  description = "Public FQDN for the menu app — used as MENU_PUBLIC_URL, the DNS record name, and the CF Tunnel ingress hostname."
+  description = "Public FQDN for the menu app — used as NEXT_PUBLIC_MENU_URL, the DNS record name, and the CF Tunnel ingress hostname."
   type        = string
   default     = "menu.iedora.com"
+}
+
+# ── Surfaces — populated from generated/topology.auto.tfvars.json ────────────
+# Sourced from the surface registry in
+# infra/deploy/cmd/iedora/topology.go via `iedora emit-topology`.
+# DO NOT EDIT the JSON manually; edit topology.go and regen.
+variable "surfaces" {
+  description = "Logical product surfaces — hostname + env-var topology consumed by tunnel.tf (ingress) and outputs.tf (URLs). Single source of truth: infra/deploy/cmd/iedora/topology.go."
+  type = list(object({
+    name            = string
+    subdomains      = list(string)
+    trusted_origin  = bool
+    public_url_env  = string
+    next_public_env = string
+    service         = string
+  }))
+  nullable = false
+
+  validation {
+    condition     = length(var.surfaces) > 0
+    error_message = "var.surfaces is empty — did you forget to run `iedora emit-topology`?"
+  }
 }
 
 # NOTE: var.menu_image_sha was removed. The web image SHA is now an

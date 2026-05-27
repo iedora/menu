@@ -53,6 +53,8 @@ func main() {
 		err = runDoctor(ctx, os.Args[2:])
 	case "local":
 		err = runLocal(ctx, os.Args[2:])
+	case "emit-topology":
+		err = runEmitTopology(ctx, os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 		return
@@ -89,6 +91,7 @@ Stage subcommands:
   destroy [products…]   Tear down product artifacts. Empty list = all.
   doctor                Diagnose deploy-readiness on the operator's machine.
   local env             Write apps/web/.env from topology. Called by bin/dev-stack.
+  emit-topology         Write infra/iac/tofu/generated/topology.auto.tfvars.json.
 
 Flags for app apply:
   --only NAME           Run only one configurator by name.
