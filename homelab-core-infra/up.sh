@@ -84,12 +84,15 @@ echo "✓ homelab-core-infra up."
 # respeita o `insecure-registries` do daemon.json. Push para
 # 192.168.50.53:3030 fica localhost-to-localhost.
 #
-# Idempotent:
+# Idempotent — cada passo aplica só se ainda não está aplicado:
 #   1. /etc/docker/daemon.json: insecure-registries += 192.168.50.53:3030
 #      (restart docker apenas se mudou)
 #   2. ruby + build toolchain (gem ed25519 tem extensão C nativa)
 #   3. kamal gem 2.11.0 (skip se já instalado)
 #   4. /opt/iedora directory (CI vai rsync source para aí)
+#   5. SSH loopback keypair em /root/.ssh/ci_ed25519 + authorized_keys
+#      (Kamal local faz ssh root@self; runner bind-monta esta chave)
+#   6. Cleanup de builders buildx do método antigo
 if [ -n "$HOST" ]; then
   REGISTRY_LAN="${REGISTRY_LAN:-192.168.50.53:3030}"
   KAMAL_VERSION="${KAMAL_VERSION:-2.11.0}"
@@ -134,7 +137,30 @@ kamal version | sed 's/^/  /'
 mkdir -p /opt/iedora
 chmod 700 /opt/iedora
 
-# 5. Cleanup: builder buildx do método antigo já não é usado
+# 5. SSH loopback keypair — Kamal local no Beelink faz `ssh root@self`
+#    para deploys; o CI runner (container no mesmo host) bind-monta esta
+#    chave para fazer rsync + ssh trigger. Generated com `-N ""` para
+#    não ter passphrase (acesso loopback non-interactive).
+#    Idempotent: skip se já existir e tiver perms 0600.
+SSH_KEY=/root/.ssh/ci_ed25519
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+# Se for um directório (criado por bind-mount Docker em runs anteriores), limpa.
+[ -d "$SSH_KEY" ] && rm -rf "$SSH_KEY"
+if [ ! -f "$SSH_KEY" ]; then
+  ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -C "iedora-loopback-ci" -q
+  echo "  + nova keypair SSH loopback gerada"
+fi
+chmod 600 "$SSH_KEY"
+PUB=$(cat "${SSH_KEY}.pub")
+touch /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+grep -qxF "$PUB" /root/.ssh/authorized_keys || {
+  echo "$PUB" >> /root/.ssh/authorized_keys
+  echo "  + public key autorizada em authorized_keys"
+}
+
+# 6. Cleanup: builder buildx do método antigo já não é usado
 docker buildx ls 2>/dev/null | awk '/^kamal-/{print $1}' | xargs -r -n1 docker buildx rm 2>/dev/null || true
 # E o ficheiro buildkitd.toml também (ficou stale)
 rm -f /root/.docker/buildx/buildkitd.toml
