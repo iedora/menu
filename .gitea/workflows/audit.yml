@@ -42,7 +42,10 @@ jobs:
       GITLEAKS_VERSION: 8.30.1
       HADOLINT_VERSION: 2.14.0
       OSV_VERSION: 2.3.8
-      PATH: /opt/audit-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # Não sobre-escrever PATH global aqui — o bun image tem
+      # `/usr/local/bun-node-fallback-bin` no fim (necessário para o
+      # actions/checkout@v4 encontrar `node`). Cada step que precisa
+      # dos audit tools chama-os por caminho absoluto via /opt/audit-bin.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,9 +90,9 @@ jobs:
             chmod +x /opt/audit-bin/osv-scanner
           fi
 
-          gitleaks version
-          hadolint --version
-          osv-scanner --version
+          /opt/audit-bin/gitleaks version
+          /opt/audit-bin/hadolint --version
+          /opt/audit-bin/osv-scanner --version
 
       - name: gitleaks (secret scan — full history, baseline-filtered)
         # --baseline-path: ignora os 23 findings históricos pre-adoção
@@ -101,7 +104,7 @@ jobs:
         # --redact: nunca imprime o secret no log (só o context).
         # --no-banner: limpa output, só o que importa.
         # --exit-code 1: garante fail mesmo que stdout não tenha entries.
-        run: gitleaks detect --baseline-path .gitleaks-baseline.json --redact --verbose --no-banner --exit-code 1
+        run: /opt/audit-bin/gitleaks detect --baseline-path .gitleaks-baseline.json --redact --verbose --no-banner --exit-code 1
 
       - name: hadolint (Dockerfile lint)
         # failure-threshold=error → warnings aparecem no log mas não
@@ -109,9 +112,9 @@ jobs:
         # DL3003 cd em RUN, DL4006 sem set -o pipefail) são pedantic ou
         # exigem refactor maior. Próxima leva: corrigir DL4006 (real bug
         # — exit code do `npm install … | tail -3` é o do tail).
-        run: hadolint --failure-threshold error apps/web/Dockerfile
+        run: /opt/audit-bin/hadolint --failure-threshold error apps/web/Dockerfile
 
       - name: osv-scanner (lockfile CVEs)
         # Picks up osv-scanner.toml do cwd automaticamente.
         # Suppressões known + tracked vivem lá com rationale + review date.
-        run: osv-scanner --lockfile=bun.lock
+        run: /opt/audit-bin/osv-scanner --lockfile=bun.lock
