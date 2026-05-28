@@ -56,77 +56,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # `fetch-depth: 2` chega para push events (BASE = parent do
-          # commit actual). Para PR, o checkout traz HEAD e BASE
-          # automaticamente; bump para 0 se houver squash-merges grandes.
+          # `fetch-depth: 2` chega para push events (dorny usa
+          # git merge-base contra parent). Para PR, dorny consulta a
+          # API e não precisa de history.
           fetch-depth: 2
       - id: filter
-        shell: bash
-        # bash + `git diff --name-only` em vez de dorny/paths-filter:
-        # Gitea bug #23919 (getFilesChanged retorna paths vazios) pode
-        # quebrar o action externo. Esta implementação é debuggable
-        # (echo do diff), zero deps, e funciona em PR + push.
+        uses: dorny/paths-filter@v4
+        # 2 outputs:
+        #   code   → afecta typecheck/lint/test
+        #   deploy → code + tudo o que afecta a imagem ou config Kamal
         #
-        # Dois outputs separados:
-        #   code   → afecta typecheck/lint/test (.ts/.tsx/.js, deps,
-        #            configs de teste). Aciona job `ci`.
-        #   deploy → code + Dockerfile + config Kamal + secrets/hooks.
-        #            Aciona job `deploy` (rebuild + push da imagem).
+        # Mudanças que NÃO accionam nada (`audit` corre sempre):
+        #   docs/**, *.md, AGENTS.md, .gitignore,
+        #   .gitea/workflows/**, .gitea/audit/**, .gitea/deploy/**,
+        #   homelab-core-infra/** (afecta infra, não app)
         #
-        # Mudanças que NÃO accionam nada: docs, AGENTS.md, .gitignore,
-        # workflows próprios, homelab-core-infra (compose/runner config
-        # — afecta infra, não a app), `.gitea/audit/`, `.gitea/deploy/`
-        # (scripts do runner, não da imagem).
-        run: |
-          set -euo pipefail
-
-          # Manual trigger override — força tudo a correr
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "→ workflow_dispatch — forçar code=true deploy=true"
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-            HEAD="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-            HEAD="${{ github.event.after }}"
-          fi
-
-          if [ "$BASE" = "0000000000000000000000000000000000000000" ] || [ -z "$BASE" ]; then
-            BASE=$(git hash-object -t tree --stdin </dev/null)
-          fi
-
-          echo "→ diff $BASE..$HEAD"
-          CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
-          echo "── changed files ──"
-          echo "$CHANGED"
-          echo "───────────────────"
-
-          # Code = só ficheiros que afectam typecheck/lint/test.
-          CODE_RE='\.(ts|tsx|js|mjs|cjs)$|(^|/)package\.json$|^bun\.lock$|(^|/)tsconfig.*\.json$|(^|/)vitest\.config\.|(^|/)eslint\.config\.'
-
-          # Deploy = code + tudo o que afecta a imagem ou o Kamal config.
-          DEPLOY_RE="$CODE_RE"'|(^|/)Dockerfile$|^config/|^\.kamal/'
-
-          if echo "$CHANGED" | grep -qE "$CODE_RE"; then
-            echo "→ code=true"
-            echo "code=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "→ code=false"
-            echo "code=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if echo "$CHANGED" | grep -qE "$DEPLOY_RE"; then
-            echo "→ deploy=true"
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "→ deploy=false"
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-          fi
+        # v4 suporta YAML anchor (`&code` reusado em `deploy:` via
+        # `*code`) — flatten implícito em sequence position.
+        with:
+          filters: |
+            code: &code
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.mjs'
+              - '**/*.cjs'
+              - '**/package.json'
+              - 'bun.lock'
+              - '**/tsconfig*.json'
+              - '**/vitest.config.*'
+              - '**/eslint.config.*'
+            deploy:
+              - *code
+              - '**/Dockerfile'
+              - 'config/**'
+              - '.kamal/**'
 
   # ─────────────────────────────────────────────────────────────────
   # Correctness gate: typecheck + lint + test em paralelo workspace.
