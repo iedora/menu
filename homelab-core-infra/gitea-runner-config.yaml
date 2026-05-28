@@ -31,13 +31,15 @@ cache:
 
 container:
   privileged: false
-  # 4 cpus + 3 GB por job × capacity 3 = 12 cpus + 9 GB cap total.
-  # Beelink N100 = 4 cores físicos + 16 GB → cada job consegue saturar
-  # os 4 cores quando corre sozinho; quando há concorrência o kernel
-  # time-slica. Run de parallel workspaces dentro do job é capped pelo
-  # próprio runner (scripts/run-parallel.mjs lê availableParallelism()
-  # que respeita o cgroup --cpus, evitando over-subscription).
-  options: "--cpus=4 --memory=3g"
+  # 2 cpus + 3 GB por job. Inicialmente bumpei a --cpus=4 para os jobs
+  # paralelizarem mais (CI #21), mas o vitest com cgroup=4 spawnou 4
+  # workers internos por workspace × 9 workspaces sequenciais →
+  # competição com tudo o resto que corre na Beelink (cloudflared,
+  # gitea, kamal-proxy, postgres, openobserve, otel-collector). Test
+  # step regrediu 161s → 217s. Volta a 2 para o vitest ser polite, e
+  # mantém o cap do scripts/run-parallel.mjs (availableParallelism()
+  # = 2) — tsgo/eslint absorvem o cap quase sem perda.
+  options: "--cpus=2 --memory=3g"
   valid_volumes:
     - /var/cache/buildx
     - /var/cache/bun
