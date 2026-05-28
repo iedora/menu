@@ -31,14 +31,20 @@ registry:
     - KAMAL_REGISTRY_PASSWORD
 
 builder:
-  # Kamal 2.11 cria um docker-container buildkit `kamal-local-docker-
-  # container` para builds. Esse container tem o seu próprio /etc/hosts
-  # e ignora o override `127.0.0.1 git.iedora.com` do Beelink.
+  # `driver: docker` força o uso do default buildx (= BuildKit interno
+  # do Docker daemon, NÃO um docker-container separado). Kamal salta o
+  # `docker buildx create` (ver lib/kamal/commands/builder/local.rb:3 —
+  # `return if docker_driver?`).
   #
-  # Pre-create no workflow `.gitea/workflows/deploy.yml` com
-  # `--driver-opt network=host` para o buildkit partilhar a network
-  # do host (resolve via /etc/hosts → Caddy local → Gitea).
+  # O daemon do Beelink respeita o `/etc/hosts` override (127.0.0.1
+  # git.iedora.com) — push HTTPS via Caddy local sem buildkit-config
+  # hacks nem pre-create de builder no workflow.
+  #
+  # Restrições do docker driver (lib/kamal/configuration/builder.rb
+  # valid?): sem `remote:`, sem `cache:`, single arch só. Tudo OK para
+  # o nosso setup.
   arch: amd64
+  driver: docker
   context: .
   dockerfile: apps/web/Dockerfile
 

@@ -78,27 +78,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pre-create Kamal builder com network=host
-        # Kamal 2.11 cria um docker-container buildkit por default,
-        # que tem o seu próprio /etc/hosts e ignora o
-        # `127.0.0.1 git.iedora.com` override do Beelink. Com
-        # `network=host`, o buildkit container partilha network +
-        # /etc/hosts do host → resolve git.iedora.com → 127.0.0.1
-        # → Caddy local.
-        shell: bash
-        run: |
-          apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client
-          SSH_OPTS=(-i /root/.ssh/ci_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts)
-          ssh "${SSH_OPTS[@]}" root@192.168.50.53 bash <<'EOF'
-          set -e
-          docker buildx rm kamal-local-docker-container 2>/dev/null || true
-          docker buildx create \
-            --name kamal-local-docker-container \
-            --driver docker-container \
-            --driver-opt network=host \
-            --bootstrap
-          EOF
-
       - name: rsync source + trigger Kamal on Beelink
         # 1. apt: rsync + openssh-client (debian:bookworm-slim é minimal)
         # 2. rsync source para /opt/iedora — Beelink tem Kamal local
