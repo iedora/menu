@@ -77,22 +77,30 @@ GAUTH=(-u "$GUSER:$GPASS")
 [ -n "$GOTP" ] && GAUTH+=(-H "X-Gitea-OTP: $GOTP")
 
 # ── 3. Cria PAT ────────────────────────────────────────────────────────
-TOKEN_NAME="mac-$(scutil --get LocalHostName 2>/dev/null || hostname -s)-$(date +%Y%m%d)"
+HOST_SHORT=$(scutil --get LocalHostName 2>/dev/null || hostname -s)
+TOKEN_NAME="iedora-mac-$HOST_SHORT-$(date +%Y%m%d-%H%M)"
 bold "→ A criar PAT '$TOKEN_NAME'..."
 
-PAT_RESP=$(curl -fsS "${GAUTH[@]}" \
+PAT_HTTP=$(curl -fsS -o /tmp/.gitea-pat-resp -w '%{http_code}' "${GAUTH[@]}" \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"$TOKEN_NAME\",\"scopes\":[\"write:repository\",\"write:user\"]}" \
-  "$GITEA/api/v1/users/$GUSER/tokens") || {
-  red "✗ falhou a criar PAT (cred erradas? 2FA?)"
+  "$GITEA/api/v1/users/$GUSER/tokens" || true)
+
+if [ "$PAT_HTTP" = "422" ] && grep -q "name has been used" /tmp/.gitea-pat-resp 2>/dev/null; then
+  red "✗ PAT '$TOKEN_NAME' já existe (colisão de minuto?). Espera 60s e re-corre,"
+  red "  ou revoga em $GITEA/user/settings/applications."
   exit 1
-}
+elif [ "$PAT_HTTP" != "201" ]; then
+  red "✗ falhou a criar PAT (HTTP $PAT_HTTP): $(cat /tmp/.gitea-pat-resp)"
+  exit 1
+fi
+PAT_RESP=$(cat /tmp/.gitea-pat-resp)
 
 PAT=$(echo "$PAT_RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["sha1"])')
 green "✓ PAT criado (também visível em $GITEA/user/settings/applications)"
 
 # ── 4. Regista pubkey no Gitea ─────────────────────────────────────────
-KEY_TITLE="bitwarden-$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+KEY_TITLE="iedora-gitea-$HOST_SHORT"
 bold "→ A registar SSH key '$KEY_TITLE' no Gitea..."
 
 HTTP=$(curl -fsS -o /tmp/.gitea-key-resp -w '%{http_code}' \
@@ -181,4 +189,4 @@ green "  ✓ Setup completo."
 green "  Próximo passo: source ~/.zshrc && git push gitea <branch>"
 green "═══════════════════════════════════════════════════════════"
 
-rm -f /tmp/.gitea-key-resp
+rm -f /tmp/.gitea-key-resp /tmp/.gitea-pat-resp
