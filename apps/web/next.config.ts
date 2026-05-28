@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
   // refs are in DOCKER-1 in docs/tech-debt.md.
   // Version skew protection — forces hard navigation when the client
   // holds assets from a previous deployment. Passed as
-  // DEPLOYMENT_VERSION build-arg from CI (typically GITHUB_SHA).
+  // DEPLOYMENT_VERSION build-arg from CI (typically commit SHA).
   deploymentId: process.env.DEPLOYMENT_VERSION,
   allowedDevOrigins: ['menu.733113.xyz'],
 }

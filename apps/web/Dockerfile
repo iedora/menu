@@ -3,13 +3,12 @@
 # workspaces monorepo. The shell hosts every logical product (menu,
 # core, house) via host-based rewrites in src/proxy.ts.
 #
-# Build context is the REPO ROOT. The image is built + pushed to GHCR by
-# `.github/workflows/web.yml`; the running container (`infra-web`) is
-# managed by Stage 4 of the deploy pipeline
-# (`infra/deploy/cmd/iedora/runtime_docker.go`). Bun installs the
-# workspace deps; Node executes the build (Bun + next build is unstable
-# per AGENTS.md); final image runs server.js on Node over Next's
-# standalone output.
+# Build context is the REPO ROOT. The image is built + pushed to the
+# Gitea OCI registry by `.gitea/workflows/deploy.yml`; the running
+# container is managed by Kamal (zero-downtime hot-swap). Bun installs
+# the workspace deps; Node executes the build (Bun + next build is
+# unstable per AGENTS.md); final image runs server.js on Node over
+# Next's standalone output.
 #
 # All three stages are glibc (Debian) — no musl→glibc handoff between
 # install/build/runtime keeps native-module prebuilts (postgres-js, sharp,
@@ -43,15 +42,13 @@ COPY --link apps/web/package.json apps/web/package.json
 
 # BuildKit cache mount keeps the Bun global cache warm across rebuilds on
 # the same builder host. The cache layer never ships in the image, so it
-# is registry-agnostic (works on GHCR, Docker Hub, ECR — all the same).
+# is registry-agnostic (works on any OCI-compatible registry).
 RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile --ignore-scripts
 
 # Migration bundle is no longer built here. DOCKER-2 split it into a
-# dedicated `ghcr.io/eduvhc/migrate` image (infra/migrate/Dockerfile +
-# .github/workflows/migrate.yml) so schema migrations land without
-# forcing a Next rebuild. Stage-3 configurators run that image, not
-# this one.
+# dedicated migrate image so schema migrations land without forcing a
+# Next rebuild. Stage-3 configurators run that image, not this one.
 
 # ── Stage 2: build ────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION} AS builder
@@ -159,9 +156,8 @@ RUN cd /app && npm install --omit=dev --no-package-lock --no-fund --no-audit \
 # owned by the runtime user so the very first request doesn't EPERM.
 RUN mkdir -p ./apps/web/.next/cache && chown nextjs:nextjs ./apps/web/.next/cache
 
-# Migrations no longer ship in this image. See infra/migrate/Dockerfile
-# (and DOCKER-2 in docs/tech-debt.md) — Stage 3 runs the dedicated
-# `ghcr.io/eduvhc/migrate` image instead.
+# Migrations no longer ship in this image. See DOCKER-2 in
+# docs/tech-debt.md — Stage 3 runs the dedicated migrate image instead.
 
 USER nextjs
 WORKDIR /app/apps/web
@@ -174,10 +170,8 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:3000/up').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Links the GHCR package to its source repo automatically. Must match the
-# actual repo (`<GHCR_USER>/iedora`) or fine-grained PATs can't push here —
-# package-to-repo association is the linking key.
-LABEL org.opencontainers.image.source="https://github.com/eduvhc/iedora"
+# Links the image to its source repo on Gitea.
+LABEL org.opencontainers.image.source="https://git.iedora.com/eduvhc/iedora"
 
 # Kamal verifica este label antes de aceitar a imagem (evita correr
 # imagens de outros services no mesmo host).

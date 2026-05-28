@@ -1,6 +1,5 @@
-# Composite action: workspace setup. Port direto de .github/actions/setup
-# para Gitea Actions. Instala Bun (versão fixa), restaura cache global do
-# bun install, e resolve todos os workspaces.
+# Composite action: workspace setup. Instala Bun (versão fixa), restaura
+# cache global do bun install, e resolve todos os workspaces.
 #
 # Caller usa: `uses: ./.gitea/actions/setup`. Checkout é responsabilidade
 # do caller.

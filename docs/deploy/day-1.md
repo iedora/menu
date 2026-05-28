@@ -14,7 +14,7 @@ kamal setup -d production
 2. Cria a rede Docker `kamal`
 3. Corre `docker compose up` para postgres (accessory) + cloudflared
 4. Faz build da imagem via builder remoto (SSH para o Beelink)
-5. Push para `ghcr.io/eduvhc/web:latest`
+5. Push para `git.iedora.com/eduvhc/web:latest`
 6. Boot kamal-proxy na porta 3001 (publishes app:3000)
 7. Boot iedora-web (healthcheck `/up`)
 8. Espera healthcheck — pronto

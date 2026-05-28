@@ -15,13 +15,13 @@
 | **SOC 2** | Type II — current |
 | **Exit** | Migrar R2 para S3-compat + re-point DNS. ~2 dias |
 
-### GitHub
+### Gitea (self-hosted)
 
 | | |
 |---|---|
-| **Service** | Source (private), GHCR (container image), Actions (CI) |
+| **Service** | Source, OCI registry, CI |
 | **Data** | Source code, container images, CI logs |
-| **SOC 2** | Type II — current |
+| **SOC 2** | N/A (self-hosted) |
 | **Exit** | Migrar para GitLab. ~semanas |
 
 ### Bitwarden Secrets Manager (BWS)
@@ -64,5 +64,5 @@
 |-----------|------------------|---------|
 | Identity | Auth0, Clerk | better-auth in-process |
 | Observability | Datadog, Sentry | OpenObserve self-hosted |
-| CI | CircleCI, Buildkite | GitHub Actions |
+| CI | CircleCI, Buildkite | Gitea Actions |
 | Email | Resend, SendGrid | (none yet) |

@@ -13,8 +13,7 @@ CI ainda referenciam a pipeline legada — precisam de ser migrados.
 - `infra-deploy.yml` — remover (infra é Kamal accessories + infra-bootstrap)
 - `app-state.yml` — migrations correm em boot do container ou via
   `ssh docker exec`
-- Remover `.github/actions/infra/` (install-bws, ghcr-login, ssh-setup)
-  se só a pipeline legada os usa
+- `.github/` foi removido — workflows migrados para `.gitea/workflows/`
 
 ### Outros
 
