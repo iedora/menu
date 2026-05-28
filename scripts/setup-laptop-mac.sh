@@ -41,9 +41,43 @@ read -r -p "2FA OTP (Enter se não tens 2FA): " GOTP
 GAUTH=(-u "$GUSER:$GPASS")
 [ -n "$GOTP" ] && GAUTH+=(-H "X-Gitea-OTP: $GOTP")
 
-# ── 2. Cria PAT ────────────────────────────────────────────────────────
+# ── 2. Pre-flight: PATs antigos deste host ─────────────────────────────
 HOST_SHORT=$(scutil --get LocalHostName 2>/dev/null || hostname -s)
-TOKEN_NAME="iedora-mac-$HOST_SHORT-$(date +%Y%m%d-%H%M)"
+TOKEN_PREFIX="iedora-mac-$HOST_SHORT-"
+
+bold "→ A verificar PATs existentes para '$HOST_SHORT'..."
+EXISTING=$(curl -fsS "${GAUTH[@]}" "$GITEA/api/v1/users/$GUSER/tokens?page=1&limit=50" 2>/dev/null \
+  | python3 -c "
+import sys, json
+prefix = '$TOKEN_PREFIX'
+try:
+    toks = [t['name'] for t in json.load(sys.stdin) if t['name'].startswith(prefix)]
+    print('\n'.join(toks))
+except Exception:
+    pass
+")
+
+if [ -n "$EXISTING" ]; then
+  echo "$EXISTING" | while read -r t; do echo "  • $t"; done
+  read -r -p "Revogar estes PATs antes de criar novo? [Y/n] " yn
+  if [[ ! "$yn" =~ ^[Nn]$ ]]; then
+    echo "$EXISTING" | while read -r t; do
+      [ -z "$t" ] && continue
+      HTTP=$(curl -fsS -o /dev/null -w '%{http_code}' -X DELETE "${GAUTH[@]}" \
+        "$GITEA/api/v1/users/$GUSER/tokens/$t" || true)
+      if [ "$HTTP" = "204" ]; then
+        green "  ✓ revogado: $t"
+      else
+        red "  ✗ falhou ($HTTP): $t"
+      fi
+    done
+  fi
+else
+  green "✓ nenhum PAT antigo deste host"
+fi
+
+# ── 3. Cria PAT ────────────────────────────────────────────────────────
+TOKEN_NAME="${TOKEN_PREFIX}$(date +%Y%m%d-%H%M)"
 bold "→ A criar PAT '$TOKEN_NAME'..."
 
 PAT_HTTP=$(curl -fsS -o /tmp/.gitea-pat-resp -w '%{http_code}' "${GAUTH[@]}" \
@@ -63,25 +97,25 @@ fi
 PAT=$(python3 -c 'import sys,json;print(json.load(sys.stdin)["sha1"])' < /tmp/.gitea-pat-resp)
 green "✓ PAT criado (também visível em $GITEA/user/settings/applications)"
 
-# ── 3. Guarda PAT no macOS keychain ────────────────────────────────────
+# ── 4. Guarda PAT no macOS keychain ────────────────────────────────────
 bold "→ A guardar PAT no macOS keychain..."
 printf 'protocol=https\nhost=git.iedora.com\nusername=%s\npassword=%s\n\n' \
   "$GUSER" "$PAT" | git credential-osxkeychain store
 green "✓ keychain populado"
 
-# ── 4. Git global config ───────────────────────────────────────────────
+# ── 5. Git global config ───────────────────────────────────────────────
 bold "→ A configurar git credential helper..."
 git config --global credential.helper osxkeychain
 green "✓ credential.helper = osxkeychain"
 
-# ── 5. Repo remote para HTTPS ──────────────────────────────────────────
+# ── 6. Repo remote para HTTPS ──────────────────────────────────────────
 if [ -d ".git" ] && git remote get-url gitea >/dev/null 2>&1; then
   bold "→ A garantir que o remote 'gitea' aponta a HTTPS..."
   git remote set-url gitea "$GITEA/$GUSER/$(basename "$PWD").git"
   green "✓ remote gitea = $(git remote get-url gitea)"
 fi
 
-# ── 6. Smoke test ──────────────────────────────────────────────────────
+# ── 7. Smoke test ──────────────────────────────────────────────────────
 # Só git ls-remote — endpoints `/api/v1/user*` exigem scope read:user
 # que não pedimos (só write:repository), e o que importa é git push/pull
 # funcionar, não a API.
