@@ -16,15 +16,22 @@ set -euo pipefail
 [[ "${KAMAL_COMMAND:-}" == "rollback" ]] && exit 0
 [[ "${KAMAL_DESTINATION:-}" != "production" ]] && exit 0
 
-# 1º deploy: .kamal/apps/<svc>-<dest>/env/roles/web.env ainda não existe
-# (gerado lazily só durante app boot) E o postgres accessory ainda nem
-# subiu — `kamal app exec` falharia em docker run. Skip migrations e
-# deixa o container subir; o próximo deploy corre as migrations contra
-# a DB já com schema empty.
-ENV_FILE=".kamal/apps/iedora-web-production/env/roles/web.env"
-if [ ! -f "$ENV_FILE" ]; then
-  echo "[pre-deploy] 1º deploy detectado (sem $ENV_FILE) — skip migrations."
-  echo "[pre-deploy] Re-corre o deploy depois de container up para aplicar schema."
+# Cold deploy guard: no 1º deploy, accessories ainda não bootaram —
+# `kamal app exec` falharia em `docker run` (env file vazio, postgres
+# unreachable). Skip e deixa o deploy continuar; a segunda corrida
+# aplica o schema contra a DB já vazia.
+#
+# Detectamos a condição REAL (postgres container up?) em vez de uma
+# proxy via path do env file. A checagem anterior — `[ ! -f .kamal/
+# apps/iedora-web-production/env/roles/web.env ]` — era relativa ao
+# CWD e o `kamal deploy` é invocado fora de $HOME, então **sempre**
+# fazia skip silencioso. Resultado: prod ficou com as 3 DBs vazias
+# durante 4 deploys, better-auth crashou no signup (`relation "core
+# .user" does not exist`).
+POSTGRES_CONTAINER="iedora-web-postgres"
+if ! docker ps --filter "name=^/${POSTGRES_CONTAINER}$" --filter "status=running" --quiet | grep -q .; then
+  echo "[pre-deploy] postgres accessory '${POSTGRES_CONTAINER}' não está up — skip migrations."
+  echo "[pre-deploy] Re-corre o deploy depois do accessory bootar."
   exit 0
 fi
 
