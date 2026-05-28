@@ -26,22 +26,17 @@ registry:
     - KAMAL_REGISTRY_PASSWORD
 
 builder:
-  # NÃO há `remote:` aqui — o `kamal deploy` corre directamente no
-  # Beelink (CI faz `ssh root@host kamal deploy`, e o wrapper
-  # `bin/deploy` no Mac faz o mesmo). Sem `remote:`, Kamal usa o
-  # default `docker` buildx driver (não docker-container/buildkit
-  # remoto) — o que importa porque o buildkit container não respeita
-  # o `insecure-registries` do daemon.json (basecamp/kamal#937).
-  # O docker daemon do Beelink respeita, logo push para 192.168.50.53:3030
-  # funciona localhost-to-localhost sem TLS hacks.
+  # NÃO há `remote:` nem `cache:` aqui — Kamal corre no Beelink, o
+  # docker daemon do host já cacheia layers nativamente (single-host
+  # setup, sem benefício de cache de registry partilhada). Sem
+  # cache.type/options, Kamal usa o default `docker` buildx driver
+  # (não docker-container/buildkit) — o que importa porque o buildkit
+  # container ignora o `insecure-registries` do daemon.json
+  # (basecamp/kamal#937). Docker daemon respeita, push para
+  # 192.168.50.53:3030 = localhost-to-localhost sem TLS hacks.
   arch: amd64
   context: .
   dockerfile: apps/web/Dockerfile
-  # Cache image co-located com a imagem (Gitea OCI registry).
-  cache:
-    type: registry
-    image: eduvhc/web-buildcache
-    options: mode=max,compression=zstd
 
 accessories:
   postgres:
