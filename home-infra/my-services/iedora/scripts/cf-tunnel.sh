@@ -26,7 +26,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEGACY_TUNNEL_NAME="${LEGACY_TUNNEL_NAME:-iedora-beelink}"
 
 HOSTS=(iedora.com www.iedora.com menu.iedora.com core.iedora.com imopush.iedora.com)
-SERVICE_TARGET="${SERVICE_TARGET:-http://kamal-proxy:80}"
+# kamal-proxy vive na network `kamal` (mantida pelo Kamal); o connector
+# vive na `homelab-core` — não há Docker DNS entre eles. Saída pelo
+# host gateway (`host.docker.internal:host-gateway` no compose) → porta
+# publicada no host (3001, ver deploy.yml `proxy.run.http_port`).
+SERVICE_TARGET="${SERVICE_TARGET:-http://host.docker.internal:3001}"
 
 : "${BWS_ACCESS_TOKEN:?BWS_ACCESS_TOKEN must be set}"
 
