@@ -46,25 +46,55 @@ jobs:
       source: ${{ steps.filter.outputs.source }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          filters: |
-            source:
-              - '**/*.ts'
-              - '**/*.tsx'
-              - '**/*.js'
-              - '**/*.mjs'
-              - '**/*.cjs'
-              - '**/*.json'
-              - 'bun.lock'
-              - '**/Dockerfile'
-              - 'config/**'
-              - '.kamal/**'
-              - '.gitea/workflows/**'
-              - '.gitea/audit/**'
-              - '.gitea/deploy/**'
-              - 'homelab-core-infra/**'
+          # `fetch-depth: 2` chega para push events (BASE = parent do
+          # commit actual). Para PR, o checkout traz HEAD e BASE
+          # automaticamente; bump para 0 se houver squash-merges grandes.
+          fetch-depth: 2
+      - id: filter
+        shell: bash
+        # bash + `git diff --name-only` em vez de dorny/paths-filter:
+        # Gitea Actions tem issues conhecidos com getFilesChanged
+        # (issue #23919) e o proxy para actions externos não sempre
+        # garante context completo. Esta implementação é debuggable
+        # (echo do diff), zero deps externas, e funciona em PR + push.
+        run: |
+          set -euo pipefail
+
+          # Manual trigger override — força tudo a correr
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "→ workflow_dispatch — forçar source=true"
+            echo "source=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.event.after }}"
+          fi
+
+          # Edge case: BASE all-zeros = primeiro push da branch.
+          # Compara contra empty tree para listar tudo como "changed".
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ] || [ -z "$BASE" ]; then
+            BASE=$(git hash-object -t tree --stdin </dev/null)
+          fi
+
+          echo "→ diff $BASE..$HEAD"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+          echo "── changed files ──"
+          echo "$CHANGED"
+          echo "───────────────────"
+
+          if echo "$CHANGED" | grep -qE '\.(ts|tsx|js|mjs|cjs|json)$|^bun\.lock$|(^|/)Dockerfile$|^config/|^\.kamal/|^\.gitea/workflows/|^\.gitea/audit/|^\.gitea/deploy/|^homelab-core-infra/'; then
+            echo "→ source=true (algum ficheiro relevante mudou)"
+            echo "source=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "→ source=false (só docs/non-source)"
+            echo "source=false" >> "$GITHUB_OUTPUT"
+          fi
 
   # ─────────────────────────────────────────────────────────────────
   # Correctness gate: typecheck + lint + test em paralelo workspace.
