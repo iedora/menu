@@ -24,6 +24,17 @@ const nextConfig: NextConfig = {
   // necessário para os `<workspace>/migrate.mjs` (pre-deploy hook)
   // os conseguirem resolver via Node's resolution standard.
   serverExternalPackages: ['drizzle-orm', 'postgres'],
+  // serverExternalPackages só controla bundler. Para garantir que
+  // os pacotes são copiados para .next/standalone/node_modules
+  // (nft trace pode falhar com conditional/dynamic exports do drizzle),
+  // forçamos inclusão explícita aqui. Substitui o hack anterior de
+  // `npm install` no Dockerfile runtime stage.
+  outputFileTracingIncludes: {
+    '/*': [
+      '../../node_modules/drizzle-orm/**/*',
+      '../../node_modules/postgres/**/*',
+    ],
+  },
   // No `outputFileTracingIncludes` for migrate scripts — they're
   // bundled in apps/web/Dockerfile's `migrate-bundler` stage (single
   // ESM file each, all deps inlined). The Next standalone output is

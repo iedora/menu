@@ -146,14 +146,10 @@ COPY --from=builder --chown=nextjs:nextjs /workspace/products/menu/migrate.mjs .
 COPY --from=builder --chown=nextjs:nextjs /workspace/products/imopush/drizzle     ./products/imopush/drizzle
 COPY --from=builder --chown=nextjs:nextjs /workspace/products/imopush/migrate.mjs ./products/imopush/migrate.mjs
 
-# Next webpack inline-bundles drizzle-orm + postgres em chunks (mesmo com
-# serverExternalPackages, em monorepos com transpilePackages a cascata
-# vence). Os migrate.mjs vivem FORA do Next runtime, precisam destes
-# packages no node_modules standard. Instalamos fresh aqui — ~20 MB,
-# zero ambiguity.
-RUN cd /app && npm install --omit=dev --no-package-lock --no-fund --no-audit \
-    drizzle-orm@0.45.2 postgres@3.4.9 2>&1 | tail -3
-RUN chown -R nextjs:nextjs /app/node_modules /app/package*.json 2>/dev/null || true
+# NOTA: anteriormente fazíamos `npm install drizzle-orm postgres` aqui
+# como workaround porque nft não conseguia tracear drizzle (conditional
+# exports). Agora resolvido em next.config.ts via outputFileTracingIncludes
+# — pacotes vêm já bundled no standalone via @vercel/nft direct copy.
 
 # Next writes prerender + optimized-image caches under .next/cache at first
 # request. The standalone copy doesn't create that path; pre-create it

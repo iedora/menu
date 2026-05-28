@@ -95,3 +95,7 @@ proxy:
     interval: 5
   run:
     http_port: 3001
+    # Prometheus-format metrics endpoint, scraped por OTel collector
+    # (futuro) para enviar a OpenObserve. Bind interno apenas (não
+    # exposto pelo CF tunnel). kamal-proxy >=0.9.1 obrigatório.
+    metrics_port: 9090
