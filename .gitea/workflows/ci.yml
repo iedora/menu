@@ -152,6 +152,20 @@ jobs:
             ruby ruby-dev build-essential \
             docker.io
 
+      - name: Install Docker buildx plugin
+        # Debian's `docker.io` apt package NÃO inclui buildx. Kamal
+        # precisa para o remote builder (`kamal deploy` falha logo no
+        # `docker buildx version`). Binary directo do release oficial.
+        shell: bash
+        env:
+          BUILDX_VER: "0.34.1"
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL "https://github.com/docker/buildx/releases/download/v${BUILDX_VER}/buildx-v${BUILDX_VER}.linux-amd64" \
+            -o ~/.docker/cli-plugins/docker-buildx
+          chmod +x ~/.docker/cli-plugins/docker-buildx
+          docker buildx version
+
       - name: Install Kamal 2.11
         shell: bash
         run: gem install --no-document kamal -v 2.11.0
@@ -186,6 +200,24 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: kamal lock release -d production || true
 
+      - name: Capture current version (for rollback)
+        # `kamal rollback` exige a versão como argumento (não tem
+        # `--previous`). Capturamos a versão actualmente em produção
+        # antes do deploy. No primeiro deploy `kamal app version`
+        # devolve nada — o step de rollback faz skip via `if:`.
+        id: prev
+        shell: bash
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: |
+          PREV=$(kamal app version -d production 2>&1 | grep -Eo '[a-f0-9]{40}' | head -1 || true)
+          echo "version=${PREV}" >> "$GITHUB_OUTPUT"
+          if [ -n "$PREV" ]; then
+            echo "Prev version: $PREV"
+          else
+            echo "Sem versão anterior (1º deploy ou erro) — rollback skipped em failure"
+          fi
+
       - name: Kamal deploy
         id: deploy
         shell: bash
@@ -196,13 +228,14 @@ jobs:
       - name: Auto-rollback on failed deploy
         # Disparado quando healthcheck do kamal-proxy não passa em N
         # tentativas e o kamal deploy retorna non-zero. Reverte para a
-        # imagem anterior — atómico, ~5s. Smoke test (step seguinte)
-        # fica skipped porque corre só em success.
-        if: failure() && steps.deploy.outcome == 'failure'
+        # versão capturada em `prev` — atómico, ~5s. Skip se não há
+        # versão anterior (1º deploy). Smoke test fica skipped (corre
+        # só em success).
+        if: failure() && steps.deploy.outcome == 'failure' && steps.prev.outputs.version != ''
         shell: bash
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: kamal rollback -d production
+        run: kamal rollback "${{ steps.prev.outputs.version }}" -d production
 
       - name: Post-deploy smoke test (público via Cloudflare)
         # Healthcheck do kamal-proxy é interno (Beelink LAN). Este
