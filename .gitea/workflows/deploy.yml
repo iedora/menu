@@ -1,0 +1,107 @@
+# Deploy — workflow separado, accionado por changes específicas.
+#
+# Paths que accionam:
+#   - source (afecta a imagem)            **/*.{ts,tsx,js,mjs,cjs}, package.json, bun.lock
+#   - Dockerfile                          **/Dockerfile
+#   - Kamal config + secrets/hooks        config/**, .kamal/**
+#
+# Paths que NÃO accionam (audit/ci tratam):
+#   docs/**, *.md, AGENTS.md, .gitleaks-baseline.json, .gitignore,
+#   .gitea/workflows/**, .gitea/audit/**, homelab-core-infra/**,
+#   tsconfig*, vitest.config*, eslint.config* (são CI-only)
+#
+# Não há gating por ci/audit — workflow standalone, corre independente.
+# Razão: deploy iterations não devem esperar 5 min de tests cada vez.
+# Se o code estiver partido, o `kamal deploy` falha cedo (pre-deploy
+# hook) ou tarde (healthcheck) — protecção suficiente para um homelab
+# single-operator.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/package.json'
+      - 'bun.lock'
+      - '**/Dockerfile'
+      - 'config/**'
+      - '.kamal/**'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false   # mid-deploy abort = estado inconsistente
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Dispara Kamal NO Beelink via SSH. Não há Kamal, buildx ou ruby a
+  # correr no CI runner — só `rsync` + `ssh`.
+  #
+  # Razão arquitetural: o gitea-runner corre fisicamente no Beelink, e
+  # o build/push do Kamal entre runner-container e buildkit-container
+  # ignora o insecure-registries do daemon.json (basecamp/kamal#937).
+  # Em vez de layeran workarounds, corremos Kamal no host directamente
+  # — usa o default `docker` buildx driver (= daemon do host) que
+  # respeita o daemon.json.
+  #
+  # Setup do Beelink (Ruby + Kamal gem + /opt/iedora) é 1x via
+  # `./homelab-core-infra/up.sh --host ssh://root@192.168.50.53`.
+  #
+  # `kamal deploy` no Beelink:
+  #   - build local (docker driver, amd64 nativo do Beelink)
+  #   - push 192.168.50.53:3030 = localhost-to-localhost (insecure OK)
+  #   - .kamal/hooks/pre-deploy aplica migrations
+  #   - blue-green swap; healthcheck fail → versão antiga continua
+  # ─────────────────────────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      # SSH key bind-mounted directamente do host (runner está no
+      # Beelink, key já vive em /root/.ssh/ci_ed25519). Path
+      # whitelistado em homelab-core-infra/gitea-runner-config.yaml
+      # valid_volumes. Sem fetch do BWS no runner = sem bws install,
+      # sem jq, sem python3.
+      image: debian:bookworm-slim
+      volumes:
+        - /root/.ssh/ci_ed25519:/root/.ssh/ci_ed25519:ro
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: rsync source + trigger Kamal on Beelink
+        # 1. apt: rsync + openssh-client (debian:bookworm-slim é minimal)
+        # 2. rsync source para /opt/iedora — Beelink tem Kamal local
+        # 3. ssh trigger `kamal deploy` no Beelink, env vars in-line.
+        #    BWS_ACCESS_TOKEN é passado ao Kamal para o `secrets fetch`.
+        #    KAMAL_BWS_PROJECT_ID está hardcoded em .kamal/secrets.production.
+        shell: bash
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+        run: |
+          set -e
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends rsync openssh-client ca-certificates
+
+          SSH_OPTS=(-i /root/.ssh/ci_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts)
+
+          rsync -azP --delete --exclude='.git' --exclude='node_modules' \
+            -e "ssh ${SSH_OPTS[*]}" \
+            ./ root@192.168.50.53:/opt/iedora/
+
+          # shellcheck disable=SC2087  # intentional: env vars expanded
+          # client-side, send resolved values to SSH (server doesn't have them).
+          ssh "${SSH_OPTS[@]}" root@192.168.50.53 bash <<EOF
+          set -e
+          cd /opt/iedora
+          export BWS_ACCESS_TOKEN='$BWS_ACCESS_TOKEN'
+          export KAMAL_REGISTRY_PASSWORD='$KAMAL_REGISTRY_PASSWORD'
+          kamal lock release -d production || true
+          kamal deploy -d production
+          EOF

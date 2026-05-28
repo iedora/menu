@@ -1,18 +1,18 @@
-# Pipeline — 4 jobs no mesmo workflow para gating natural e UI única:
+# Pipeline — 3 jobs para correctness + security. Deploy vive em
+# `.gitea/workflows/deploy.yml` (workflow separado, accionado em
+# changes específicas de source/Dockerfile/config Kamal).
 #
-#   changes → path filter (2 outputs: code + deploy)       [PR + push main + dispatch]
-#   ci      → correctness (typecheck/lint/test)            [needs code=true; skip cron]
-#   audit   → security    (gitleaks/hadolint/osv)          [PR + push main + dispatch + cron]
-#   deploy  → kamal deploy                                  [needs deploy=true; push main + dispatch]
+#   changes → path filter (output `code`)        [PR + push main + dispatch]
+#   ci      → correctness (typecheck/lint/test)  [needs code=true; skip cron]
+#   audit   → security    (gitleaks/hadolint/osv) [PR + push main + dispatch + cron]
 #
 # `code` = .ts/.tsx/.js/.mjs/.cjs, package.json, bun.lock,
 #         tsconfig*, vitest.config*, eslint.config*
-# `deploy` = code + Dockerfile + config/** + .kamal/**
 #
-# NÃO accionam (apenas `audit` corre):
+# NÃO accionam ci (apenas `audit` corre):
 #   docs/**, *.md, AGENTS.md, .gitignore,
-#   .gitea/workflows/**, .gitea/audit/**, .gitea/deploy/**,
-#   homelab-core-infra/** (afecta infra, não app)
+#   .gitea/workflows/**, .gitea/audit/**,
+#   homelab-core-infra/**, config/**, .kamal/**
 #
 # `audit` corre sempre — gitleaks scan histórico, secrets podem aparecer
 # em docs também.
@@ -24,10 +24,9 @@
 # o workflow legível + bash testável isoladamente via shellcheck.
 #
 # Concurrency por-job (em vez de workflow-level): ci/audit cancelam
-# runs antigos no mesmo branch para feedback rápido; deploy nunca
-# cancela (mid-deploy abort = estado inconsistente). Cron weekly só
-# corre `audit` (skip ci via `if:`, deploy gated por `needs` + `if:`)
-# — CVE database refresca-se sem push.
+# runs antigos no mesmo branch para feedback rápido. Cron weekly só
+# corre `audit` (skip ci via `if:`) — CVE database refresca-se sem
+# push.
 
 name: Pipeline
 
@@ -41,41 +40,24 @@ on:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────
-  # Path filter: ci + deploy só correm se source mudou (typescript,
-  # lockfile, Dockerfile, configs Kamal, workflows próprios). Docs-only
-  # PR/push skipa typecheck/lint/test/deploy. `audit` corre sempre
-  # (gitleaks scan history; secret pode aparecer em docs também).
-  # `workflow_dispatch` e `schedule` ignoram este filtro.
+  # Path filter: ci só corre se source de typescript/configs de teste
+  # mudou. Docs-only PR/push skipa typecheck/lint/test. `audit` corre
+  # sempre. Deploy vive noutro workflow (deploy.yml).
   # ─────────────────────────────────────────────────────────────────
   changes:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
-      deploy: ${{ steps.filter.outputs.deploy }}
     steps:
       - uses: actions/checkout@v4
         with:
-          # `fetch-depth: 2` chega para push events (dorny usa
-          # git merge-base contra parent). Para PR, dorny consulta a
-          # API e não precisa de history.
           fetch-depth: 2
       - id: filter
         uses: dorny/paths-filter@v4
-        # 2 outputs:
-        #   code   → afecta typecheck/lint/test
-        #   deploy → code + tudo o que afecta a imagem ou config Kamal
-        #
-        # Mudanças que NÃO accionam nada (`audit` corre sempre):
-        #   docs/**, *.md, AGENTS.md, .gitignore,
-        #   .gitea/workflows/**, .gitea/audit/**, .gitea/deploy/**,
-        #   homelab-core-infra/** (afecta infra, não app)
-        #
-        # v4 suporta YAML anchor (`&code` reusado em `deploy:` via
-        # `*code`) — flatten implícito em sequence position.
         with:
           filters: |
-            code: &code
+            code:
               - '**/*.ts'
               - '**/*.tsx'
               - '**/*.js'
@@ -86,11 +68,6 @@ jobs:
               - '**/tsconfig*.json'
               - '**/vitest.config.*'
               - '**/eslint.config.*'
-            deploy:
-              - *code
-              - '**/Dockerfile'
-              - 'config/**'
-              - '.kamal/**'
 
   # ─────────────────────────────────────────────────────────────────
   # Correctness gate: typecheck + lint + test em paralelo workspace.
@@ -177,74 +154,3 @@ jobs:
         # como comments inline no lockfile.
         run: /opt/audit-bin/osv-scanner --lockfile=bun.lock --format gh-annotations
 
-  # ─────────────────────────────────────────────────────────────────
-  # Deploy gate: dispara Kamal NO Beelink via SSH. Não há Kamal,
-  # buildx ou ruby a correr no CI runner — só `rsync` e `ssh`.
-  #
-  # Razão: o gitea-runner corre fisicamente no Beelink, e o build/push
-  # do Kamal entre runner-container e buildkit-container ignora o
-  # insecure-registries do daemon.json (basecamp/kamal#937). Em vez de
-  # layeran workarounds (buildkitd.toml + pre-create builder, etc),
-  # corremos Kamal no host directamente — usa o default `docker`
-  # buildx driver (= daemon do host) que respeita o daemon.json.
-  #
-  # Setup do Beelink (Ruby + Kamal gem + /opt/iedora) é feito 1x via
-  # `./homelab-core-infra/up.sh --host ssh://root@192.168.50.53`
-  # (idempotent).
-  #
-  # `kamal deploy` no Beelink:
-  #   - build local (single arch amd64 = host arch, sem emulação)
-  #   - push 192.168.50.53:3030 = localhost-to-localhost (insecure OK)
-  #   - .kamal/hooks/pre-deploy aplica migrations
-  #   - blue-green swap; healthcheck fail → versão antiga continua
-  # ─────────────────────────────────────────────────────────────────
-  deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.deploy == 'true')
-    needs: [changes, ci, audit]
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false   # mid-deploy abort would leave inconsistent state
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    container:
-      # SSH key bind-mounted directamente do host (runner está no
-      # Beelink, key já vive em /root/.ssh/ci_ed25519). Sem fetch do
-      # BWS no runner = sem bws install, sem jq, sem python3. Path
-      # whitelistado em homelab-core-infra/gitea-runner-config.yaml.
-      image: debian:bookworm-slim
-      volumes:
-        - /root/.ssh/ci_ed25519:/root/.ssh/ci_ed25519:ro
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: rsync source + trigger Kamal on Beelink
-        # 1. apt: rsync + ssh client (debian:bookworm-slim é minimal)
-        # 2. rsync source para /opt/iedora — Beelink tem Kamal local
-        # 3. ssh trigger `kamal deploy` no Beelink, env vars in-line.
-        #    BWS_ACCESS_TOKEN é passado ao Kamal para o `secrets fetch`.
-        #    KAMAL_BWS_PROJECT_ID está hardcoded em .kamal/secrets.production.
-        shell: bash
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
-        run: |
-          set -e
-          apt-get update -qq
-          apt-get install -y -qq --no-install-recommends rsync openssh-client ca-certificates
-
-          SSH_OPTS=(-i /root/.ssh/ci_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts)
-
-          rsync -azP --delete --exclude='.git' --exclude='node_modules' \
-            -e "ssh ${SSH_OPTS[*]}" \
-            ./ root@192.168.50.53:/opt/iedora/
-
-          # shellcheck disable=SC2087  # intentional: env vars expanded
-          # client-side, send resolved values to SSH (server doesn't have them).
-          ssh "${SSH_OPTS[@]}" root@192.168.50.53 bash <<EOF
-          set -e
-          cd /opt/iedora
-          export BWS_ACCESS_TOKEN='$BWS_ACCESS_TOKEN'
-          export KAMAL_REGISTRY_PASSWORD='$KAMAL_REGISTRY_PASSWORD'
-          kamal lock release -d production || true
-          kamal deploy -d production
-          EOF
