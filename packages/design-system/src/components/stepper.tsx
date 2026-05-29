@@ -5,9 +5,9 @@ import * as React from 'react'
 export type StepperStep = {
   /** Stable identifier — matched against `currentKey` to resolve state. */
   key: string
-  /** 1-indexed position rendered inside pending/current circles. */
+  /** 1-indexed position used to derive done/current/pending state. */
   index: number
-  /** Already-localised label rendered under the circle. */
+  /** Already-localised label rendered inside the chip. */
   label: string
 }
 
@@ -25,8 +25,8 @@ export type StepperProps = {
   /** Test hook injected on the wrapper. */
   testId?: string
   /**
-   * Test-hook factory for per-step `<li>` elements. Receives the step
-   * key, returns the value placed on `data-test-id`. Omit to skip.
+   * Test-hook factory for per-step elements. Receives the step key,
+   * returns the value placed on `data-test-id`. Omit to skip.
    */
   stepTestId?: (key: string) => string
   className?: string
@@ -34,25 +34,36 @@ export type StepperProps = {
 
 type StepState = 'done' | 'current' | 'pending'
 
-function resolveState(
-  step: StepperStep,
-  currentIndex: number,
-): StepState {
+function resolveState(step: StepperStep, currentIndex: number): StepState {
   if (step.index === currentIndex) return 'current'
   return step.index < currentIndex ? 'done' : 'pending'
 }
 
+const chipBase =
+  'inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] uppercase tracking-[0.18em] leading-none transition-colors'
+
+const chipByState: Record<StepState, string> = {
+  done: 'bg-[var(--ink)] text-[var(--paper)]',
+  current:
+    'bg-[var(--cinnabar)] text-[var(--paper)] ring-4 ring-[var(--cinnabar)]/15',
+  pending:
+    'border border-[var(--ink-22)] bg-[var(--paper)] text-[var(--ink-55)]',
+}
+
 /**
- * Visual lifecycle indicator: a row of numbered circles connected by
- * a progress rail. Done = filled ink + check; current = cinnabar-ringed
- * number; pending = hollow.
+ * Visual lifecycle indicator: a row of named chips connected by a
+ * progress rail. The chip *is* the step name (no separate number) so
+ * the linkage between steps reads as a flow, not a counter.
  *
- * Translation-agnostic on purpose — every string is passed in already
+ * Done = filled ink chip with check; current = cinnabar chip with a
+ * soft halo; pending = hollow chip. The rail behind them fills with
+ * ink up to the active step.
+ *
+ * Translation-agnostic — every visible string is passed in already
  * localised. Wrap with a product-specific component that resolves
  * `useTranslations()` or similar.
  *
- * Geometry derives from `steps.length` so this works for 2, 3, N steps
- * without edits.
+ * Two-step today, N-step ready: geometry derives from `steps.length`.
  */
 export function Stepper({
   steps,
@@ -67,7 +78,8 @@ export function Stepper({
   const currentIndex = current?.index ?? 1
   const total = steps.length
 
-  // % of the rail BETWEEN circles that should read as completed.
+  // Rail fill: 0% when on step 1, 100% when on the last step. Grows
+  // linearly so a 3-step wizard shows 50% on step 2.
   const filledRailPct =
     total > 1
       ? Math.max(0, Math.min(100, ((currentIndex - 1) / (total - 1)) * 100))
@@ -76,49 +88,50 @@ export function Stepper({
   return (
     <div
       className={
-        'flex w-full max-w-[420px] flex-col items-stretch gap-3' +
+        'flex w-full max-w-[520px] flex-col items-stretch gap-3' +
         (className ? ` ${className}` : '')
       }
       data-test-id={testId}
     >
       <ol
-        className="relative flex items-start justify-between"
+        className="relative flex items-center justify-between"
         aria-label={ariaLabel}
       >
+        {/* Idle rail — runs the full chip-to-chip distance behind the chips. */}
         <div
           aria-hidden="true"
-          className="absolute left-4 right-4 top-4 h-px bg-[var(--ink-14)]"
+          className="absolute inset-x-6 top-1/2 h-px -translate-y-1/2 bg-[var(--ink-14)]"
         />
+        {/* Done rail — grows from the first chip to the current chip. */}
         <div
           aria-hidden="true"
-          className="absolute left-4 top-4 h-px bg-[var(--ink)] transition-[width] duration-300"
-          style={{ width: `calc((100% - 2rem) * ${filledRailPct / 100})` }}
+          className="absolute left-6 top-1/2 h-px -translate-y-1/2 bg-[var(--ink)] transition-[width] duration-300"
+          style={{ width: `calc((100% - 3rem) * ${filledRailPct / 100})` }}
         />
 
-        {steps.map((step) => {
+        {steps.map((step, i) => {
           const state = resolveState(step, currentIndex)
+          const isLast = i === steps.length - 1
           return (
             <li
               key={step.key}
-              className="relative z-10 flex flex-1 flex-col items-center gap-2"
+              className={
+                'relative z-10 flex' +
+                (i === 0 ? ' justify-start' : isLast ? ' justify-end' : ' justify-center')
+              }
+              style={{ flex: '0 0 auto' }}
               data-test-id={stepTestId?.(step.key)}
               data-state={state}
             >
               <span
-                className={
-                  state === 'current'
-                    ? 'flex h-8 w-8 items-center justify-center rounded-full bg-[var(--cinnabar)] font-[family-name:var(--mono)] text-[12px] font-semibold text-[var(--paper)] ring-4 ring-[var(--cinnabar)]/15'
-                    : state === 'done'
-                      ? 'flex h-8 w-8 items-center justify-center rounded-full bg-[var(--ink)] text-[var(--paper)]'
-                      : 'flex h-8 w-8 items-center justify-center rounded-full border border-[var(--ink-22)] bg-[var(--paper)] font-[family-name:var(--mono)] text-[12px] text-[var(--ink-55)]'
-                }
+                className={`${chipBase} ${chipByState[state]}`}
                 aria-current={state === 'current' ? 'step' : undefined}
               >
                 {state === 'done' ? (
                   <svg
                     viewBox="0 0 16 16"
                     aria-hidden="true"
-                    className="h-3.5 w-3.5"
+                    className="h-3 w-3"
                   >
                     <path
                       d="M3.5 8.5l3 3 6-6.5"
@@ -130,17 +143,17 @@ export function Stepper({
                     />
                   </svg>
                 ) : (
-                  step.index
+                  <span
+                    aria-hidden="true"
+                    className={
+                      'inline-block h-1.5 w-1.5 rounded-full ' +
+                      (state === 'current'
+                        ? 'bg-[var(--paper)]'
+                        : 'bg-[var(--ink-22)]')
+                    }
+                  />
                 )}
-              </span>
-              <span
-                className={
-                  state === 'current'
-                    ? 'text-[11px] uppercase tracking-[0.18em] text-[var(--ink)]'
-                    : 'text-[11px] uppercase tracking-[0.18em] text-[var(--ink-55)]'
-                }
-              >
-                {step.label}
+                <span>{step.label}</span>
               </span>
             </li>
           )
