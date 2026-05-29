@@ -10,10 +10,11 @@
  * Separator, …) all come from @iedora/design-system now — shadcn was
  * dropped in favor of a Radix-backed iedora system.
  *
- *   --paper / --paper-1 / --paper-2     (backgrounds)
- *   --ink / --ink-04 ... --ink-95       (text & hairlines)
- *   --cinnabar / --cinnabar-1 / --2     (accent — single brand color)
- *   --serif (Fraunces) / --mono (JBMono)
+ *   --paper / --paper-2 / --paper-3 / --card / --card-2  (backgrounds)
+ *   --ink / --ink-2 / --ink-04 … --ink-85                  (text & hairlines)
+ *   --muted / --muted-2 / --rule / --rule-2                (labels + frames)
+ *   --cinnabar / --cinnabar-deep                           (clay-red accent)
+ *   --display (Playfair) / --serif (Lora) / --sans (Geist) / --mono (Geist Mono)
  *
  * No dark theme — iedora is a paper brand by convention.
  */
@@ -132,22 +133,23 @@
     @apply font-sans;
   }
 
-  /* Editorial heading defaults — Fraunces with optical-size axis,
-     ink, balanced wrapping. Any <h1>…<h4> not explicitly overridden
-     inherits the iedora typographic system. */
+  /* Editorial heading defaults — Playfair Display 500, balanced
+     wrapping, warm-ink colour. Any <h1>…<h4> not explicitly overridden
+     inherits the iedora printed-menu typographic system. */
   h1, h2, h3, h4 {
-    font-family: var(--serif);
-    font-variation-settings: "opsz" 144;
-    font-weight: 300;
-    letter-spacing: -0.025em;
+    font-family: var(--display);
+    font-weight: 500;
+    letter-spacing: -0.015em;
     text-wrap: balance;
     color: var(--ink);
   }
 
-  /* Editorial italics — Fraunces italic carries emphasis in headings. */
+  /* Editorial italics — Lora italic carries emphasis inline; Playfair
+     italic carries it in display headings. The `em` element picks the
+     italic cut of whichever ancestor font is in effect. */
   h1 em, h2 em, h3 em, h4 em {
     font-style: italic;
-    font-weight: 400;
+    font-weight: 500;
     color: var(--ink);
   }
 

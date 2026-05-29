@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   primaryKey,
+  index,
 } from 'drizzle-orm/pg-core'
 import type {
   OperationType,
@@ -32,6 +33,11 @@ export const imopush = pgSchema('imopush')
 
 export const property = imopush.table('property', {
   reference: text('reference').primaryKey(),
+
+  // Multi-tenant scoping. `tenantId` is the org id from @iedora/auth's
+  // `tenant` table (same id better-auth's organization plugin uses).
+  // Every query MUST filter by this — see products/imopush/CLAUDE.md.
+  tenantId: text('tenant_id').notNull(),
 
   type: text('type').$type<PropertyType>().notNull(),
   operation: text('operation').$type<OperationType>().notNull(),
@@ -61,7 +67,9 @@ export const property = imopush.table('property', {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-})
+}, (t) => [
+  index('property_tenant_idx').on(t.tenantId),
+])
 
 // ─── Integrator status ──────────────────────────────────────────────────
 // One row per (property × integrator). Tracks publication state-machine
@@ -72,6 +80,7 @@ export const property = imopush.table('property', {
 export const integratorStatus = imopush.table(
   'integrator_status',
   {
+    tenantId: text('tenant_id').notNull(),
     propertyReference: text('property_reference')
       .notNull()
       .references(() => property.reference, { onDelete: 'cascade' }),
@@ -85,5 +94,8 @@ export const integratorStatus = imopush.table(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.propertyReference, t.integratorKey] })],
+  (t) => [
+    primaryKey({ columns: [t.propertyReference, t.integratorKey] }),
+    index('integrator_status_tenant_idx').on(t.tenantId),
+  ],
 )

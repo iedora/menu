@@ -1,7 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { Card, CardDesc, CardTitle } from '@iedora/design-system'
-import { BRAND_URL } from '@iedora/brand'
-import { isSameIedoraOrigin } from '@iedora/brand'
+import { brandUrl, isSameIedoraOrigin } from '@iedora/brand'
 import { SignOutAction } from './sign-out-action'
 
 type Props = {
@@ -19,7 +18,7 @@ type Props = {
 export default async function SignOutPage({ searchParams }: Props) {
   const t = await getTranslations('Core.signOut')
   const { next: rawNext } = await searchParams
-  const next = isSameIedoraOrigin(rawNext) ? rawNext! : BRAND_URL
+  const next = isSameIedoraOrigin(rawNext) ? rawNext! : brandUrl()
 
   return (
     <Card>

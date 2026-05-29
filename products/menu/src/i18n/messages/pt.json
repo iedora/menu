@@ -40,13 +40,18 @@
     "invalidCredentials": "Email ou palavra-passe inválidos"
   },
   "Onboarding": {
-    "eyebrow": "primeira sala",
-    "title": "Cria o teu primeiro restaurante",
-    "subtitle": "Só o nome — tratamos do resto. Podes mudar o URL público mais tarde nas definições.",
+    "eyebrow": "primeiro prato",
+    "title": "Como se chama a casa?",
+    "subtitle": "O nome que os teus clientes vão ver no topo do menu, em todos os ecrãs.",
+    "subtitleAside": "Podes mudar mais tarde.",
     "restaurantName": "Nome do restaurante",
     "restaurantNamePlaceholder": "O Bom Garfo",
-    "create": "Criar restaurante",
-    "creating": "A criar…",
+    "tagline": "Morada ou tagline",
+    "taglinePlaceholder": "Rua das Flores 14 · Lisboa",
+    "taglineHint": "Uma linha discreta. Fica sob o nome, como num menu impresso.",
+    "optional": "— opcional",
+    "cta": "Pôr a mesa →",
+    "creating": "A pôr a mesa…",
     "steps": {
       "label": "Progresso do onboarding",
       "counter": "Passo {index} de {total}",
@@ -54,9 +59,10 @@
       "menu": "Montar menu"
     },
     "menu": {
-      "eyebrow": "segunda sala",
+      "eyebrow": "segundo prato",
       "title": "Monta o teu menu",
-      "subtitle": "Tira uma foto ao menu que já tens — extraímos pratos e preços em segundos. Revês e editas tudo antes de guardar.",
+      "subtitle": "Tira uma foto ao menu que já tens — lemos pratos e preços em segundos.",
+      "subtitleAside": "Revês e editas tudo antes de guardar.",
       "skip": "Saltar — adiciono pratos manualmente",
       "skipHint": "Podes importar uma foto a qualquer altura na página do restaurante."
     }

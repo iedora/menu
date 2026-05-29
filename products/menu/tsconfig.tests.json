@@ -15,19 +15,17 @@
   "include": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
+    "src/**/*.integration.test.ts",
     "src/**/testing/**/*.ts",
     "src/**/testing/**/*.tsx",
-    "src/**/e2e/**/*.ts",
-    "src/**/e2e/**/*.tsx",
     "src/**/*.live.test.ts",
     "tests/**/*.ts",
-    "tests/**/*.tsx",
     "scripts/**/*.ts",
     "instrumentation.ts",
     "instrumentation.node.ts",
     "vitest.config.ts",
     "vitest.config.live.ts",
-    "playwright.config.ts",
+    "vitest.integration.config.ts",
     "drizzle.config.ts"
   ],
   "exclude": ["node_modules", "dist", ".next"]

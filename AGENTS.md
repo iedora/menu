@@ -9,11 +9,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 > Bun-workspaces monorepo. One Next.js product (`apps/web/`)
 > serving `menu.iedora.com` (menu app), `core.iedora.com` (auth/sign-in),
 > and `iedora.com` (house landing) through a Host-based rewrite in
-> `src/proxy.ts`, plus workspace packages (`packages/core-auth/`,
-> `packages/design-system/`, `packages/iedora-observability/`).
+> `src/proxy.ts`, plus workspace packages (`packages/business/auth/`,
+> `packages/platform/design-system/`, `packages/platform/observability/`).
 > `bun install` runs ONCE at the repo root and resolves every workspace.
 >
-> Deploy: **Kamal** + **`home-infra/`**.
+> Deploy: **Kamal** + **`infra/live/`** (Tofu para Cloudflare, Kamal para o resto). Mac-driven via `bun run deploy`.
 
 ## What this is
 
@@ -21,14 +21,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Core** (core.iedora.com — `apps/web/`) — better-auth sign-in surface. Served by the same Next.js process; `src/proxy.ts` routes `/core/*` paths.
 - **House** (iedora.com — `apps/web/src/app/house/`) — brand landing page. One container, one image, three hostnames.
 
-**Identity is `@iedora/core-auth`.** A shared workspace package (`packages/core-auth/`) wrapping [better-auth](https://better-auth.com) — email+password, organization plugin, admin plugin. In-process, no separate IdP. Backed by a dedicated `core` Postgres database.
+**Identity is `@iedora/auth`.** A shared workspace package (`packages/business/auth/`) wrapping [better-auth](https://better-auth.com) — email+password, organization plugin, admin plugin. In-process, no separate IdP. Backed by a dedicated `core` Postgres database.
 
 ## Stack
 
 - **Next.js 16** (App Router, Turbopack default, Cache Components).
 - **TypeScript** strict, every workspace.
 - **Drizzle ORM** + `postgres-js`, **Postgres 18**.
-- **`better-auth`** via the shared **`@iedora/core-auth`** package.
+- **`better-auth`** via the shared **`@iedora/auth`** package.
 - **shadcn/ui** + Tailwind v4 — menu only. Editorial primitives from **`@iedora/design-system`**.
 - **@dnd-kit** — menu's drag-and-drop builder.
 - **Bun** — package manager, test runner, dev orchestrator. **Production runtime is Node** — `bun + next build` is unstable as of 2026 (oven-sh/bun#23944); `next start` runs under Node in the production container.
@@ -52,38 +52,32 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ```
 iedora/
   bun.lock
-  package.json                           workspaces: packages/* + products/* + apps/*
-  config/
-    deploy.yml                           Kamal base config (service, image, accessories,
-                                         env, proxy, builder)
-    deploy.production.yml                Production overlay (servers, add-host)
-    postgres/init.sql                    CREATE DATABASE menu / core / imopush
-  .kamal/
-    secrets.production                   DB URLs, S3, tunnel token, OTel (BWS).
-                                         Registry password vem do env
-                                         (Actions secret em CI).
+  package.json                           workspaces: packages/business/* + packages/platform/* + products/* + apps/*
+  infra/
+    dev/docker-compose.yml               Postgres + s3mock (local dev)
+    live/
+      deploy.sh                          One-shot do Mac (tofu + kamal)
+      tofu/main.tf                       CF zone + tunnel + DNS
+      kamal/
+        deploy.yml                       Kamal: image, proxy, accessories, env
+        otel-collector.yaml              OTel collector → OpenObserve accessory
+        postgres/init.sql                CREATE DATABASE core / menu / imopush
+        .kamal/secrets                   SOPS reads + gh auth token + .tunnel-token
+        .kamal/hooks/pre-deploy          Drizzle migrations ephemeral container
 
-  home-infra/                            Genérico — sem hardcodes de app
-    scripts/
-      bootstrap.sh                       Server-side prereqs + boot services
-      install-kamal.sh                   apt + ruby + kamal + bws + ssh-loopback
-    openobserve/ + gitea/                Services partilhados (bin.sh + compose)
-    my-services/iedora/                  App-specific (cf-tunnel, r2, setup-repo)
-      scripts/bootstrap.sh               1 cmd: cf-tunnel + r2 + setup-repo
-
-  dev/
-    docker-compose.yml                   Postgres + s3mock (local dev)
-    local.env                            Tracked single-source env for dev:up/dev:migrate/dev
-
-  packages/
-    brand/                               Brand strings, publicUrl(), isSameOriginPath()
+  packages/                              "core-*" tier — product-facing primitives
     core-auth/                           better-auth instance + Drizzle schema + AC taxonomy
     core-billing/                        Billing primitives
     core-tenancy/                        Tenancy primitives
-    db/                                  createDb + run-migrations
-    design-system/                       CSS + React primitives
-    eslint-config/
-    iedora-observability/                OTel wiring
+
+    platform/                            Foundation tier — zero product knowledge
+      ai/                                Shared AI SDK wiring (Deepseek + others)
+      brand/                             Brand strings, publicUrl(), isSameOriginPath()
+      db/                                createDb + run-migrations
+      design-system/                     CSS + React primitives
+      eslint-config/                     Shared ESLint config
+      observability/                     OTel wiring
+      testing-integration/               Testcontainers + savepoint helpers
 
   apps/
     web/                                 Next.js 16 — serves all 3 hostnames
@@ -97,21 +91,13 @@ iedora/
 
 ## Deploy
 
-### Day 0 — Bootstrap
+Mac-driven, idempotent. Detalhes em [`docs/runbook.deploy.md`](docs/runbook.deploy.md).
 
 ```bash
-export BWS_ACCESS_TOKEN='...' HOMELAB_HOST='ssh://root@<ip>'
-./home-infra/scripts/bootstrap.sh                       # install-kamal + boot services
-./home-infra/my-services/iedora/scripts/bootstrap.sh    # cf-tunnel + r2 + setup-repo
-```
-
-### Day 1+ — Kamal
-
-```bash
-kamal setup -d production                 # primeira vez
-kamal deploy -d production                # deploys seguintes
-kamal rollback -d production              # rollback
-kamal details -d production               # status
+export CLOUDFLARE_API_TOKEN=...
+bun run deploy                            # tofu apply + kamal deploy (cold-aware)
+bun run kamal rollback <sha>              # rollback
+bun run kamal app details                 # status
 ```
 
 ### Ops
@@ -133,11 +119,9 @@ docker exec -it iedora-web-postgres psql -U postgres
 
 ## CI
 
-Gitea Actions, dois workflows: `.gitea/workflows/ci.yml` (`ci`
-typecheck/lint/test + `audit` gitleaks/hadolint/osv, em paralelo) e
-`.gitea/workflows/deploy.yml` (standalone — push a main com mudanças
-em source/Dockerfile/Kamal dispara ssh-trigger directo ao Beelink que
-faz `git fetch` + `kamal deploy`).
+GitHub Actions, único workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+— `ci` (typecheck/lint/test) + `audit` (gitleaks/hadolint/osv-scanner), em paralelo.
+Deploy é Mac-driven (`bun run deploy`), sem job de deploy no CI.
 
 ## Where to look when unsure
 

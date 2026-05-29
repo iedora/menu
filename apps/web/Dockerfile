@@ -132,12 +132,12 @@ COPY --from=builder --chown=nextjs:nextjs /workspace/apps/web/public ./apps/web/
 
 # Drizzle migrations — fora do Next bundle. Cada workspace traz o seu
 # migrate.mjs (thin wrapper) + drizzle/ SQL. O helper canónico vive em
-# @iedora/db (packages/db/src/migrate.mjs), partilhado por todos.
+# @iedora/db (packages/platform/db/src/migrate.mjs), partilhado por todos.
 # Wrappers usam import relativo para o helper (sem dependência de
 # node_modules entre workspaces).
-COPY --from=builder --chown=nextjs:nextjs /workspace/packages/db/src/migrate.mjs ./packages/db/src/migrate.mjs
-COPY --from=builder --chown=nextjs:nextjs /workspace/packages/core-auth/drizzle     ./packages/core-auth/drizzle
-COPY --from=builder --chown=nextjs:nextjs /workspace/packages/core-auth/migrate.mjs ./packages/core-auth/migrate.mjs
+COPY --from=builder --chown=nextjs:nextjs /workspace/packages/platform/db/src/migrate.mjs ./packages/platform/db/src/migrate.mjs
+COPY --from=builder --chown=nextjs:nextjs /workspace/packages/business/auth/drizzle     ./packages/business/auth/drizzle
+COPY --from=builder --chown=nextjs:nextjs /workspace/packages/business/auth/migrate.mjs ./packages/business/auth/migrate.mjs
 COPY --from=builder --chown=nextjs:nextjs /workspace/products/menu/drizzle     ./products/menu/drizzle
 COPY --from=builder --chown=nextjs:nextjs /workspace/products/menu/migrate.mjs ./products/menu/migrate.mjs
 COPY --from=builder --chown=nextjs:nextjs /workspace/products/imopush/drizzle     ./products/imopush/drizzle

@@ -6,12 +6,21 @@ import { publishProperty } from './use-cases/publish-property'
 import type { IdealistaPublisher, PublishResult, PublishStore } from './ports'
 import type { Property } from '../properties'
 
-function makeFakeStore(initial?: Property) {
-  const saved: Array<Parameters<PublishStore['upsertIdealistaStatus']>[1]> = []
+const TENANT_A = 'tenant-a'
+const TENANT_B = 'tenant-b'
+
+function makeFakeStore(initial?: Property, owningTenant: string = TENANT_A) {
+  const saved: Array<{
+    tenantId: string
+    reference: string
+    status: Parameters<PublishStore['upsertIdealistaStatus']>[2]
+  }> = []
   const store: PublishStore = {
-    getProperty: vi.fn(async () => initial ?? null),
-    upsertIdealistaStatus: vi.fn(async (_ref, s) => {
-      saved.push(s)
+    getProperty: vi.fn(async (tenantId: string) =>
+      tenantId === owningTenant ? (initial ?? null) : null,
+    ),
+    upsertIdealistaStatus: vi.fn(async (tenantId, reference, status) => {
+      saved.push({ tenantId, reference, status })
     }),
   }
   return { store, saved }
@@ -35,61 +44,96 @@ describe('publishProperty', () => {
     const { store } = makeFakeStore()
     const publisher = makeFakePublisher({ ok: true })
 
-    const result = await publishProperty({ publisher, store }, { reference: '' })
+    const result = await publishProperty(
+      { publisher, store },
+      TENANT_A,
+      { reference: '' },
+    )
 
     expect(result.ok).toBe(false)
     expect(store.getProperty).not.toHaveBeenCalled()
     expect(publisher.publish).not.toHaveBeenCalled()
   })
 
-  it('returns error when property is missing', async () => {
+  it('returns error when property is missing under the tenant', async () => {
     const { store } = makeFakeStore(undefined)
     const publisher = makeFakePublisher({ ok: true })
 
-    const result = await publishProperty({ publisher, store }, { reference: 'missing' })
+    const result = await publishProperty(
+      { publisher, store },
+      TENANT_A,
+      { reference: 'missing' },
+    )
 
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toMatch(/não encontrada/i)
     expect(publisher.publish).not.toHaveBeenCalled()
   })
 
-  it('writes publishing → published transition on success', async () => {
+  it('refuses to publish a property owned by another tenant', async () => {
+    const { store } = makeFakeStore(baseProperty, TENANT_A)
+    const publisher = makeFakePublisher({ ok: true })
+
+    const result = await publishProperty(
+      { publisher, store },
+      TENANT_B,
+      { reference: 'ref-1' },
+    )
+
+    expect(result.ok).toBe(false)
+    expect(publisher.publish).not.toHaveBeenCalled()
+  })
+
+  it('writes publishing → published transition on success, scoped to the tenant', async () => {
     const { store, saved } = makeFakeStore(baseProperty)
     const publisher = makeFakePublisher({
       ok: true,
       publishedUrl: 'https://www.idealista.pt/imovel/12345/',
     })
 
-    const result = await publishProperty({ publisher, store }, { reference: 'ref-1' })
+    const result = await publishProperty(
+      { publisher, store },
+      TENANT_A,
+      { reference: 'ref-1' },
+    )
 
     expect(result.ok).toBe(true)
     expect(saved).toHaveLength(2)
-    expect(saved[0]).toMatchObject({ state: 'publishing' })
-    expect(saved[1]).toMatchObject({
+    expect(saved.every((s) => s.tenantId === TENANT_A)).toBe(true)
+    expect(saved[0]?.status).toMatchObject({ state: 'publishing' })
+    expect(saved[1]?.status).toMatchObject({
       state: 'published',
       publishedUrl: 'https://www.idealista.pt/imovel/12345/',
     })
-    expect(saved[1]?.publishedAt).toBeInstanceOf(Date)
+    expect(saved[1]?.status.publishedAt).toBeInstanceOf(Date)
   })
 
   it('writes publishing → failed transition on publisher error', async () => {
     const { store, saved } = makeFakeStore(baseProperty)
     const publisher = makeFakePublisher({ ok: false, error: 'CDP timeout' })
 
-    const result = await publishProperty({ publisher, store }, { reference: 'ref-1' })
+    const result = await publishProperty(
+      { publisher, store },
+      TENANT_A,
+      { reference: 'ref-1' },
+    )
 
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('CDP timeout')
 
     expect(saved).toHaveLength(2)
-    expect(saved[1]).toMatchObject({ state: 'failed', lastError: 'CDP timeout' })
+    expect(saved[1]?.status).toMatchObject({ state: 'failed', lastError: 'CDP timeout' })
   })
 
   it('passes the property unchanged to the publisher', async () => {
     const { store } = makeFakeStore(baseProperty)
     const publisher = makeFakePublisher({ ok: true })
 
-    await publishProperty({ publisher, store }, { reference: 'ref-1' })
+    await publishProperty(
+      { publisher, store },
+      TENANT_A,
+      { reference: 'ref-1' },
+    )
 
     expect(publisher.publish).toHaveBeenCalledWith(baseProperty)
   })

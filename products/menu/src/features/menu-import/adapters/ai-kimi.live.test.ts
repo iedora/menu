@@ -1,6 +1,6 @@
 /**
  * Live end-to-end test of the Kimi adapter against the real Moonshot
- * API. Off by default — runs only when `KIMI_GENERATIVE_AI_API_KEY` is
+ * API. Off by default — runs only when `MOONSHOT_API_KEY` is
  * present in the environment. Costs Kimi credits per execution, so don't
  * wire it into CI without thinking through the bill.
  *
@@ -20,7 +20,7 @@ import { createKimiAdapter } from './ai-kimi'
 
 vi.mock('server-only', () => ({}))
 
-const HAS_KEY = Boolean(process.env.KIMI_GENERATIVE_AI_API_KEY)
+const HAS_KEY = Boolean(process.env.MOONSHOT_API_KEY)
 const FIXTURE = join(
   process.cwd(),
   'tests/fixtures/ai/menu-taberna-do-jose.png',
@@ -90,6 +90,6 @@ if (!HAS_KEY) {
   // Help future-us understand why this file looks like a no-op when
   // we glance at the test output.
   console.info(
-    '[ai-kimi.live] skipped — set KIMI_GENERATIVE_AI_API_KEY to run.',
+    '[ai-kimi.live] skipped — set MOONSHOT_API_KEY to run.',
   )
 }

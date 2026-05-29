@@ -2,6 +2,7 @@ import { requireRestaurantBySlug } from '@iedora/product-menu/features/auth'
 import { MenuOnboardingPage } from '@iedora/product-menu/features/menu-onboarding'
 import { canGenerateAiMenu } from '@iedora/product-menu/features/plans'
 import { markMenuOnboardingComplete } from './actions'
+import '../../onboarding.css'
 
 /**
  * Step 2 of onboarding — AI menu setup. Auth-gates by slug (the

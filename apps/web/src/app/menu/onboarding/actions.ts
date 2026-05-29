@@ -8,14 +8,14 @@ import {
   createTenant,
   setActiveTenant,
   TENANT_ROLE_PRESETS,
-} from '@iedora/core-auth'
-import { createSubscription } from '@iedora/core-billing'
+} from '@iedora/auth'
+import { createSubscription } from '@iedora/billing'
 import {
   PRODUCTS,
   PRODUCT_ONBOARDING_STATUSES,
   PRODUCT_ONBOARDING_STEPS,
 } from '@iedora/brand'
-import { projectProductState } from '@iedora/core-tenancy'
+import { projectProductState } from '@iedora/tenancy'
 import { nextAvailableSlug, slugify } from '@iedora/product-menu/features/restaurant-slug'
 import { signInUrl } from '@iedora/product-core/url'
 import { publicUrl } from '@iedora/product-menu/shared/url'
@@ -27,6 +27,14 @@ import { ONBOARDING_STEPS } from '@iedora/product-menu/features/menu-onboarding'
 
 const onboardingSchema = z.object({
   restaurantName: z.string().trim().min(2).max(80),
+  // Optional address-or-tagline. Persists into `restaurant.description`
+  // — the small italic line printed under the name on the public menu.
+  tagline: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
 })
 
 export type OnboardingFormState =
@@ -40,10 +48,16 @@ async function insertRestaurantWithDefaultMenu(
   tenantId: string,
   restaurantName: string,
   slug: string,
+  tagline: string | undefined,
 ): Promise<void> {
   const [created] = await tx
     .insert(restaurant)
-    .values({ tenantId, name: restaurantName, slug })
+    .values({
+      tenantId,
+      name: restaurantName,
+      slug,
+      description: tagline ?? null,
+    })
     .returning({ id: restaurant.id })
   if (!created) throw new Error('onboarding: restaurant insert returned no rows')
 
@@ -60,6 +74,7 @@ export async function completeOnboarding(
 ): Promise<OnboardingFormState> {
   const parsed = onboardingSchema.safeParse({
     restaurantName: formData.get('restaurantName'),
+    tagline: formData.get('tagline'),
   })
 
   if (!parsed.success) {
@@ -71,7 +86,7 @@ export async function completeOnboarding(
     return { fieldErrors }
   }
 
-  const { restaurantName } = parsed.data
+  const { restaurantName, tagline } = parsed.data
 
   const session = await getSession()
   if (!session?.user) redirect(signInUrl(publicUrl(ONBOARDING_STEPS.name.path).toString()))
@@ -96,22 +111,23 @@ export async function completeOnboarding(
         error: `Your plan allows ${gate.limit} restaurant${gate.limit === 1 ? '' : 's'}. Upgrade to Casa to add more.`,
       }
     }
-    return addRestaurantToOrg(existingOrgId, restaurantName, slug)
+    return addRestaurantToOrg(existingOrgId, restaurantName, slug, tagline)
   }
 
-  return createOrgAndFirstRestaurant(restaurantName, slug)
+  return createOrgAndFirstRestaurant(restaurantName, slug, tagline)
 }
 
 async function addRestaurantToOrg(
   tenantId: string,
   restaurantName: string,
   slug: string,
+  tagline: string | undefined,
 ): Promise<OnboardingFormState> {
   const session = await getSession()
   if (!session?.user) redirect(signInUrl(publicUrl(ONBOARDING_STEPS.name.path).toString()))
   try {
     await db.transaction((tx) =>
-      insertRestaurantWithDefaultMenu(tx, tenantId, restaurantName, slug),
+      insertRestaurantWithDefaultMenu(tx, tenantId, restaurantName, slug, tagline),
     )
   } catch (err) {
     console.error('[onboarding] restaurant creation under existing org failed', err)
@@ -140,6 +156,7 @@ async function addRestaurantToOrg(
 async function createOrgAndFirstRestaurant(
   restaurantName: string,
   slug: string,
+  tagline: string | undefined,
 ): Promise<OnboardingFormState> {
   const session = await getSession()
   if (!session?.user) redirect(signInUrl(publicUrl(ONBOARDING_STEPS.name.path).toString()))
@@ -202,7 +219,7 @@ async function createOrgAndFirstRestaurant(
   // Restaurant + default menu must commit together.
   try {
     await db.transaction((tx) =>
-      insertRestaurantWithDefaultMenu(tx, tenantId, restaurantName, slug),
+      insertRestaurantWithDefaultMenu(tx, tenantId, restaurantName, slug, tagline),
     )
   } catch (err) {
     console.error('[onboarding] restaurant creation failed', err)

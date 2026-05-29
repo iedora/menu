@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { BRAND_URL } from '@iedora/brand'
+import { brandUrl } from '@iedora/brand'
 import {
   Badge,
   Sidebar,
@@ -11,7 +11,7 @@ import {
   SidebarTrigger,
   Wordmark,
 } from '@iedora/design-system'
-import { SCOPES, type Scope } from '@iedora/core-auth/scopes'
+import { SCOPES, type Scope } from '@iedora/auth/scopes'
 import { ActiveSidebarLinks, type ActiveSidebarItem } from '@iedora/design-system'
 
 /**
@@ -103,7 +103,7 @@ export async function AdminShell({
           />
           <SidebarBrand>
             <Link
-              href={BRAND_URL}
+              href={brandUrl()}
               className="brand"
               aria-label={t('brandHome')}
               data-test-id="admin-home-link"

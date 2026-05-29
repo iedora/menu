@@ -1,29 +1,19 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import {
-  Button,
-  Card,
-  CardDesc,
-  CardFoot,
-  CardTitle,
-  Field,
-  FieldInput,
-  FieldLabel,
-} from '@iedora/design-system'
 import { completeOnboarding, type OnboardingFormState } from './actions'
 
 /**
- * Onboarding takes ONE field — the restaurant name. The public URL
- * (slug) is generated server-side from the name with collision suffixes
- * ("sushi-place", "sushi-place-2", …) so the form isn't gating a
- * brand-new operator on choosing a URL. Slug can be changed later from
- * the restaurant settings page.
+ * Step 1 form. Two fields land on the form:
+ *   - restaurantName (required) — bound to `restaurant.name`
+ *   - tagline (optional) — bound to `restaurant.description`; renders
+ *     as the small italic line under the name on the public menu
  *
- * Mobile-first: the card spans the full viewport at <sm and caps at
- * the parent's max-width on tablet+. The CTA goes full-width on mobile
- * (thumb-reach) and shrinks to content on sm+.
+ * The styling lives in `./onboarding.css` (paper-card aesthetic): no
+ * DS primitives here on purpose, this surface owns its visual idiom.
+ * Server action is unchanged — `completeOnboarding` parses the same
+ * shape it always did, plus the new optional `tagline` field.
  */
 export function OnboardingForm() {
   const t = useTranslations('Onboarding')
@@ -32,68 +22,109 @@ export function OnboardingForm() {
     undefined,
   )
   const [name, setName] = useState('')
+  const [tagline, setTagline] = useState('')
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    nameRef.current?.focus()
+  }, [])
+
+  const nameError = state?.fieldErrors?.restaurantName
+  const taglineError = state?.fieldErrors?.tagline
 
   return (
-    <Card
-      data-test-id="onboarding-form-card"
-      className="p-6 sm:p-8"
+    <form
+      action={action}
+      className="onb-view"
+      data-test-id="onboarding-form"
     >
-      <div className="space-y-1.5">
-        <span
-          className="text-[13px] italic text-[var(--ink-55)]"
-          style={{ fontFamily: 'var(--serif)' }}
-        >
-          {t('eyebrow')}
-        </span>
-        <CardTitle as="h2">{t('title')}</CardTitle>
-        <CardDesc>{t('subtitle')}</CardDesc>
+      <div className="onb-lede">
+        <h1>{t('title')}</h1>
+        <p>
+          {t('subtitle')} <em>{t('subtitleAside')}</em>
+        </p>
       </div>
-      <form action={action} className="mt-6 space-y-6">
-        <Field error={Boolean(state?.fieldErrors?.restaurantName)}>
-          <FieldLabel htmlFor="restaurantName">{t('restaurantName')}</FieldLabel>
-          <FieldInput
-            id="restaurantName"
-            name="restaurantName"
-            type="text"
-            required
-            minLength={2}
-            maxLength={80}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('restaurantNamePlaceholder')}
-            autoFocus
-            data-test-id="onboarding-restaurant-name"
-          />
-          {state?.fieldErrors?.restaurantName && (
-            <p
-              className="text-sm text-[var(--cinnabar)]"
-              data-test-id="onboarding-field-error"
-            >
-              {state.fieldErrors.restaurantName}
-            </p>
-          )}
-        </Field>
-        {state?.error && (
+
+      <div className="onb-field">
+        <label className="onb-field__label" htmlFor="restaurantName">
+          {t('restaurantName')}
+        </label>
+        <input
+          ref={nameRef}
+          id="restaurantName"
+          name="restaurantName"
+          type="text"
+          required
+          minLength={2}
+          maxLength={80}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('restaurantNamePlaceholder')}
+          className="onb-field__input"
+          aria-invalid={Boolean(nameError) || undefined}
+          data-test-id="onboarding-restaurant-name"
+        />
+        {nameError && (
           <p
-            className="text-sm text-[var(--cinnabar)]"
+            className="onb-field__error"
             role="alert"
-            data-test-id="onboarding-error"
+            data-test-id="onboarding-field-error-name"
           >
-            {state.error}
+            {nameError}
           </p>
         )}
-        <CardFoot className="border-t border-[var(--ink)]/10 pt-4">
-          <Button
-            type="submit"
-            variant="solid"
-            className="w-full sm:w-auto sm:ml-auto"
-            disabled={pending}
-            data-test-id="onboarding-submit"
+      </div>
+
+      <div className="onb-field">
+        <label className="onb-field__label" htmlFor="tagline">
+          {t('tagline')}{' '}
+          <span className="onb-field__label-aside">{t('optional')}</span>
+        </label>
+        <input
+          id="tagline"
+          name="tagline"
+          type="text"
+          maxLength={120}
+          value={tagline}
+          onChange={(e) => setTagline(e.target.value)}
+          placeholder={t('taglinePlaceholder')}
+          className="onb-field__input"
+          aria-invalid={Boolean(taglineError) || undefined}
+          data-test-id="onboarding-tagline"
+        />
+        <p className="onb-field__hint">{t('taglineHint')}</p>
+        {taglineError && (
+          <p
+            className="onb-field__error"
+            role="alert"
+            data-test-id="onboarding-field-error-tagline"
           >
-            {pending ? t('creating') : t('create')}
-          </Button>
-        </CardFoot>
-      </form>
-    </Card>
+            {taglineError}
+          </p>
+        )}
+      </div>
+
+      {state?.error && (
+        <p
+          className="onb-field__error"
+          role="alert"
+          data-test-id="onboarding-error"
+          style={{ textAlign: 'center', marginTop: 18 }}
+        >
+          {state.error}
+        </p>
+      )}
+
+      <div className="onb-row">
+        <button
+          type="submit"
+          className="onb-btn onb-btn--primary"
+          disabled={!name.trim() || pending}
+          data-test-id="onboarding-submit"
+        >
+          {pending ? t('creating') : t('cta')}
+        </button>
+      </div>
+    </form>
   )
 }

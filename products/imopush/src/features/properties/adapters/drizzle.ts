@@ -1,5 +1,5 @@
 import 'server-only'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { db } from '../../../shared/db/client'
 import { property, integratorStatus } from '../../../shared/db/schema'
 import type { IntegratorKey, IntegratorStatus } from '../../../shared/types/integrator'
@@ -42,25 +42,37 @@ function hydrate(row: PropertyRow, integrators: IntegratorRow[]): Property {
 }
 
 export const drizzlePropertiesGateway: PropertiesGateway = {
-  async list(): Promise<PropertyListRow[]> {
+  async list(tenantId: string): Promise<PropertyListRow[]> {
     const [rows, integrators] = await Promise.all([
-      db.select().from(property).orderBy(asc(property.reference)),
-      db.select().from(integratorStatus),
+      db
+        .select()
+        .from(property)
+        .where(eq(property.tenantId, tenantId))
+        .orderBy(asc(property.reference)),
+      db
+        .select()
+        .from(integratorStatus)
+        .where(eq(integratorStatus.tenantId, tenantId)),
     ])
     return rows.map((r) => hydrate(r, integrators))
   },
 
-  async getByReference(reference: string): Promise<Property | null> {
+  async getByReference(tenantId: string, reference: string): Promise<Property | null> {
     const [row] = await db
       .select()
       .from(property)
-      .where(eq(property.reference, reference))
+      .where(and(eq(property.tenantId, tenantId), eq(property.reference, reference)))
       .limit(1)
     if (!row) return null
     const integrators = await db
       .select()
       .from(integratorStatus)
-      .where(eq(integratorStatus.propertyReference, reference))
+      .where(
+        and(
+          eq(integratorStatus.tenantId, tenantId),
+          eq(integratorStatus.propertyReference, reference),
+        ),
+      )
     return hydrate(row, integrators)
   },
 }

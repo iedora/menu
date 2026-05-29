@@ -6,7 +6,7 @@ Menu is a SaaS multi-tenant restaurant menu builder (menu.iedora.com). Each tena
 
 > **Layout post-Opt-B**: this package contains the menu **slices, drizzle schema, shared UI, and i18n catalogs** — but NOT the Next.js routes. Every `page.tsx` / `route.ts` / `layout.tsx` / `actions.ts` lives in `apps/web/src/app/`. Those route files import slice barrels here via the `@/...` path mapping in apps/web's tsconfig (`@/* → ../../products/menu/src/*`). Adding a route = edit `apps/web/src/app/`; adding a slice or a use-case = edit here.
 
-> **Identity.** `@iedora/core-auth` is the shared auth surface — better-auth (email+password, organization, admin plugins) running IN-PROCESS inside menu. Sessions and orgs live in the dedicated `core` Postgres database (better-auth tables in the `core` schema). The `better-auth.session_token` cookie scopes on `.iedora.com` so a login here will work on the future `core` product too. `src/features/auth/` owns the DAL guards + the role/scope taxonomy (`scopes.ts` maps `qr-codes:read|write|…` strings to better-auth's `{qrCodes:['read']}` permission shape; `requireScope()` short-circuits when `session.user.role === 'iedora-admin'`). Cross-tenant data (memberships, org provisioning) is reached via `auth.api.*` — never via direct SQL against `core.*`. See `packages/core-auth/README.md` for the consumer contract.
+> **Identity.** `@iedora/auth` is the shared auth surface — better-auth (email+password, organization, admin plugins) running IN-PROCESS inside menu. Sessions and orgs live in the dedicated `core` Postgres database (better-auth tables in the `core` schema). The `better-auth.session_token` cookie scopes on `.iedora.com` so a login here will work on the future `core` product too. `src/features/auth/` owns the DAL guards + the role/scope taxonomy (`scopes.ts` maps `qr-codes:read|write|…` strings to better-auth's `{qrCodes:['read']}` permission shape; `requireScope()` short-circuits when `session.user.role === 'iedora-admin'`). Cross-tenant data (memberships, org provisioning) is reached via `auth.api.*` — never via direct SQL against `core.*`. See `packages/business/auth/README.md` for the consumer contract.
 
 ## Hard rules
 
@@ -74,7 +74,7 @@ apps/web/
       page.tsx, layout.tsx, globals.css
     features/                        every slice: {adapters,use-cases,ui,actions.ts,ports.ts,index.ts,
                                                     <slice>.test.ts, testing/, e2e/, README.md}
-      auth/                          DAL guards + scopes.ts (role/scope taxonomy over @iedora/core-auth)
+      auth/                          DAL guards + scopes.ts (role/scope taxonomy over @iedora/auth)
       billing/                       invoice ledger
       dashboard-home/                restaurants-with-counts aggregate
       i18n/                          per-language registry (en, pt, es, fr)
@@ -101,7 +101,7 @@ apps/web/
   drizzle/                           generated SQL migrations
   drizzle.config.ts
   next.config.ts, tsconfig.json      paths: @/* → ./src/*
-  Dockerfile                         app build (Bun-install + Node-build + standalone). Same Dockerfile dev (built locally) and prod (built + pushed to Gitea OCI registry pelo job `deploy` de .gitea/workflows/deploy.yml) consume.
+  Dockerfile                         app build (Bun-install + Node-build + standalone). Same Dockerfile dev (built locally) and prod (built localmente pelo Kamal e pushed para GHCR via `bun run deploy`) consume.
   .env                               Holds local stack defaults (infra-postgres, infra-s3mock infra-o2).
                                      Container reads it via env_file; bun run dev
                                      also reads it.
@@ -113,8 +113,8 @@ apps/web/
                                      secret here), remote services (real S3,
                                      hosted DB), HMR DB URLs (localhost instead
                                      of Docker network hostnames).
-                                     Tracked dev env is `dev/local.env` no root.
-  package.json                       workspace deps to @iedora/core-auth, @iedora/design-system, @iedora/observability
+                                     Tracked dev env é `apps/web/.env`; secrets em `apps/web/.env.local`.
+  package.json                       workspace deps to @iedora/auth, @iedora/design-system, @iedora/observability
   scripts/check-migrations.ts        dev-time guardrail
   tests/e2e/
     fixtures.ts                      auto-fixture: fails fast on RSC errors / 5xx responses
@@ -127,11 +127,10 @@ apps/web/
 ```
 
 Dev: `bun run dev:up && bun run dev:migrate && bun run dev` no root.
-Env lê de `dev/local.env` (tracked).
+Env vive em `apps/web/.env` (tracked) + `apps/web/.env.local` (secrets, untracked).
 
-Prod: `.gitea/workflows/deploy.yml` dispara `ssh root@beelink kamal
-deploy` em push a main; Kamal corre migrations via pre-deploy hook +
-blue-green swap.
+Prod: Mac-driven via `bun run deploy` (ver `docs/runbook.deploy.md`).
+Kamal corre migrations via pre-deploy hook + blue-green swap.
 
 ## Commands
 

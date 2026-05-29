@@ -32,22 +32,29 @@ function renderWithIntl(node: React.ReactNode) {
 describe('MenuOnboardingPage', () => {
   const props = { slug: 'tasca', restaurantId: 'r-1' } as const
 
-  it('renders the editorial heading, subtitle, and the brand link', () => {
+  it('renders the masthead + stepper + lede with the right test hooks', () => {
     const html = renderWithIntl(<MenuOnboardingPage {...props} />)
     expect(html).toContain('data-test-id="menu-onboarding-page"')
-    expect(html).toContain('data-test-id="menu-onboarding-brand-link"')
+    expect(html).toContain('data-test-id="menu-onboarding-card"')
+    expect(html).toContain('class="ds-masthead__word"')
+    expect(html).toContain('data-test-id="menu-onboarding-stepper"')
+    expect(html).toContain('data-test-id="menu-onboarding-stepper-step-name"')
+    expect(html).toContain('data-test-id="menu-onboarding-stepper-step-menu"')
+    expect(html).toContain('data-test-id="menu-onboarding-stepper-counter"')
     expect(html).toContain('data-test-id="menu-onboarding-title"')
     expect(html).toContain('data-test-id="menu-onboarding-subtitle"')
-    expect(html).toContain('>Build your menu</h1>')
+    expect(html).toContain(`>${en.Onboarding.menu.title}</h1>`)
+  })
+
+  it('marks step 1 (Name) as done and step 2 (Menu) as current', () => {
+    const html = renderWithIntl(<MenuOnboardingPage {...props} />)
+    expect(html).toContain('ds-dstepper__node--done')
+    expect(html).toContain('ds-dstepper__node--current')
   })
 
   it('hosts the AI wizard at the upload step on first render with both camera and upload paths', () => {
     const html = renderWithIntl(<MenuOnboardingPage {...props} />)
     expect(html).toContain('data-test-id="menu-import-wizard-upload"')
-    // Both options surface upfront — same UI on phone, tablet, and
-    // desktop. The "Take a photo" button opens a `getUserMedia`
-    // preview (see CameraCapture); the upload button opens the OS
-    // file picker.
     expect(html).toContain('data-test-id="menu-import-take-photo"')
     expect(html).toContain('data-test-id="menu-import-upload-photo"')
     expect(html).not.toContain('data-test-id="menu-import-wizard-preview"')
@@ -57,10 +64,6 @@ describe('MenuOnboardingPage', () => {
   it('exposes a Skip control inline next to the wizard', () => {
     const html = renderWithIntl(<MenuOnboardingPage {...props} />)
     expect(html).toContain('data-test-id="menu-onboarding-skip"')
-    // React HTML-escapes the apostrophe in "I'll" → &#x27;; assert
-    // against a stable substring of the i18n value instead of the raw
-    // string so the test doesn't drift with copy tweaks that change
-    // the punctuation.
     expect(html).toContain('Skip')
     expect(html).toContain('add dishes manually')
     expect(html).toContain('data-test-id="menu-onboarding-skip-hint"')

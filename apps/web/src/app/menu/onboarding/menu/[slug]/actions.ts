@@ -10,7 +10,7 @@ import {
 import { signInUrl } from '@iedora/product-core/url'
 import { publicUrl } from '@iedora/product-menu/shared/url'
 import { PRODUCTS, PRODUCT_ONBOARDING_STATUSES } from '@iedora/brand'
-import { projectProductState } from '@iedora/core-tenancy'
+import { projectProductState } from '@iedora/tenancy'
 
 /**
  * Mark the restaurant's onboarding wizard as completed (whether the

@@ -9,8 +9,8 @@ Repo-level conventions: [`../../AGENTS.md`](../../AGENTS.md).
 ## Hard rules
 
 1. **No `@/` path mapping.** Slices import each other via RELATIVE
-   paths (`../<slice>/<file>`) — same convention as `packages/core-auth`,
-   `packages/design-system`, every other workspace package. This is
+   paths (`../<slice>/<file>`) — same convention as `packages/business/auth`,
+   `packages/platform/design-system`, every other workspace package. This is
    what lets `apps/web/tsconfig.json` stay clean of per-product path
    entries as the repo grows.
 
@@ -74,5 +74,5 @@ convention).
 
 ## CI
 
-`.gitea/workflows/ci.yml` — single job: typecheck + lint + test for all
+`.github/workflows/ci.yml` — single job: typecheck + lint + test for all
 workspaces (imopush included).

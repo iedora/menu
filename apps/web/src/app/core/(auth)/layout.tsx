@@ -1,12 +1,13 @@
 import Link from 'next/link'
-import { Wordmark } from '@iedora/design-system'
-import { BRAND_URL } from '@iedora/brand'
+import { Masthead, Stage } from '@iedora/design-system'
+import { brandUrl } from '@iedora/brand'
 
 /**
- * Centered, single-column chrome for the auth flow (sign-in /
- * sign-up / sign-out). No navbar — the brand wordmark sits above
- * the card so the page stays focused on the form, uniform with the
- * onboarding shell.
+ * Centered chrome for the auth flow (sign-in / sign-up / sign-out).
+ * Same paper-card vocabulary the onboarding wizard uses — Stage owns
+ * the paper grain + vignette, Masthead provides the `iedora•` wordmark
+ * + course italic, and the inner Card from each page renders as the
+ * focused form surface.
  */
 export default function CoreAuthLayout({
   children,
@@ -14,19 +15,17 @@ export default function CoreAuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <main className="flex min-h-screen justify-center bg-[var(--paper)] px-6 pb-12 pt-[max(2rem,env(safe-area-inset-top))] sm:pt-16">
+    <Stage>
       <div className="w-full max-w-md space-y-6 sm:space-y-8">
-        <div className="flex justify-center">
-          <Link
-            href={BRAND_URL}
-            aria-label="iedora"
-            className="inline-flex items-baseline no-underline"
-          >
-            <Wordmark variant="inline" />
-          </Link>
-        </div>
+        <Link
+          href={brandUrl()}
+          aria-label="iedora"
+          className="inline-flex items-baseline justify-center self-center no-underline w-full"
+        >
+          <Masthead word="iedora" />
+        </Link>
         {children}
       </div>
-    </main>
+    </Stage>
   )
 }

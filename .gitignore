@@ -65,12 +65,17 @@ npm-debug.log*
 yarn-debug.log*
 .pnpm-debug.log*
 
-# env files. App envs vivem em `dev/` (tracked: `local.env` + `test.env`).
-# Tudo o que cair na convenção `.env*` é gitignored.
+# env files. App envs vivem em `apps/web/` (tracked: `.env` + `.env.test`,
+# negados abaixo). `.env.local` fica untracked — Next.js layera por cima
+# e faz hot-reload quando muda; usa para secrets (AI keys, real S3 creds).
 .env
 .env.local
 .env.production
 .env.*.local
+
+# Apps/web tracked envs — defaults de dev + E2E test build.
+!apps/web/.env
+!apps/web/.env.test
 
 # Kamal secrets — só o default `.kamal/secrets` (plain-text) é
 # gitignored. Os ficheiros `secrets-common` e `secrets.<destination>`

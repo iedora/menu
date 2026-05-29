@@ -4,10 +4,10 @@ Monorepo — um container Next.js que serve três hostnames via
 host-based rewrites.
 
 - **Menu** (`menu.iedora.com`) — SaaS multi-tenant restaurant menu builder
-- **Core** (`core.iedora.com`) — better-auth sign-in via `@iedora/core-auth`
+- **Core** (`core.iedora.com`) — better-auth sign-in via `@iedora/auth`
 - **House** (`iedora.com`) — brand landing
 
-Deploy: **Kamal** + **`home-infra/`**. Ver `home-infra/README.md`.
+Deploy: **Kamal** + **`infra/live/`** (Tofu para Cloudflare). Mac-driven, ver [`docs/runbook.deploy.md`](docs/runbook.deploy.md).
 
 ## Quick start
 
@@ -21,11 +21,12 @@ bun run dev              # Next.js HMR em :3000
 ## Ship it
 
 ```bash
-kamal setup -d production          # primeira vez
-kamal deploy -d production         # deploys seguintes
+export CLOUDFLARE_API_TOKEN=...
+bun run deploy                    # tofu apply + kamal deploy (cold-aware, idempotent)
 ```
 
 ## Docs
 
 - [AGENTS.md](AGENTS.md) — stack, rules, conventions
-- [docs/runbook.md](docs/runbook.md) — dev + deploy
+- [docs/runbook.dev.md](docs/runbook.dev.md) — dev local
+- [docs/runbook.deploy.md](docs/runbook.deploy.md) — deploy + ops

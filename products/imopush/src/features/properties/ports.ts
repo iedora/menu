@@ -15,6 +15,6 @@ export type Property = Omit<UnifiedProperty, 'reference'> & {
 export type PropertyListRow = Property
 
 export interface PropertiesGateway {
-  list(): Promise<PropertyListRow[]>
-  getByReference(reference: string): Promise<Property | null>
+  list(tenantId: string): Promise<PropertyListRow[]>
+  getByReference(tenantId: string, reference: string): Promise<Property | null>
 }

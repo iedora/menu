@@ -41,12 +41,17 @@
   },
   "Onboarding": {
     "eyebrow": "first course",
-    "title": "Create your first restaurant",
-    "subtitle": "Just the name — we'll handle the rest. You can change the public URL later from settings.",
+    "title": "What shall we call the house?",
+    "subtitle": "The name your guests will see at the top of every screen the menu lives on.",
+    "subtitleAside": "You can change it later.",
     "restaurantName": "Restaurant name",
-    "restaurantNamePlaceholder": "O Bom Garfo",
-    "create": "Create restaurant",
-    "creating": "Creating…",
+    "restaurantNamePlaceholder": "House Tavern",
+    "tagline": "Address or tagline",
+    "taglinePlaceholder": "14 Flower Street · Lisbon",
+    "taglineHint": "A single quiet line. It sits under the name, the way a printed card does.",
+    "optional": "— optional",
+    "cta": "Lay the table →",
+    "creating": "Laying the table…",
     "steps": {
       "label": "Onboarding progress",
       "counter": "Step {index} of {total}",
@@ -56,7 +61,8 @@
     "menu": {
       "eyebrow": "second course",
       "title": "Build your menu",
-      "subtitle": "Snap a photo of your existing menu — we'll extract dishes and prices in seconds. You can review and edit everything before saving.",
+      "subtitle": "Snap a photo of your existing menu — we'll read the dishes and prices in seconds.",
+      "subtitleAside": "You review and edit everything before it's saved.",
       "skip": "Skip — I'll add dishes manually",
       "skipHint": "You can import a photo any time from the restaurant page."
     }

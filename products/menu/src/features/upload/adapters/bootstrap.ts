@@ -34,9 +34,13 @@ function publicReadPolicy(bucket: string): string {
 // domain are all declaratively managed (via infra-bootstrap). PutBucketPolicy is
 // also unsupported on R2 (public access is via the custom-domain binding,
 // not a bucket policy), so trying to apply this would error.
+//
+// Skip for local MinIO too — the `minio-bootstrap` compose service already
+// creates the bucket and sets anonymous download. MinIO also rejects the
+// AWS SDK v3 PutBucketCors payload ("functionality not implemented").
 export async function ensureBucket(storage: S3Storage, bucket: string): Promise<void> {
   if (bootstrapped) return
-  if (isR2Endpoint()) {
+  if (isR2Endpoint() || isLocalEndpoint()) {
     bootstrapped = true
     return
   }
@@ -104,4 +108,8 @@ function isR2Endpoint(): boolean {
   // so peek at the env var the factory passed through. Cheap + matches the
   // detection in factory.ts.
   return /r2\.cloudflarestorage\.com/.test(process.env.S3_ENDPOINT ?? '')
+}
+
+function isLocalEndpoint(): boolean {
+  return /(localhost|127\.0\.0\.1|\bminio\b)/.test(process.env.S3_ENDPOINT ?? '')
 }

@@ -14,10 +14,11 @@ export default defineConfig({
       'src/shared/**/*.test.{ts,tsx}',
       'src/i18n/**/*.test.{ts,tsx}',
     ],
-    // Playwright owns e2e — keep them out of Vitest. `*.live.test.ts`
-    // hits real third-party APIs (Kimi, etc.) and only runs through the
-    // dedicated `test:ai-live` script.
-    exclude: ['node_modules', 'tests/e2e/**', '.next', 'dist', '**/*.live.test.ts'],
+    // `*.live.test.ts` hits real third-party APIs (Kimi, etc.) and
+    // only runs through the dedicated `test:ai-live` script.
+    // Integration tests (testcontainers via @iedora/testing) live in
+    // `*.integration.test.ts` and run via `bun run test:integration`.
+    exclude: ['node_modules', '.next', 'dist', '**/*.live.test.ts', '**/*.integration.test.ts'],
     environment: 'node',
     pool: 'forks', // PGLite is per-worker; forks isolate cleanly.
     // PGLite WASM init is slow on first hit; give each test a reasonable budget.

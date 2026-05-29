@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import {
   ActiveSidebarLinks,
@@ -11,7 +12,12 @@ import {
   SidebarTrigger,
   Wordmark,
 } from '@iedora/design-system'
+import { signInUrl } from '@iedora/product-core/url'
 import { ToastsProvider } from '@iedora/product-imopush/shared/ui/toasts'
+import {
+  getEffectiveOrganizationId,
+  getSession,
+} from '@iedora/product-imopush/features/auth'
 import { IMOPUSH_PATHS } from '@iedora/product-imopush/url'
 
 export default async function ImopushDashboardLayout({
@@ -19,6 +25,18 @@ export default async function ImopushDashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Auth gate — uniform across every dashboard descendant. Per-page DAL
+  // (`requireActiveOrganization`) stays as belt-and-braces (it's the
+  // source of truth for tenancy scoping, see CLAUDE.md rule 1).
+  const session = await getSession()
+  if (!session?.user) {
+    redirect(signInUrl(`${IMOPUSH_PATHS.dashboard}`))
+  }
+  const tenantId = await getEffectiveOrganizationId()
+  if (!tenantId) {
+    redirect(IMOPUSH_PATHS.onboarding)
+  }
+
   const nav = await getTranslations('Imopush.Nav')
 
   const navItems: ReadonlyArray<ActiveSidebarItem> = [

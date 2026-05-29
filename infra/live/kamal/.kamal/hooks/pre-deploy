@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# .kamal/hooks/pre-deploy
+#
+# Corre drizzle migrations contra as 3 DBs (core, menu, imopush) ANTES
+# do traffic swap. Falha aqui aborta o deploy — o container antigo
+# continua a servir tráfego.
+#
+# Padrão canónico: `kamal app exec --primary --version=$KAMAL_VERSION`
+# arranca um container EFÉMERO a partir da imagem **nova** (com as
+# novas SQL files bundled), corre o script de migrações, sai. Só
+# depois o deploy real procede.
+#
+# Skip em rollbacks (já não há schema novo) e em destinations não-prod.
+set -euo pipefail
+
+[[ "${KAMAL_COMMAND:-}" == "rollback" ]] && exit 0
+
+# Cold deploy guard: no 1º deploy, accessories ainda não bootaram —
+# `kamal app exec` falharia em `docker run` (env file vazio, postgres
+# unreachable). Skip e deixa o deploy continuar; a segunda corrida
+# aplica o schema contra a DB já vazia.
+#
+# Detectamos a condição REAL (postgres container up?) em vez de uma
+# proxy via path do env file. A checagem anterior — `[ ! -f .kamal/
+# apps/iedora-web-production/env/roles/web.env ]` — era relativa ao
+# CWD e o `kamal deploy` é invocado fora de $HOME, então **sempre**
+# fazia skip silencioso. Resultado: prod ficou com as 3 DBs vazias
+# durante 4 deploys, better-auth crashou no signup (`relation "core
+# .user" does not exist`).
+POSTGRES_CONTAINER="iedora-web-postgres"
+if ! docker ps --filter "name=^/${POSTGRES_CONTAINER}$" --filter "status=running" --quiet | grep -q .; then
+  echo "[pre-deploy] postgres accessory '${POSTGRES_CONTAINER}' não está up — skip migrations."
+  echo "[pre-deploy] Re-corre o deploy depois do accessory bootar."
+  exit 0
+fi
+
+echo "[pre-deploy] migrating DBs against version $KAMAL_VERSION..."
+# Single ephemeral container, três migrations em cadeia. Wrap em `sh -c`
+# explícito — `kamal app exec` passa a string como `docker run image CMD`
+# sem auto-wrap, então `&&` precisa de shell que o entenda.
+# Falha de qualquer migração curto-circuita + aborta o deploy.
+kamal -c infra/live/kamal/deploy.yml app exec --primary --version="$KAMAL_VERSION" \
+  'sh -c "node /app/packages/core-auth/migrate.mjs && node /app/products/menu/migrate.mjs && node /app/products/imopush/migrate.mjs"'
+echo "[pre-deploy] migrations ok."

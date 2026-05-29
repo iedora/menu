@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BRAND_NAME, BRAND_URL } from '@iedora/brand'
+import { BRAND_NAME, brandUrl } from '@iedora/brand'
 import type { RenderProps } from '../../types'
 import { formatPrice } from '../../format'
 
@@ -187,7 +187,7 @@ export function ClassicMenu({ restaurant: r, menus }: RenderProps) {
       >
         Powered by Menu · an{' '}
         <Link
-          href={BRAND_URL}
+          href={brandUrl()}
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: 'inherit' }}

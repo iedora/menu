@@ -43,6 +43,7 @@ export type IntegratorId = 'idealista'
  */
 export const IMOPUSH_PATHS = {
   dashboard: '/imopush/dashboard',
+  onboarding: '/imopush/onboarding',
   newProperty: '/imopush/dashboard/p/new',
   property: (reference: string) => `/imopush/dashboard/p/${reference}`,
   integrator: (id: IntegratorId) => `/imopush/dashboard/integrators/${id}`,

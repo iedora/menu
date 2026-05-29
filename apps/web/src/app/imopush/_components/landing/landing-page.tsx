@@ -13,7 +13,7 @@ import {
   PageProgress,
   Wordmark,
 } from "@iedora/design-system";
-import { BRAND_NAME, BRAND_URL, CONTACT_EMAIL } from "@iedora/brand";
+import { BRAND_NAME, brandUrl, CONTACT_EMAIL } from "@iedora/brand";
 
 /**
  * imopush landing — coming-soon surface for `imopush.iedora.com`.
@@ -237,7 +237,7 @@ function LandingNav({
           onChange={(code) => setLang(code as LangCode)}
           testIdPrefix="imopush-landing-lang"
         />
-        <Link href={BRAND_URL} className="nav-link" data-test-id="imopush-landing-back">
+        <Link href={brandUrl()} className="nav-link" data-test-id="imopush-landing-back">
           {c.nav.back}
         </Link>
         <Link
@@ -369,7 +369,7 @@ function Closing({ c }: { c: Copy }) {
         <div className="ds-footer-bar__inner">
           <span>
             {c.footer.left} ·{" "}
-            <Link href={BRAND_URL} data-test-id="imopush-footer-brand">
+            <Link href={brandUrl()} data-test-id="imopush-footer-brand">
               {BRAND_NAME}
             </Link>
           </span>

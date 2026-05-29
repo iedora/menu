@@ -6,12 +6,12 @@ admin — runs at `core.iedora.com`. After the Opt-B refactor, the
 exposes the server-only guards those routes import.
 
 Repo-level conventions: [`../../AGENTS.md`](../../AGENTS.md).
-Auth SDK contract: [`../../packages/core-auth/README.md`](../../packages/core-auth/README.md).
+Auth SDK contract: [`../../packages/business/auth/README.md`](../../packages/business/auth/README.md).
 
 ## What's here
 
 - `src/guards.ts` — `getSession()` + `requireIedoraAdmin()`. Thin
-  wrappers over `@iedora/core-auth`'s API, tagged `'server-only'`.
+  wrappers over `@iedora/auth`'s API, tagged `'server-only'`.
 - `src/index.ts` — package barrel; re-exports the guards.
 
 ## What's NOT here (lives in apps/web)
@@ -48,9 +48,9 @@ Auth SDK contract: [`../../packages/core-auth/README.md`](../../packages/core-au
 - `bun run test` — vitest with `--passWithNoTests` (no test files yet).
 - `bun run test:e2e` / `:ui` / `:debug` — Playwright suite (planned — harness not yet built).
 
-CI: Gitea Actions — single `ci.yml` workflow typechecks + lints + tests
-all workspaces (see `.gitea/workflows/ci.yml`).
+CI: GitHub Actions — single `ci.yml` workflow typechecks + lints + tests
+all workspaces (see `.github/workflows/ci.yml`).
 
 ## Testing
 
-Core has no Drizzle schema of its own — the `core` database is owned by `@iedora/core-auth` (better-auth tables + audit log). Unit tests use `fake-gateway.ts` adapters.
+Core has no Drizzle schema of its own — the `core` database is owned by `@iedora/auth` (better-auth tables + audit log). Unit tests use `fake-gateway.ts` adapters.

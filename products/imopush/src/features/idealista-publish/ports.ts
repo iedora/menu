@@ -4,6 +4,9 @@
  * Two effects:
  *   1. Read the property + write its idealista integrator status (store).
  *   2. Drive the Idealista web UI to publish a listing (publisher).
+ *
+ * Store methods are tenant-scoped — the caller passes the active
+ * tenantId resolved by the auth slice.
  */
 
 import type { Property } from '../properties'
@@ -17,8 +20,12 @@ export type IntegratorStatusUpsert = {
 }
 
 export interface PublishStore {
-  getProperty(reference: string): Promise<Property | null>
-  upsertIdealistaStatus(reference: string, status: IntegratorStatusUpsert): Promise<void>
+  getProperty(tenantId: string, reference: string): Promise<Property | null>
+  upsertIdealistaStatus(
+    tenantId: string,
+    reference: string,
+    status: IntegratorStatusUpsert,
+  ): Promise<void>
 }
 
 export type PublishResult =

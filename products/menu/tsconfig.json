@@ -10,7 +10,7 @@
     // reads the `.d.ts` outputs (cached + incremental), not the source.
     //
     // Source uses RELATIVE imports between slices — no internal `@/`
-    // path mapping. Same convention as packages/core-auth, packages/db,
+    // path mapping. Same convention as packages/business/auth, packages/platform/db,
     // products/imopush, etc.
     "composite": true,
     "declaration": true,
@@ -27,17 +27,14 @@
   "exclude": [
     "node_modules",
     ".next",
-    "playwright-report",
-    "test-results",
     "dist",
-    "tests",
     // Tests + test surfaces live in tsconfig.tests.json (no emit).
     // Composite mode wants the published-surface graph to be closed,
     // and slice tests + `testing/` directories pull in test-only deps.
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
+    "src/**/*.integration.test.ts",
     "src/**/testing/**",
-    "src/**/e2e/**",
     "src/**/*.live.test.ts"
   ]
 }

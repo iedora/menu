@@ -1,0 +1,196 @@
+/*
+ * Onboarding form — the underline-field + lede + CTA vocabulary.
+ *
+ * Page chrome (Stage, PaperCard, Masthead, OrnamentRule, DottedStepper)
+ * comes from @iedora/design-system primitives so it stays in lockstep
+ * with the rest of the app. What lives here is the onboarding-form
+ * specific bits: centered lede, underline-only input, hint text, and
+ * the primary "Lay the table →" CTA.
+ *
+ * If a second surface ever wants the same field treatment, promote
+ * these classes to the DS as `.ds-paper-field` and friends.
+ */
+
+.onb-lede {
+  text-align: center;
+  margin-bottom: 26px;
+}
+.onb-lede h1 {
+  font-family: var(--display);
+  font-weight: 500;
+  color: var(--ink);
+  font-size: 30px;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+  text-wrap: balance;
+}
+.onb-lede p {
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0 auto;
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+.onb-lede p em {
+  font-style: italic;
+  color: var(--muted);
+}
+
+.onb-field {
+  margin: 0 auto 18px;
+  max-width: 440px;
+}
+.onb-field__label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 7px;
+}
+.onb-field__label-aside {
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
+  font-family: var(--serif);
+}
+.onb-field__input {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: 19px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 7px 2px;
+  outline: none;
+  transition: border-color 0.25s var(--ease);
+}
+.onb-field__input::placeholder {
+  color: var(--muted-2);
+  font-style: italic;
+}
+.onb-field__input:focus {
+  border-bottom-color: var(--cinnabar);
+}
+.onb-field__hint {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.onb-field__error {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--cinnabar);
+  margin-top: 8px;
+}
+
+.onb-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 30px;
+}
+
+/* Onboarding's primary CTA — square, hairline ink border, inverts to
+   accent on hover. Distinct from the DS Button so the printed-menu
+   chrome stays tactile (no rounded corners, no halo). */
+.onb-btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 11px 22px;
+  border-radius: 0;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--card);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease),
+    border-color 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+.onb-btn:hover {
+  background: var(--cinnabar);
+  border-color: var(--cinnabar);
+  color: #fff;
+}
+.onb-btn:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+}
+.onb-btn:disabled:hover {
+  background: var(--ink);
+  color: var(--card);
+  border-color: var(--ink);
+}
+
+/* Underline-grow link button — used by the "Skip" affordance on the
+   step-2 wizard chrome. */
+.onb-linkbtn {
+  background: none;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 2px;
+  position: relative;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
+}
+.onb-linkbtn:hover { color: var(--ink); }
+.onb-linkbtn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: 2px;
+  height: 1px;
+  background: var(--cinnabar);
+  transition: right 0.25s var(--ease);
+}
+.onb-linkbtn:hover::after { right: 0; }
+
+/* Quiet italic line below the card — under-the-fold context. */
+.onb-undernote {
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 22px auto 0;
+  max-width: 520px;
+}
+
+/* Strip the default Card paint so the PaperCard frame owns the visual
+   treatment when the wizard renders inside it. */
+.onb-wizard-mount > .ds-card,
+.onb-wizard-mount [data-test-id="menu-import-wizard"] {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+@media (max-width: 620px) {
+  .onb-lede h1 { font-size: 25px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-field__input,
+  .onb-btn,
+  .onb-linkbtn,
+  .onb-linkbtn::after { transition: none; }
+}

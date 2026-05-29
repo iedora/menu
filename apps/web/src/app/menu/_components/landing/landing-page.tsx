@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Badge, LangSwitcher, type LangOption, Nav, NavActions, NavBrand, PageProgress, Wordmark } from "@iedora/design-system";
-import { BRAND_NAME, BRAND_URL, CONTACT_EMAIL, PRODUCTS, productUrl } from '@iedora/brand';
+import { BRAND_NAME, brandUrl, CONTACT_EMAIL, PRODUCTS, productUrl } from '@iedora/brand';
 import { signInUrl, signUpUrl } from '@iedora/product-core/url';
 import "./landing.css";
 
@@ -85,7 +85,7 @@ const COPY: Record<LangCode, Copy> = {
       h: "Put your menu online this afternoon.",
       ctaPrimary: "Bring your menu over",
     },
-    footer: { left: ["Menu · an ", { text: BRAND_NAME, href: BRAND_URL }, " product · made in Lisbon"], contact: CONTACT_EMAIL },
+    footer: { left: ["Menu · an ", { text: BRAND_NAME, href: brandUrl() }, " product · made in Lisbon"], contact: CONTACT_EMAIL },
     editor: { title: "Menu", restaurant: "Restaurant", item: "Item name", desc: "Description", section: "Section", price: "Price (€)", publish: "⌘ S to save", live: "live", add: "+ add item" },
     phone: { eyebrow: "at the table", live: "updated just now" },
   },
@@ -121,7 +121,7 @@ const COPY: Record<LangCode, Copy> = {
       h: "Coloque a carta online esta tarde.",
       ctaPrimary: "Traga a sua carta",
     },
-    footer: { left: ["Menu · um produto ", { text: BRAND_NAME, href: BRAND_URL }, " · feito em Lisboa"], contact: CONTACT_EMAIL },
+    footer: { left: ["Menu · um produto ", { text: BRAND_NAME, href: brandUrl() }, " · feito em Lisboa"], contact: CONTACT_EMAIL },
     editor: { title: "Carta", restaurant: "Restaurante", item: "Nome do prato", desc: "Descrição", section: "Secção", price: "Preço (€)", publish: "⌘ S para guardar", live: "ao vivo", add: "+ adicionar" },
     phone: { eyebrow: "à mesa", live: "actualizado agora" },
   },
@@ -157,7 +157,7 @@ const COPY: Record<LangCode, Copy> = {
       h: "Pon tu carta online esta tarde.",
       ctaPrimary: "Trae tu carta",
     },
-    footer: { left: ["Menu · un producto ", { text: BRAND_NAME, href: BRAND_URL }, " · hecho en Lisboa"], contact: CONTACT_EMAIL },
+    footer: { left: ["Menu · un producto ", { text: BRAND_NAME, href: brandUrl() }, " · hecho en Lisboa"], contact: CONTACT_EMAIL },
     editor: { title: "Carta", restaurant: "Restaurante", item: "Nombre del plato", desc: "Descripción", section: "Sección", price: "Precio (€)", publish: "⌘ S para guardar", live: "en vivo", add: "+ añadir" },
     phone: { eyebrow: "à mesa", live: "actualizado ahora" },
   },
@@ -193,7 +193,7 @@ const COPY: Record<LangCode, Copy> = {
       h: "Mettez votre carte en ligne cet après-midi.",
       ctaPrimary: "Apportez votre carte",
     },
-    footer: { left: ["Menu · un produit ", { text: BRAND_NAME, href: BRAND_URL }, " · fait à Lisbonne"], contact: CONTACT_EMAIL },
+    footer: { left: ["Menu · un produit ", { text: BRAND_NAME, href: brandUrl() }, " · fait à Lisbonne"], contact: CONTACT_EMAIL },
     editor: { title: "Carte", restaurant: "Restaurant", item: "Nom du plat", desc: "Description", section: "Section", price: "Prix (€)", publish: "⌘ S pour enregistrer", live: "en direct", add: "+ ajouter" },
     phone: { eyebrow: "à mesa", live: "mis à jour à l'instant" },
   },

@@ -1,26 +1,28 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Button, Wordmark } from '@iedora/design-system'
+import { DottedStepper, Masthead, OrnamentRule, PaperCard, Stage } from '@iedora/design-system'
 import { MenuImportWizard } from '../../menu-import/ui/menu-import-wizard'
-import { OnboardingStepper } from './onboarding-stepper'
 
 /**
- * Onboarding step that lives just after the restaurant has been
- * created. Hosts the AI menu-import wizard inline — no dialog — and
- * a "Skip" escape hatch so operators who'd rather curate the menu
- * by hand can move on to /dashboard immediately.
+ * Step 2 chrome — paper-card masthead + dotted stepper + ornament,
+ * then the AI import wizard inline plus a Skip escape hatch.
  *
- * Mobile-first: a single-column composition centred in `ds-shell`.
- * Editorial chrome (wordmark + serif eyebrow + paragraph) lifted from
- * the existing `/onboarding` page so the two steps feel like one
- * continuous flow.
+ * All page chrome (Stage, PaperCard, Masthead, OrnamentRule,
+ * DottedStepper) comes from @iedora/design-system primitives so the
+ * onboarding flow stays in lockstep with every other paper-card
+ * surface. What's left here is the slice's own composition: the lede
+ * copy, the wizard mount with its CSS override, the Skip linkbtn,
+ * and the undernote.
+ *
+ * Form-specific classes (`onb-lede`, `onb-wizard-mount`, `onb-linkbtn`,
+ * `onb-undernote`) live in `apps/web/src/app/menu/onboarding/onboarding.css`
+ * — imported by the route entry that renders this component.
  *
  * Success path: `<MenuImportWizard onImported />` fires once the menu
  * has been persisted; we redirect straight to `/dashboard` (instead of
- * the menu builder, which would push the user back into a chrome they
+ * the menu builder, which would push the operator into a chrome they
  * haven't seen yet).
  */
 export function MenuOnboardingPage({
@@ -37,12 +39,12 @@ export function MenuOnboardingPage({
    * (Skip + AI import). The route entry passes the server action
    * that flips `restaurant.onboarding_completed_at` so the resume
    * gate at `/menu/onboarding` stops bouncing this user back into
-   * the wizard. Optional so the slice's existing unit tests keep
-   * working without a fake.
+   * the wizard. Optional so unit tests keep working without a fake.
    */
   onComplete?: () => Promise<void>
 }) {
-  const t = useTranslations('Onboarding.menu')
+  const t = useTranslations('Onboarding')
+  const tMenu = useTranslations('Onboarding.menu')
   const router = useRouter()
 
   async function goToDashboard() {
@@ -51,8 +53,8 @@ export function MenuOnboardingPage({
         await onComplete()
       } catch (err) {
         // Best-effort: a flag-write failure must not block the
-        // redirect. The user gets a stale resume bounce next time
-        // at worst; surface in the console so operators see it.
+        // redirect. The operator gets a stale resume bounce next
+        // time at worst; surface in the console for ops visibility.
         console.error('[menu-onboarding] markComplete failed', err)
       }
     }
@@ -61,51 +63,30 @@ export function MenuOnboardingPage({
   }
 
   return (
-    <div
-      className="flex min-h-screen flex-col bg-[var(--paper)]"
-      data-test-id="menu-onboarding-page"
-    >
-      <main className="ds-shell flex flex-1 justify-center pb-12 pt-[max(2rem,env(safe-area-inset-top))] sm:pb-16 sm:pt-16">
-        <div className="w-full max-w-[680px] space-y-8 sm:space-y-10">
-          <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
-            <Link
-              href="/"
-              className="inline-flex items-baseline no-underline"
-              aria-label="Menu home"
-              data-test-id="menu-onboarding-brand-link"
-            >
-              <Wordmark
-                word="menu"
-                variant="display"
-                className="ds-wordmark--reveal text-[44px] sm:text-[length:var(--t-display)]"
-              />
-            </Link>
-            <span
-              className="text-[17px] italic text-[var(--ink-70)]"
-              style={{ fontFamily: 'var(--serif)' }}
-              data-test-id="menu-onboarding-eyebrow"
-            >
-              {t('eyebrow')}
-            </span>
-            <OnboardingStepper current="menu" />
-          </div>
+    <Stage data-test-id="menu-onboarding-page">
+      <PaperCard data-test-id="menu-onboarding-card">
+        <Masthead course={tMenu('eyebrow')} />
+        <DottedStepper
+          steps={[
+            { key: 'name', index: 1, label: t('steps.name') },
+            { key: 'menu', index: 2, label: t('steps.menu') },
+          ]}
+          currentKey="menu"
+          ariaLabel={t('steps.label')}
+          counterLabel={t('steps.counter', { index: 2, total: 2 })}
+          testId="menu-onboarding-stepper"
+          stepTestId={(key) => `menu-onboarding-stepper-step-${key}`}
+        />
+        <OrnamentRule fleuron="❧" />
 
-          <div className="space-y-3 text-center">
-            <h1
-              className="text-3xl text-[var(--ink)]"
-              style={{ fontFamily: 'var(--serif)' }}
-              data-test-id="menu-onboarding-title"
-            >
-              {t('title')}
-            </h1>
-            <p
-              className="mx-auto max-w-prose text-sm text-[var(--ink-70)]"
-              data-test-id="menu-onboarding-subtitle"
-            >
-              {t('subtitle')}
-            </p>
-          </div>
+        <div className="onb-lede">
+          <h1 data-test-id="menu-onboarding-title">{tMenu('title')}</h1>
+          <p data-test-id="menu-onboarding-subtitle">
+            {tMenu('subtitle')} <em>{tMenu('subtitleAside')}</em>
+          </p>
+        </div>
 
+        <div className="onb-wizard-mount">
           <MenuImportWizard
             slug={slug}
             restaurantId={restaurantId}
@@ -113,25 +94,25 @@ export function MenuOnboardingPage({
             offerSetDefaultLanguage
             onImported={goToDashboard}
             extraActions={
-              <Button
+              <button
                 type="button"
-                variant="ghost"
+                className="onb-linkbtn"
                 onClick={goToDashboard}
                 data-test-id="menu-onboarding-skip"
               >
-                {t('skip')}
-              </Button>
+                {tMenu('skip')}
+              </button>
             }
           />
-
-          <p
-            className="text-center text-xs text-[var(--ink-55)]"
-            data-test-id="menu-onboarding-skip-hint"
-          >
-            {t('skipHint')}
-          </p>
         </div>
-      </main>
-    </div>
+
+        <p
+          className="onb-undernote"
+          data-test-id="menu-onboarding-skip-hint"
+        >
+          {tMenu('skipHint')}
+        </p>
+      </PaperCard>
+    </Stage>
   )
 }

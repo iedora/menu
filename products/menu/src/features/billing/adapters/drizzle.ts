@@ -1,11 +1,11 @@
 import 'server-only'
-import { listTenantInvoices } from '@iedora/core-billing'
+import { listTenantInvoices } from '@iedora/billing'
 import { PRODUCTS } from '@iedora/brand'
 import type { BillingReadPort } from '../ports'
 import type { PlanCode } from '../../plans'
 
 /**
- * Production BillingReadPort. Delegates to `@iedora/core-billing` (which
+ * Production BillingReadPort. Delegates to `@iedora/billing` (which
  * owns the cross-product `core.invoice` table) filtered by
  * `product='menu'`. Year aggregation is done in-process from the
  * issued_at timestamps — the volume is tiny (years per tenant) and

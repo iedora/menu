@@ -1,0 +1,122 @@
+/*
+ * @iedora/design-system — design tokens
+ *
+ * The canonical names mirror Iedora Manual § III–V exactly: --paper, --ink,
+ * --cinnabar, --t-*, --s-*, --lh-*, etc. Copy-paste the variable into your
+ * code, never the hex; that way a manual update lands in one place.
+ *
+ * The Manual is the source of truth. The package mirrors. Aliases under the
+ * --ds-* prefix exist only for code from earlier in the rebrand transition;
+ * new code should use the unprefixed names.
+ */
+
+:where(:root) {
+  /* ── Surface ─── printed-menu paper, half a shade warmer ──── */
+  --paper:           #EFE7D7;
+  --paper-2:         #E7DEC9;
+  --paper-3:         #DDD3BF;
+  --card:            #F7F1E4;
+  --card-2:          #F2EBDB;
+
+  /* ── Ink ───────────────────────────────────────────────────── */
+  --ink:             #1C1A15;
+  --ink-2:           #2C2922;
+  --ink-85:          rgba(28, 26, 21, 0.85);
+  --ink-70:          rgba(28, 26, 21, 0.70);
+  --ink-55:          rgba(28, 26, 21, 0.55);
+  --ink-40:          rgba(28, 26, 21, 0.40);
+  --ink-22:          rgba(28, 26, 21, 0.22);
+  --ink-14:          rgba(28, 26, 21, 0.14);
+  --ink-08:          rgba(28, 26, 21, 0.08);
+  --ink-04:          rgba(28, 26, 21, 0.04);
+
+  /* ── Muted greige — label + meter colour ──────────────────── */
+  --muted:           #8A8270;
+  --muted-2:         #A89E88;
+
+  /* ── Rule — hairline frame colour, distinct from --ink-14 ─── */
+  --rule:            #D4C9B0;
+  --rule-2:          #E0D7C1;
+
+  /* ── Accent ── clay-red used once per screen, never as decoration */
+  --cinnabar:        #A83A26;
+  --cinnabar-deep:   #8A2F1F;
+  --cinnabar-08:     rgba(168, 58, 38, 0.08);
+  --cinnabar-16:     rgba(168, 58, 38, 0.16);
+
+  /* Optional second hue — only on dashboards (success / "live"). */
+  --green:           #5A6B46;
+
+  /* ── Type ── three faces of the printed-menu vocabulary ────
+     --display  Playfair 600 — wordmark, h1
+     --serif    Lora italic  — eyebrows, course voice, copy
+     --sans     Geist        — UI controls, body
+     --mono     Geist Mono   — labels, step counter, meta
+     Loaded via next/font in apps/web/src/app/layout.tsx; the names
+     below are the fallbacks the design-system ships with. */
+  --display:         "Playfair Display", Georgia, serif;
+  --serif:           "Lora", Georgia, serif;
+  --sans:            "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono:            "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ── Type scale ────────────────────────────────────────────── */
+  --t-2xs:           10.5px;
+  --t-xs:            11px;
+  --t-sm:            13px;
+  --t-md:            15px;
+  --t-lg:            16.5px;
+  --t-xl:            21px;
+  --t-2xl:           30px;
+  --t-3xl:           48px;
+  --t-4xl:           80px;
+  --t-5xl:           144px;
+  --t-display:       clamp(120px, 18vw, 232px);
+
+  /* ── Leading ───────────────────────────────────────────────── */
+  --lh-tight:        0.94;
+  --lh-snug:         1.15;
+  --lh-body:         1.55;
+  --lh-prose:        1.6;
+
+  /* ── Spacing (4-pixel baseline) ───────────────────────────── */
+  --s-0:             0;
+  --s-1:             4px;
+  --s-2:             8px;
+  --s-3:             12px;
+  --s-4:             16px;
+  --s-5:             22px;
+  --s-6:             28px;
+  --s-7:             36px;
+  --s-8:             48px;
+  --s-9:             64px;
+  --s-10:            88px;
+  --s-11:            120px;
+  --s-12:            160px;
+
+  /* ── Layout ────────────────────────────────────────────────── */
+  --gutter:          24px;
+  /* Horizontal page gutter. Scales with viewport so the same token
+     keeps every iedora product aligned from 320px phones up to 1320px
+     desktops without per-breakpoint media queries in consumer CSS. */
+  --margin:          clamp(20px, 4.4vw, 56px);
+  --container:       1320px;
+  --measure:         56ch;
+
+  /* ── Stroke ────────────────────────────────────────────────── */
+  --hairline:        1px;
+  --rule-line:       1.5px;
+  --thick:           2px;
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  --ease:            cubic-bezier(.2, .7, .2, 1);
+  --ease-soft:       cubic-bezier(.4, .0, .2, 1);
+  --ease-open:       cubic-bezier(.16, .84, .26, 1);
+  --ease-close:      cubic-bezier(.55, 0, .35, 1);
+  --d-1:             120ms;
+  --d-2:             240ms;
+  --d-3:             360ms;
+  --d-4:             600ms;
+  --d-5:             900ms;
+  --d-6:             1400ms;
+
+}

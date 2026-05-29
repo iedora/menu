@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Wordmark } from '@iedora/design-system'
+import { PRODUCTS, productUrl } from '@iedora/brand'
 
 /**
  * iedora.com — the brand landing page. `proxy.ts` rewrites the apex
@@ -18,9 +19,9 @@ export const metadata: Metadata = {
 }
 
 const contactEmail = 'hi@iedora.com'
-const menuUrl = 'https://menu.iedora.com'
 
 export default function HouseLanding() {
+  const menuUrl = productUrl(PRODUCTS.menu)
   return (
     <main className="ds-shell" id="top">
       <header className="ds-hero" data-test-id="house-hero">

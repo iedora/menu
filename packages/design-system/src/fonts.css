@@ -1,9 +1,0 @@
-/*
- * Optional: load Fraunces + JetBrains Mono from Google Fonts.
- *
- * For Next.js apps, prefer next/font and override --ds-serif / --ds-mono
- * to point at the next/font variable. Use this file from plain HTML or
- * when self-hosting fonts isn't worth the effort.
- */
-
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap");

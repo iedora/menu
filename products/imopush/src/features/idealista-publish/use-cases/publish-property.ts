@@ -8,6 +8,7 @@ const inputSchema = z.object({
 
 export async function publishProperty(
   deps: { publisher: IdealistaPublisher; store: PublishStore },
+  tenantId: string,
   raw: unknown,
 ): Promise<PublishResult> {
   const parsed = inputSchema.safeParse(raw)
@@ -16,22 +17,22 @@ export async function publishProperty(
   }
   const { reference } = parsed.data
 
-  const property = await deps.store.getProperty(reference)
+  const property = await deps.store.getProperty(tenantId, reference)
   if (!property) return { ok: false, error: `Propriedade não encontrada: ${reference}` }
 
-  await deps.store.upsertIdealistaStatus(reference, { state: 'publishing' })
+  await deps.store.upsertIdealistaStatus(tenantId, reference, { state: 'publishing' })
 
   const result = await deps.publisher.publish(property)
 
   if (!result.ok) {
-    await deps.store.upsertIdealistaStatus(reference, {
+    await deps.store.upsertIdealistaStatus(tenantId, reference, {
       state: 'failed',
       lastError: result.error,
     })
     return { ok: false, error: result.error }
   }
 
-  await deps.store.upsertIdealistaStatus(reference, {
+  await deps.store.upsertIdealistaStatus(tenantId, reference, {
     state: 'published',
     publishedAt: new Date(),
     publishedUrl: result.publishedUrl,

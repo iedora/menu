@@ -10,23 +10,13 @@
  */
 
 import { describe, expect, it, vi } from 'vitest'
-import { _kimiConfig, createKimiAdapter } from './ai-kimi'
+import { createKimiAdapter } from './ai-kimi'
 
 vi.mock('server-only', () => ({}))
 
-describe('Kimi adapter · configuration', () => {
-  it('points at Moonshot international (api.moonshot.ai/v1)', () => {
-    expect(_kimiConfig.baseURL).toBe('https://api.moonshot.ai/v1')
-  })
-
-  it('targets the 32k vision-preview model (text-only models reject image parts)', () => {
-    expect(_kimiConfig.model).toBe('moonshot-v1-32k-vision-preview')
-  })
-
-  it('budgets 8192 output tokens so full menus fit without truncation', () => {
-    expect(_kimiConfig.maxOutputTokens).toBe(8192)
-  })
-})
+// Vendor wiring (base URL, model id, env var) lives in `@iedora/ai/kimi`
+// and is tested there. This file owns only the menu-import-specific
+// construction contract.
 
 describe('Kimi adapter · construction', () => {
   it('builds an adapter that exposes the `ImageAnalysisPort` shape', () => {
@@ -39,7 +29,7 @@ describe('Kimi adapter · construction', () => {
     const adapter = createKimiAdapter({ apiKey: undefined })
     expect(typeof adapter.parseMenuFromImage).toBe('function')
     expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('KIMI_GENERATIVE_AI_API_KEY is missing'),
+      expect.stringContaining('MOONSHOT_API_KEY is missing'),
     )
     warn.mockRestore()
   })

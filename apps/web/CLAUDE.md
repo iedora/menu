@@ -14,10 +14,10 @@ Repo-level conventions: [`../../AGENTS.md`](../../AGENTS.md).
   dispatcher (`proxy.ts`) + every Next.js route under `src/app/`
   (pages, route handlers, server actions, layouts). The routes
   compose slice barrels from `@iedora/product-menu`,
-  `@iedora/product-core`, `@iedora/core-auth`, etc.
+  `@iedora/product-core`, `@iedora/auth`, etc.
 - **It is not** where slices, use-cases, ports, adapters, drizzle
   schema, or AI prompts live. Those belong in their owning workspace
-  package (`products/menu/src/features/`, `packages/core-auth/src/`, …).
+  package (`products/menu/src/features/`, `packages/business/auth/src/`, …).
 
 ## Hard rules
 
@@ -95,10 +95,10 @@ apps/web/
 - `bun run lint` — ESLint (`next` recommended).
 
 Real tests live with the products: `bun run --cwd products/menu test` /
-`test:e2e`, `bun run --cwd packages/core-auth test`, etc.
+`test:e2e`, `bun run --cwd packages/business/auth test`, etc.
 
 ## Deployable artefact
 
-Workflow `.gitea/workflows/deploy.yml` dispara `ssh root@beelink kamal
-deploy` em push a main; Kamal faz build remoto + push para
-`git.iedora.com/eduvhc/web:<sha>` + blue-green swap.
+Mac-driven via `bun run deploy`: Kamal builda amd64 local + push para
+`ghcr.io/eduvhc/iedora-web:<sha>` + SSH ao Beelink + blue-green swap
+(ver `docs/runbook.deploy.md`).
