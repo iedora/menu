@@ -20,7 +20,7 @@
     "typecheck": "bun run scripts/run-parallel.mjs typecheck",
     "lint": "bun run scripts/run-parallel.mjs lint",
     "test": "bun run --workspaces test",
-    "postinstall": "[ -n \"${CI:-}\" ] && exit 0; mkdir -p .git/hooks && cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && cp scripts/git-hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/pre-commit .git/hooks/commit-msg && echo '✓ git hooks installed (pre-commit: actionlint+shellcheck on .github/workflows/, commit-msg: conventional)' || true"
+    "postinstall": "[ -n \"${CI:-}\" ] && exit 0; mkdir -p .git/hooks && cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && cp scripts/git-hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/pre-commit .git/hooks/commit-msg && echo '✓ git hooks installed (pre-commit: actionlint on .github/workflows/, commit-msg: conventional)' || true"
   },
   "catalog": {
     "drizzle-orm": "^0.45.2",

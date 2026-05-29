@@ -1,6 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
-import { coreAuthGateway } from './adapters/core-auth'
+import { authGateway } from './adapters/auth'
 import { verifySession as _verifySession } from './use-cases/verify-session'
 import { getEffectiveOrganizationId as _getEffectiveOrganizationId } from './use-cases/get-effective-organization-id'
 import { requireActiveOrganization as _requireActiveOrganization } from './use-cases/require-active-organization'
@@ -11,16 +11,16 @@ import { requireActiveOrganization as _requireActiveOrganization } from './use-c
  * render hit the wire once.
  */
 
-export const getSession = cache(() => coreAuthGateway.getSession())
+export const getSession = cache(() => authGateway.getSession())
 
-export const verifySession = cache(() => _verifySession(coreAuthGateway))
+export const verifySession = cache(() => _verifySession(authGateway))
 
 export const getEffectiveOrganizationId = cache(() =>
-  _getEffectiveOrganizationId(coreAuthGateway),
+  _getEffectiveOrganizationId(authGateway),
 )
 
 export const requireActiveOrganization = cache(() =>
-  _requireActiveOrganization(coreAuthGateway),
+  _requireActiveOrganization(authGateway),
 )
 
 export type { AuthGateway, Session } from './ports'

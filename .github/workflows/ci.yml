@@ -1,44 +1,48 @@
-# Pipeline — 3 jobs para correctness + security.
+# Pipeline mínimo — 3 jobs com path-based change detection.
 # Deploy é Mac-driven (`bun run deploy`) — sem job de deploy aqui.
 #
-#   changes → path filter (output `code`)        [PR + push main + dispatch]
-#   ci      → correctness (typecheck/lint/test)  [needs code=true; skip cron]
-#   audit   → security    (gitleaks/hadolint/osv) [PR + push main + dispatch + cron]
+#   changes      → detecta o que mudou (code / docker)
+#   correctness  → typecheck + lint + test (só se code mudou)
+#   security     → gitleaks + hadolint + osv-scanner (sempre em PR/push/cron)
 #
-# `code` = .ts/.tsx/.js/.mjs/.cjs, package.json, bun.lock,
-#         tsconfig*, vitest.config*, eslint.config*
+# Cron weekly só corre `security` (changes/correctness skipam via `if:`)
+# — apanha CVEs novas sem precisar de push.
 #
-# NÃO accionam ci (apenas `audit` corre):
-#   docs/**, *.md, AGENTS.md, .gitignore,
-#   .github/workflows/**, .github/audit/**,
-#   infra/**
-#
-# `audit` corre sempre — gitleaks scan histórico, secrets podem aparecer
-# em docs também. Cron weekly só corre `audit` (skip ci via `if:`) — CVE
-# database refresca-se sem push.
+# Action pins (Node 24 runtime — Node 20 deprecação rolling 2026):
+#   actions/checkout@v6.0.2       (2026-01-09)
+#   oven-sh/setup-bun@v2.2.0      (2026-03-14, auto-cacha ~/.bun/install/cache)
+#   dorny/paths-filter@v4.0.1     (2026-03-17)
+#   hadolint/hadolint-action@v3.3.0
+#   gitleaks 8.30.1, osv-scanner 2.3.8
 
-name: Pipeline
+name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
-  workflow_dispatch:
   schedule:
-    - cron: '0 6 * * 1'  # Segunda 06:00 UTC — pesca CVEs novas
+    - cron: '0 6 * * 1'  # Segunda 06:00 UTC
+
+permissions:
+  contents: read
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Path filter. `correctness` gate-iza em `code`. `security` ignora.
+  # ─────────────────────────────────────────────────────────────────
   changes:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      code: ${{ steps.f.outputs.code }}
+      docker: ${{ steps.f.outputs.docker }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 2
-      - id: filter
-        uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4.0.1
+        id: f
         with:
           filters: |
             code:
@@ -52,69 +56,68 @@ jobs:
               - '**/tsconfig*.json'
               - '**/vitest.config.*'
               - '**/eslint.config.*'
+            docker:
+              - '**/Dockerfile'
 
-  ci:
+  # ─────────────────────────────────────────────────────────────────
+  # typecheck + lint + test. setup-bun@v2.2 auto-cacha
+  # ~/.bun/install/cache — sem actions/cache manual.
+  # ─────────────────────────────────────────────────────────────────
+  correctness:
     needs: changes
-    if: github.event_name != 'schedule' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true')
+    if: needs.changes.outputs.code == 'true'
     concurrency:
-      group: ci-${{ github.ref }}
+      group: correctness-${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v6.0.2
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: '1.3'
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
 
-      - name: Install workspace deps
-        run: bun install --frozen-lockfile
-
-      - name: typecheck (all workspaces, paralelo, tsgo)
-        run: bun run typecheck
-
-      - name: lint (all workspaces, paralelo, eslint)
-        run: bun run lint
-
-      - name: test (all workspaces, sequencial, vitest internamente paraleliza)
-        run: bun run test
-
-  audit:
+  # ─────────────────────────────────────────────────────────────────
+  # gitleaks (history scan) + hadolint (Dockerfile lint) + osv-scanner
+  # (lockfile CVEs). hadolint-action emite annotations natively; OSV
+  # usa gh-annotations format. Gitleaks binário evita o
+  # GITLEAKS_LICENSE da action oficial (gated em repos de org).
+  # ─────────────────────────────────────────────────────────────────
+  security:
     concurrency:
-      group: audit-${{ github.ref }}
+      group: security-${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GITLEAKS_VERSION: 8.30.1
-      HADOLINT_VERSION: 2.14.0
       OSV_VERSION: 2.3.8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         with:
-          # gitleaks varre commits — precisa do histórico completo.
-          fetch-depth: 0
+          fetch-depth: 0  # gitleaks varre todo o histórico
 
-      - uses: oven-sh/setup-bun@v2
+      - name: gitleaks
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          ./gitleaks detect \
+            --baseline-path .gitleaks-baseline.json \
+            --redact --verbose --no-banner --exit-code 1
+
+      - name: hadolint
+        uses: hadolint/hadolint-action@v3.3.0
         with:
-          bun-version: '1.3'
+          dockerfile: apps/web/Dockerfile
+          failure-threshold: error  # warnings anotam, não bloqueiam
 
-      - name: Cache audit binaries
-        uses: actions/cache@v4
-        with:
-          path: /opt/audit-bin
-          key: audit-${{ env.GITLEAKS_VERSION }}-${{ env.HADOLINT_VERSION }}-${{ env.OSV_VERSION }}
-
-      - name: Install audit binaries (cache miss only)
-        shell: bash
-        run: sudo .github/audit/install-tools.sh
-
-      - name: gitleaks (secret scan — full history, baseline-filtered)
-        run: /opt/audit-bin/gitleaks detect --baseline-path .gitleaks-baseline.json --redact --verbose --no-banner --exit-code 1
-
-      - name: hadolint (Dockerfile lint)
-        run: .github/audit/run-hadolint.sh apps/web/Dockerfile
-
-      - name: osv-scanner (lockfile CVEs)
-        run: /opt/audit-bin/osv-scanner --lockfile=bun.lock --format gh-annotations
+      - name: osv-scanner
+        run: |
+          curl -fsSL -o osv-scanner \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          chmod +x osv-scanner
+          ./osv-scanner --lockfile=bun.lock --format gh-annotations

@@ -5,7 +5,7 @@ import { setupIntegrationStack } from '@iedora/testing-integration'
 
 /**
  * Vitest globalSetup for the menu integration suite. Boots one shared
- * Postgres + MinIO via testcontainers, runs core-auth + menu Drizzle
+ * Postgres + MinIO via testcontainers, runs auth + menu Drizzle
  * migrations against the `core` and `menu` databases, then exports the
  * connection strings into `process.env` so every test process inherits
  * them (Vitest spawns worker processes with the parent's env).

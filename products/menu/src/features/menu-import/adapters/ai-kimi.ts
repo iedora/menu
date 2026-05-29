@@ -19,6 +19,7 @@ import {
   mapAIResponseToParsedMenu,
   MenuOutputSchema,
   MenuPatchSchema,
+  normalizePatchOperations,
   PATCH_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
   USER_PROMPT,
@@ -125,7 +126,7 @@ export function createKimiAdapter(
       return {
         language: object.language,
         currency: object.currency,
-        operations: object.operations,
+        operations: normalizePatchOperations(object.operations),
       }
     } catch (err) {
       console.error('[menu-import/ai-kimi] PATCH call failed', err)

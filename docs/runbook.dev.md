@@ -30,7 +30,7 @@ Reset volumes: `bun run dev:reset`. Logs: `bun run dev:logs`.
 | `bun run dev:down` | Pára containers (mantém volumes). |
 | `bun run dev:logs` | Tail dos logs do compose stack. |
 | `bun run dev:reset` | Pára + apaga volumes (**perde dados locais**). |
-| `bun run dev:migrate` | Aplica Drizzle migrations em sequência: `core-auth` → `menu` → `imopush`. |
+| `bun run dev:migrate` | Aplica Drizzle migrations em sequência: `auth` → `menu` → `imopush`. |
 | `bun run typecheck` | TS check paralelo em todos os workspaces. |
 | `bun run lint` | ESLint paralelo em todos os workspaces. |
 | `bun run test` | Vitest em todos os workspaces. |

@@ -25,6 +25,6 @@ async function readSession(): Promise<Session | null> {
   }
 }
 
-export const coreAuthGateway: AuthGateway = {
+export const authGateway: AuthGateway = {
   getSession: readSession,
 }

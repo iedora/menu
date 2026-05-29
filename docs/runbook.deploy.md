@@ -76,7 +76,7 @@ bun run kamal deploy                            # = kamal -c infra/live/kamal/de
 sub-comando Kamal (`logs`, `app exec`, `rollback`, `proxy reboot`, etc) usa o mesmo prefixo.
 
 `KAMAL_VERSION` = git SHA. Pre-deploy hook (`.kamal/hooks/pre-deploy`)
-corre as 3 drizzle migrations (`core-auth` → `menu` → `imopush`) num
+corre as 3 drizzle migrations (`auth` → `menu` → `imopush`) num
 container efémero antes do swap. Falha aborta o deploy.
 
 ## Rollback

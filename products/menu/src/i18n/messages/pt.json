@@ -215,7 +215,7 @@
     "updateMenuUploadPhotoHint": "JPEG, PNG ou WebP · até 10 MB",
     "updateMenuUnsupportedType": "Use uma imagem JPEG, PNG ou WebP.",
     "updateMenuTooLarge": "Essa foto tem mais de 10 MB. Tente uma mais pequena.",
-    "updateMenuAiError": "Tivemos dificuldade em ler esta foto. Tente outra com melhor iluminação.",
+    "updateMenuAiError": "Não conseguimos ler bem esta foto. Tire outra com a ementa a preencher o ecrã, com boa luz e sem reflexos — depois tente de novo.",
     "updateMenuBuilding1": "A olhar para a sua foto…",
     "updateMenuBuilding2": "A comparar com a sua ementa…",
     "updateMenuBuilding3": "A identificar as alterações…",

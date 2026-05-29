@@ -15,7 +15,7 @@
  */
 import 'server-only'
 import { z } from 'zod'
-import type { ParseMenuErrorCode, ParseMenuResult } from '../ports'
+import type { ParseMenuErrorCode, ParseMenuResult, PatchOperation } from '../ports'
 
 // ── Schema ────────────────────────────────────────────────────────────────
 
@@ -114,75 +114,120 @@ export type MenuOutput = z.infer<typeof MenuOutputSchema>
 // ── PATCH-mode schema ─────────────────────────────────────────────────────
 
 /**
- * Token-efficient diff format. The AI sees the current menu + a fresh
- * photo and returns ONLY the operations needed to bring the menu in
- * line with the photo. Items that are unchanged don't appear anywhere.
+ * Flat (non-discriminated) op schema. We previously used
+ * `z.discriminatedUnion('kind', […])` which compiles to JSON Schema
+ * `oneOf` with per-variant required field sets. Moonshot's
+ * openai-compatible structured-outputs mode silently rewrites that into
+ * an object-keyed shape (`{"add-category": {…}}` instead of
+ * `{kind: "add-category", …}`) — the spec drift surfaced as a Zod
+ * "Invalid discriminator" error at runtime.
+ *
+ * Flat shape: single object with `kind` as a string enum plus every
+ * possible field as optional. Provider only has to fill the slots it
+ * uses. We re-validate kind-vs-fields ourselves in the adapter and
+ * narrow to the strict `PatchOperation` union before returning.
  */
-const PatchOperationAISchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('add-category'),
-    name: z.string().describe('Name of the new category as printed on the menu.'),
-    items: z
-      .array(
-        z.object({
-          name: z.string(),
-          priceCents: z.number().int().min(0).default(0),
-          description: z.string().optional(),
-        }),
-      )
-      .default([]),
-  }),
-  z.object({
-    kind: z.literal('remove-category'),
-    categoryId: z.string().describe('id of an existing category to drop.'),
-  }),
-  z.object({
-    kind: z.literal('rename-category'),
-    categoryId: z.string(),
-    name: z.string(),
-  }),
-  z.object({
-    kind: z.literal('add-item'),
-    categoryId: z
-      .string()
-      .nullable()
-      .describe(
-        'id of the existing category this item belongs to. Pass null and ' +
-          'set `categoryName` when the parent is a category you just added ' +
-          'in an `add-category` op.',
-      ),
-    categoryName: z.string().optional(),
-    name: z.string(),
-    priceCents: z.number().int().min(0).default(0),
-    description: z.string().optional(),
-  }),
-  z.object({
-    kind: z.literal('update-item'),
-    itemId: z.string().describe('id of an existing item to modify.'),
-    name: z.string().optional(),
-    priceCents: z.number().int().min(0).optional(),
-    description: z.string().optional(),
-  }),
-  z.object({
-    kind: z.literal('remove-item'),
-    itemId: z.string().describe('id of an existing item to drop.'),
-  }),
-])
+const PATCH_OP_KINDS = [
+  'add-category',
+  'remove-category',
+  'rename-category',
+  'add-item',
+  'update-item',
+  'remove-item',
+] as const
+
+const PatchOperationAISchema = z.object({
+  kind: z
+    .enum(PATCH_OP_KINDS)
+    .describe(
+      'The operation kind. MUST be one of: ' + PATCH_OP_KINDS.join(', '),
+    ),
+  name: z
+    .string()
+    .optional()
+    .describe(
+      'For add-category / rename-category: the category name. ' +
+        'For add-item / update-item: the item name.',
+    ),
+  items: z
+    .array(
+      z.object({
+        name: z.string(),
+        priceCents: z.number().int().min(0).default(0),
+        description: z.string().optional(),
+      }),
+    )
+    .optional()
+    .describe('Only for add-category: the items inside the new section.'),
+  categoryId: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      'Existing category id. Required for remove-category, rename-category. ' +
+        'For add-item: the existing parent category id, or null when the parent ' +
+        'is a brand-new category from an add-category op (then also set ' +
+        '`categoryName`).',
+    ),
+  categoryName: z
+    .string()
+    .optional()
+    .describe(
+      'Only for add-item when `categoryId` is null — the name of the new ' +
+        'category this item belongs to.',
+    ),
+  itemId: z
+    .string()
+    .optional()
+    .describe('Required for update-item and remove-item: existing item id.'),
+  priceCents: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe('For add-item / update-item: integer cents (€12.50 → 1250).'),
+  description: z
+    .string()
+    .optional()
+    .describe('Optional description for add-item / update-item.'),
+})
 
 export const MenuPatchSchema = z.object({
-  language: LanguageAISchema,
+  language: LanguageAISchema.default('en'),
   currency: z.string().default(''),
   operations: z.array(PatchOperationAISchema).default([]),
 })
 
 export type MenuPatchOutput = z.infer<typeof MenuPatchSchema>
+export type PatchOperationAI = z.infer<typeof PatchOperationAISchema>
 
 export const PATCH_SYSTEM_PROMPT = `You are a menu update assistant.
 The user shows you a restaurant's CURRENT menu (as JSON) and a fresh
 photo of the same menu. Your job is to return ONLY the operations
 needed to bring the stored menu in line with the photo.
 
-Output a single \`operations\` array. Empty array means "no changes".
+OUTPUT SHAPE — return a single JSON object with these top-level keys:
+\`language\` (ISO 639-1: "en", "pt", "es", "fr"), \`currency\` (ISO 4217
+like "EUR"), and \`operations\` (array). Empty operations array means
+"no changes". Each op is a FLAT object with a \`kind\` STRING FIELD
+plus the fields that kind needs. DO NOT wrap ops by kind, DO NOT use
+the kind as an object key. The kind goes inside the object as
+\`"kind": "add-category"\`, never as \`{"add-category": {...}}\`.
+
+Worked example output:
+\`\`\`json
+{
+  "language": "pt",
+  "currency": "EUR",
+  "operations": [
+    { "kind": "add-category", "name": "Entradas", "items": [
+        { "name": "Azeitonas", "priceCents": 200 }
+    ]},
+    { "kind": "remove-item", "itemId": "item_abc123" },
+    { "kind": "update-item", "itemId": "item_xyz789", "priceCents": 1500 }
+  ]
+}
+\`\`\`
 
 OP KINDS:
 - "add-category" — a brand-new section visible in the photo. Include
@@ -284,6 +329,94 @@ Rules:
 - If the image is not a menu, return an empty categories array.`
 
 export const USER_PROMPT = 'Extract all menu categories and items from this image.'
+
+// ── PATCH-mode op normalization ───────────────────────────────────────────
+
+/**
+ * Turns the loose `PatchOperationAI` shape (kind + all-optional fields)
+ * into the strict `PatchOperation` discriminated union the use-case
+ * expects. Drops ops that are missing the fields required for their
+ * declared `kind` rather than crashing the whole patch — operators
+ * still get the partial diff and can re-shoot the photo if a critical
+ * op was malformed.
+ */
+export function normalizePatchOperations(
+  ops: ReadonlyArray<PatchOperationAI>,
+): PatchOperation[] {
+  const out: PatchOperation[] = []
+  for (const op of ops) {
+    switch (op.kind) {
+      case 'add-category': {
+        if (!op.name) break
+        out.push({
+          kind: 'add-category',
+          name: op.name,
+          items: (op.items ?? []).map((it) => ({
+            name: it.name,
+            priceCents: it.priceCents ?? 0,
+            ...(it.description ? { description: it.description } : {}),
+          })),
+        })
+        break
+      }
+      case 'remove-category': {
+        if (!op.categoryId) break
+        out.push({ kind: 'remove-category', categoryId: op.categoryId })
+        break
+      }
+      case 'rename-category': {
+        if (!op.categoryId || !op.name) break
+        out.push({
+          kind: 'rename-category',
+          categoryId: op.categoryId,
+          name: op.name,
+        })
+        break
+      }
+      case 'add-item': {
+        if (!op.name) break
+        // Either an existing parent (categoryId) or a brand-new one (categoryName).
+        const hasParent = op.categoryId != null || !!op.categoryName
+        if (!hasParent) break
+        out.push({
+          kind: 'add-item',
+          categoryId: op.categoryId ?? null,
+          ...(op.categoryName ? { categoryName: op.categoryName } : {}),
+          name: op.name,
+          priceCents: op.priceCents ?? 0,
+          ...(op.description ? { description: op.description } : {}),
+        })
+        break
+      }
+      case 'update-item': {
+        if (!op.itemId) break
+        const patch: Extract<PatchOperation, { kind: 'update-item' }> = {
+          kind: 'update-item',
+          itemId: op.itemId,
+        }
+        if (op.name) patch.name = op.name
+        if (typeof op.priceCents === 'number') patch.priceCents = op.priceCents
+        if (op.description) patch.description = op.description
+        // Skip no-op updates (only itemId, no fields to change).
+        if (
+          patch.name === undefined &&
+          patch.priceCents === undefined &&
+          patch.description === undefined
+        ) {
+          break
+        }
+        out.push(patch)
+        break
+      }
+      case 'remove-item': {
+        if (!op.itemId) break
+        out.push({ kind: 'remove-item', itemId: op.itemId })
+        break
+      }
+    }
+  }
+  return out
+}
 
 // ── Response mapping ──────────────────────────────────────────────────────
 

@@ -65,19 +65,20 @@ iedora/
         .kamal/secrets                   SOPS reads + gh auth token + .tunnel-token
         .kamal/hooks/pre-deploy          Drizzle migrations ephemeral container
 
-  packages/                              "core-*" tier — product-facing primitives
-    core-auth/                           better-auth instance + Drizzle schema + AC taxonomy
-    core-billing/                        Billing primitives
-    core-tenancy/                        Tenancy primitives
+  packages/
+    business/                            Business tier — product-facing primitives
+      auth/                              @iedora/auth — better-auth + Drizzle schema + AC taxonomy
+      billing/                           @iedora/billing — invoices + subscriptions
+      tenancy/                           @iedora/tenancy — cross-product tenant projection
 
     platform/                            Foundation tier — zero product knowledge
-      ai/                                Shared AI SDK wiring (Deepseek + others)
-      brand/                             Brand strings, publicUrl(), isSameOriginPath()
-      db/                                createDb + run-migrations
-      design-system/                     CSS + React primitives
-      eslint-config/                     Shared ESLint config
-      observability/                     OTel wiring
-      testing-integration/               Testcontainers + savepoint helpers
+      ai/                                @iedora/ai — shared AI SDK wiring (Deepseek, Kimi, …)
+      brand/                             @iedora/brand — brand strings, publicUrl(), isSameOriginPath()
+      db/                                @iedora/db — createDb + run-migrations
+      design-system/                     @iedora/design-system — CSS tokens + React primitives
+      eslint-config/                     @iedora/eslint-config — shared ESLint config
+      observability/                     @iedora/observability — OTel wiring
+      testing-integration/               @iedora/testing-integration — testcontainers + savepoint helpers
 
   apps/
     web/                                 Next.js 16 — serves all 3 hostnames
@@ -119,8 +120,12 @@ docker exec -it iedora-web-postgres psql -U postgres
 
 ## CI
 
-GitHub Actions, único workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-— `ci` (typecheck/lint/test) + `audit` (gitleaks/hadolint/osv-scanner), em paralelo.
+GitHub Actions, único workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+com 3 jobs:
+- `changes` — path filter (`dorny/paths-filter@v4`); decide se `code` mudou
+- `correctness` — typecheck + lint + test (só corre se `code = true`)
+- `security` — gitleaks (binary) + `hadolint/hadolint-action@v3` + osv-scanner (binary), sempre em PR/push, weekly cron
+
 Deploy é Mac-driven (`bun run deploy`), sem job de deploy no CI.
 
 ## Where to look when unsure
