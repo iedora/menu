@@ -15,6 +15,13 @@ export type AdminUser = {
   emailVerified: boolean
   /** Cross-tenant role on the user row. `null` for regular users. */
   role: string | null
+  /**
+   * Raw cross-tenant scope array on `user.scopes`. `null` for regular
+   * users; a possibly-empty array for staff. Exposed so the admin UI
+   * can render the live scope set and detect "Custom" presets
+   * without re-querying the auth surface.
+   */
+  scopes: string[] | null
   banned: boolean
   banReason: string | null
   /** Unix ms when the ban lifts. `null` for permanent bans. */

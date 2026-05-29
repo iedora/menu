@@ -188,6 +188,7 @@ function mapUser(u: {
     name: u.name,
     emailVerified: Boolean(u.emailVerified),
     role,
+    scopes: (u.scopes as string[] | null | undefined) ?? null,
     banned: Boolean(u.banned),
     banReason: u.banReason ?? null,
     banExpires,

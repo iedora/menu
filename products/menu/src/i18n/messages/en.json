@@ -460,7 +460,14 @@
         "searchLabel": "Search",
         "searchPlaceholder": "Filter by name…",
         "searchSubmit": "Filter",
+        "searchClear": "Clear",
+        "listAriaLabel": "Tenants",
         "empty": "No tenants match the current filter.",
+        "emptyLabel": "No tenants",
+        "emptyNote": "No customer organisations have signed up yet.",
+        "emptyFilteredNote": "No tenants match “{q}”.",
+        "memberCountShort": "{count, plural, =0 {0 members} one {# member} other {# members}}",
+        "createdAtLabel": "Joined",
         "colName": "Tenant",
         "colMembers": "Members",
         "colCreated": "Created",
@@ -563,6 +570,10 @@
         "youBadge": "you",
         "noScopes": "No scopes granted.",
         "verbCount": "{count, plural, =0 {no verbs} one {# verb} other {# verbs}}",
+        "membersCount": "{count, plural, =0 {No users} one {# user} other {# users}}",
+        "membersEmpty": "Nobody currently carries this preset.",
+        "customTitle": "Custom scope sets",
+        "customDescription": "Staff users whose scope array does not match any built-in preset. Either they were granted bespoke scopes via SQL, or a preset they used to match has changed.",
         "roles": {
           "iedora-admin": {
             "description": "Supreme cross-tenant role. Every scope on every resource."
@@ -644,6 +655,12 @@
           "title": "Sessions",
           "description": "Every active session across every product.",
           "cta": "Inspect sessions"
+        },
+        "presets": {
+          "heading": "Staff role presets",
+          "description": "Every role is a named bundle of scopes. The scopes below are the cross-tenant powers each preset hands out — assign a user to a preset and they inherit the entire list. Tenant-level scopes are granted per membership and never appear on these presets.",
+          "sourceBuiltIn": "Built-in",
+          "emptyScopes": "No scopes."
         }
       },
       "users": {
@@ -717,6 +734,13 @@
           "statusVerified": "Verified email",
           "statusUnverified": "Unverified email",
           "banReasonLabel": "Reason",
+          "scopesTitle": "Scopes",
+          "scopesDesc": "Cross-tenant scopes carried on this user row. Tenant-level scopes live on each tenant membership and are visible from the tenant detail page.",
+          "scopesPresetCustom": "Custom",
+          "scopesSourceBuiltIn": "Matches built-in preset",
+          "scopesSourceCustom": "Custom scope set — no preset match",
+          "scopesSourceTenant": "Tenant user — no cross-tenant scopes",
+          "scopesEmpty": "No cross-tenant scopes. This user only carries the scopes on their tenant memberships.",
           "sessionsTitle": "Active sessions",
           "sessionsCount": "{count} active",
           "sessionsEmpty": "No active sessions.",
