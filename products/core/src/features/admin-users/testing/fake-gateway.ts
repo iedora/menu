@@ -141,6 +141,7 @@ export function makeUser(over: Partial<AdminUser> = {}): AdminUser {
     name: over.name ?? 'User',
     emailVerified: over.emailVerified ?? true,
     role: over.role ?? null,
+    scopes: over.scopes ?? null,
     banned: over.banned ?? false,
     banReason: over.banReason ?? null,
     banExpires: over.banExpires ?? null,

@@ -21,7 +21,8 @@
     "./shared/ui": "./src/shared/ui/index.ts",
     "./shared/ui/admin-page": "./src/shared/ui/admin-page.tsx",
     "./shared/ui/admin-shell": "./src/shared/ui/admin-shell.tsx",
-    "./shared/ui/active-sidebar-links": "./src/shared/ui/active-sidebar-links.tsx"
+    "./shared/ui/active-sidebar-links": "./src/shared/ui/active-sidebar-links.tsx",
+    "./shared/ui/scope-matrix": "./src/shared/ui/scope-matrix.tsx"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",

@@ -9,7 +9,12 @@ import {
 } from '@iedora/design-system'
 import { requireScope } from '@iedora/product-core'
 import { SCOPES } from '@iedora/auth/scopes'
-import { detectStaffPreset } from '@iedora/auth'
+import {
+  detectStaffPreset,
+  STAFF_ROLE_PRESETS,
+  STAFF_ROLES,
+  IEDORA_ADMIN_ROLE,
+} from '@iedora/auth'
 import type { Scope } from '@iedora/auth/scopes'
 import { listUsers } from '@iedora/auth/server'
 import {
@@ -17,6 +22,10 @@ import {
   listTenants,
 } from '@iedora/product-core/features/admin-tenants'
 import { AdminPage } from '@iedora/product-core/shared/ui/admin-page'
+import {
+  ScopeList,
+  PresetHeader,
+} from '@iedora/product-core/shared/ui/scope-matrix'
 
 /**
  * Admin overview — landing for /core/admin. Two stacked layers:
@@ -121,6 +130,49 @@ export default async function CoreAdminOverview() {
             </Button>
           </CardFoot>
         </Card>
+      </section>
+
+      <section
+        className="space-y-4"
+        aria-labelledby="admin-overview-presets-h"
+        data-test-id="admin-overview-presets"
+      >
+        <header className="space-y-1">
+          <h2
+            id="admin-overview-presets-h"
+            className="text-xs uppercase tracking-[0.18em] text-[var(--ink-40)]"
+          >
+            {t('presets.heading')}
+          </h2>
+          <p className="text-sm text-[var(--ink-70)] max-w-prose">
+            {t('presets.description')}
+          </p>
+        </header>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {STAFF_ROLES.map((roleKey) => {
+            const scopes = STAFF_ROLE_PRESETS[roleKey]
+            return (
+              <Card
+                key={roleKey}
+                data-test-id={`admin-overview-preset-${roleKey}`}
+              >
+                <PresetHeader
+                  name={roleKey}
+                  scopeCount={scopes.length}
+                  sourceLabel={t('presets.sourceBuiltIn')}
+                  highlight={roleKey === IEDORA_ADMIN_ROLE}
+                />
+                <div className="mt-4">
+                  <ScopeList
+                    scopes={scopes as readonly string[]}
+                    emptyLabel={t('presets.emptyScopes')}
+                    data-test-id={`admin-overview-preset-${roleKey}-scopes`}
+                  />
+                </div>
+              </Card>
+            )
+          })}
+        </div>
       </section>
     </AdminPage>
   )

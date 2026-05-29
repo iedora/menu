@@ -1,6 +1,16 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Card, CardDesc } from '@iedora/design-system'
+import {
+  Button,
+  EmptyState,
+  Field,
+  FieldInput,
+  FieldLabel,
+  Pagination,
+  Table,
+  Td,
+  Th,
+} from '@iedora/design-system'
 import { requireScope } from '@iedora/product-core'
 import {
   drizzleAdminTenantsGateway,
@@ -14,13 +24,15 @@ import { AdminPage } from '@iedora/product-core/shared/ui/admin-page'
  * Read-only today (mutations land in a follow-up with the
  * `staff.core.tenants.delete` + `staff.core.members.*` actions).
  *
- * Replaces the deleted `/core/admin/organizations` page (which was
- * for better-auth's organization entity, gone). Same role on the
- * sidebar; new data model behind it.
+ * Mobile-first layout:
+ *   - On phones: filter chip + button stack vertically; the list
+ *     renders as a stack of cards (one per tenant) — no horizontal
+ *     scroll, no clipped columns.
+ *   - On sm+ : filter row goes inline; the list switches to the
+ *     editorial DS `<Table>` with right-aligned numeric columns.
  *
- * Pagination via search-params (`?page=N&q=&sort=&dir=`). Cap
- * pageSize at 50 — anything heavier means we need a real list view
- * with virtualisation.
+ * Pagination uses the DS `<Pagination>` component (link-driven so
+ * server pages don't need a router hook).
  */
 
 type SearchParams = {
@@ -44,11 +56,12 @@ export default async function AdminTenantsPage({
   const page = Math.max(1, Number(sp.page ?? '1') || 1)
   const sort: 'createdAt' | 'name' = sp.sort === 'name' ? 'name' : 'createdAt'
   const dir: 'asc' | 'desc' = sp.dir === 'asc' ? 'asc' : 'desc'
+  const activeQuery = sp.q?.trim() || ''
 
   const { tenants, total } = await listTenants(drizzleAdminTenantsGateway(), {
     page,
     pageSize: PAGE_SIZE,
-    q: sp.q?.trim() || undefined,
+    q: activeQuery || undefined,
     sortBy: sort,
     sortDirection: dir,
   })
@@ -69,144 +82,162 @@ export default async function AdminTenantsPage({
     >
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3"
+        className="flex flex-col gap-3 sm:flex-row sm:items-end"
         data-test-id="admin-tenants-filter"
       >
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.18em] text-[var(--ink-40)]">
-          {t('searchLabel')}
-          <input
+        <Field className="flex-1">
+          <FieldLabel htmlFor="admin-tenants-q">{t('searchLabel')}</FieldLabel>
+          <FieldInput
+            id="admin-tenants-q"
             type="search"
             name="q"
             defaultValue={sp.q ?? ''}
             placeholder={t('searchPlaceholder')}
-            className="border border-[var(--ink-14)] bg-[var(--paper)] px-3 py-2 text-sm font-normal text-[var(--ink)] normal-case tracking-normal"
             data-test-id="admin-tenants-search-input"
           />
-        </label>
+        </Field>
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
-        <button
-          type="submit"
-          className="border border-[var(--ink)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
-          data-test-id="admin-tenants-search-submit"
-        >
-          {t('searchSubmit')}
-        </button>
+        <div className="flex gap-2">
+          <Button
+            type="submit"
+            variant="solid"
+            className="flex-1 sm:flex-initial"
+            data-test-id="admin-tenants-search-submit"
+          >
+            {t('searchSubmit')}
+          </Button>
+          {activeQuery ? (
+            <Button
+              as="a"
+              href="/core/admin/tenants"
+              variant="ghost"
+              data-test-id="admin-tenants-search-clear"
+            >
+              {t('searchClear')}
+            </Button>
+          ) : null}
+        </div>
       </form>
 
-      {tenants.length === 0 ? (
-        <Card data-test-id="admin-tenants-empty">
-          <CardDesc>{t('empty')}</CardDesc>
-        </Card>
-      ) : (
-        <div
-          className="border border-[var(--ink-14)] overflow-hidden"
-          data-test-id="admin-tenants-list"
-        >
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--ink-04)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)]">
-              <tr>
-                <th className="px-4 py-2 text-left font-medium">{t('colName')}</th>
-                <th className="px-4 py-2 text-right font-medium">{t('colMembers')}</th>
-                <th className="px-4 py-2 text-right font-medium">{t('colCreated')}</th>
-              </tr>
-            </thead>
-            <tbody>
+      <section
+        className="mt-2"
+        aria-label={t('listAriaLabel')}
+        data-test-id="admin-tenants-list-section"
+      >
+        {tenants.length === 0 ? (
+          <EmptyState
+            label={t('emptyLabel')}
+            note={
+              activeQuery
+                ? t('emptyFilteredNote', { q: activeQuery })
+                : t('emptyNote')
+            }
+            data-test-id="admin-tenants-empty"
+          />
+        ) : (
+          <>
+            {/* Mobile: stacked cards. One tenant per row, tap-target
+                the whole card. Hidden on sm+. */}
+            <ul
+              className="space-y-3 sm:hidden"
+              data-test-id="admin-tenants-list-mobile"
+            >
               {tenants.map((tn) => (
-                <tr
-                  key={tn.id}
-                  className="border-t border-[var(--ink-08)]"
-                  data-test-id={`admin-tenants-row-${tn.id}`}
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/core/admin/tenants/${tn.id}`}
-                      className="font-medium text-[var(--ink)] no-underline hover:underline"
-                      data-test-id={`admin-tenants-row-${tn.id}-link`}
-                    >
-                      {tn.name}
-                    </Link>
-                    <div className="font-[family-name:var(--mono)] text-[11px] text-[var(--ink-40)]">
+                <li key={tn.id}>
+                  <Link
+                    href={`/core/admin/tenants/${tn.id}`}
+                    className="block border border-[var(--ink-14)] bg-[var(--paper)] px-4 py-3 no-underline transition-colors hover:border-[var(--ink-40)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cinnabar)]"
+                    data-test-id={`admin-tenants-row-${tn.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="min-w-0 font-medium text-[var(--ink)]">
+                        {tn.name}
+                      </span>
+                      <span className="shrink-0 text-[11px] uppercase tracking-[0.18em] text-[var(--ink-55)] tabular-nums">
+                        {t('memberCountShort', { count: tn.memberCount })}
+                      </span>
+                    </div>
+                    <div className="mt-1 truncate font-[family-name:var(--mono)] text-[11px] text-[var(--ink-40)]">
                       {tn.id}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {tn.memberCount}
-                  </td>
-                  <td className="px-4 py-3 text-right text-[var(--ink-70)] tabular-nums">
-                    {dateFmt.format(tn.createdAt)}
-                  </td>
-                </tr>
+                    <div className="mt-2 text-[11px] uppercase tracking-[0.18em] text-[var(--ink-55)] tabular-nums">
+                      {t('createdAtLabel')} {dateFmt.format(tn.createdAt)}
+                    </div>
+                  </Link>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </ul>
+
+            {/* Tablet+: full table. */}
+            <div
+              className="hidden sm:block"
+              data-test-id="admin-tenants-list-table"
+            >
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>{t('colName')}</Th>
+                    <Th className="text-right">{t('colMembers')}</Th>
+                    <Th className="text-right">{t('colCreated')}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tenants.map((tn) => (
+                    <tr
+                      key={tn.id}
+                      data-test-id={`admin-tenants-row-${tn.id}`}
+                    >
+                      <Td>
+                        <Link
+                          href={`/core/admin/tenants/${tn.id}`}
+                          className="font-medium text-[var(--ink)] no-underline hover:underline"
+                          data-test-id={`admin-tenants-row-${tn.id}-link`}
+                        >
+                          {tn.name}
+                        </Link>
+                        <div className="font-[family-name:var(--mono)] text-[11px] text-[var(--ink-40)]">
+                          {tn.id}
+                        </div>
+                      </Td>
+                      <Td className="text-right tabular-nums">
+                        {tn.memberCount}
+                      </Td>
+                      <Td className="text-right text-[var(--ink-70)] tabular-nums">
+                        {dateFmt.format(tn.createdAt)}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </>
+        )}
+      </section>
 
       {totalPages > 1 ? (
-        <nav
-          className="flex items-center justify-between text-xs uppercase tracking-[0.18em] text-[var(--ink-55)]"
+        <Pagination
+          prevHref={pageHref(sp, page - 1)}
+          nextHref={pageHref(sp, page + 1)}
+          prevLabel={t('paginationPrev')}
+          nextLabel={t('paginationNext')}
+          status={t('paginationPosition', { page, total: totalPages })}
+          isFirst={page <= 1}
+          isLast={page >= totalPages}
           aria-label={t('paginationLabel')}
           data-test-id="admin-tenants-pagination"
-        >
-          <span>
-            {t('paginationPosition', { page, total: totalPages })}
-          </span>
-          <div className="flex gap-3">
-            <PageLink
-              disabled={page <= 1}
-              params={{ ...sp, page: String(page - 1) }}
-              testId="admin-tenants-prev"
-            >
-              {t('paginationPrev')}
-            </PageLink>
-            <PageLink
-              disabled={page >= totalPages}
-              params={{ ...sp, page: String(page + 1) }}
-              testId="admin-tenants-next"
-            >
-              {t('paginationNext')}
-            </PageLink>
-          </div>
-        </nav>
+        />
       ) : null}
     </AdminPage>
   )
 }
 
-function PageLink({
-  params,
-  disabled,
-  testId,
-  children,
-}: {
-  params: Record<string, string | undefined>
-  disabled?: boolean
-  testId: string
-  children: React.ReactNode
-}) {
-  if (disabled) {
-    return (
-      <span
-        className="text-[var(--ink-22)]"
-        aria-disabled="true"
-        data-test-id={testId}
-      >
-        {children}
-      </span>
-    )
-  }
+function pageHref(sp: SearchParams, target: number): string {
   const qs = new URLSearchParams()
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== '') qs.set(k, v)
-  }
-  return (
-    <Link
-      href={`/core/admin/tenants?${qs.toString()}`}
-      className="hover:text-[var(--ink)]"
-      data-test-id={testId}
-    >
-      {children}
-    </Link>
-  )
+  if (sp.q) qs.set('q', sp.q)
+  if (sp.sort) qs.set('sort', sp.sort)
+  if (sp.dir) qs.set('dir', sp.dir)
+  if (target > 1) qs.set('page', String(target))
+  const s = qs.toString()
+  return s ? `/core/admin/tenants?${s}` : '/core/admin/tenants'
 }

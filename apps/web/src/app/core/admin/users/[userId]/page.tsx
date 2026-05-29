@@ -17,6 +17,10 @@ import {
   getUserById,
 } from '@iedora/product-core/features/admin-users'
 import { AdminPage } from '@iedora/product-core/shared/ui/admin-page'
+import {
+  ScopeList,
+  PresetHeader,
+} from '@iedora/product-core/shared/ui/scope-matrix'
 import { RoleSelect } from '@iedora/product-core/features/admin-users/ui/role-select'
 import { UserRowActions } from '@iedora/product-core/features/admin-users/ui/user-row-actions'
 import { SessionRow } from '@iedora/product-core/features/admin-sessions/ui/session-row'
@@ -112,6 +116,34 @@ export default async function UserAdminDetailPage({
               {t('banReasonLabel')}: {user.banReason}
             </p>
           ) : null}
+        </Card>
+      </section>
+
+      <section data-test-id="admin-user-scopes">
+        <Card>
+          <CardTitle as="h2">{t('scopesTitle')}</CardTitle>
+          <CardDesc>{t('scopesDesc')}</CardDesc>
+          <div className="mt-4">
+            <PresetHeader
+              name={user.role ?? t('scopesPresetCustom')}
+              scopeCount={user.scopes?.length ?? 0}
+              sourceLabel={
+                user.scopes === null
+                  ? t('scopesSourceTenant')
+                  : user.role
+                    ? t('scopesSourceBuiltIn')
+                    : t('scopesSourceCustom')
+              }
+              highlight={user.role === 'iedora-admin'}
+            />
+          </div>
+          <div className="mt-4">
+            <ScopeList
+              scopes={user.scopes ?? []}
+              emptyLabel={t('scopesEmpty')}
+              data-test-id="admin-user-scopes-list"
+            />
+          </div>
         </Card>
       </section>
 

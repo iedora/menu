@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { Card, CardTitle, CardDesc, Badge } from '@iedora/design-system'
 import { requireScope } from '@iedora/product-core'
@@ -14,6 +15,7 @@ import {
   detectStaffPreset,
   type StaffRoleKey,
 } from '@iedora/auth/permissions'
+import { listUsers } from '@iedora/auth/server'
 import { AdminPage } from '@iedora/product-core/shared/ui/admin-page'
 
 /**
@@ -72,6 +74,37 @@ export default async function AccessPage() {
       | null
   const myRole: StaffRoleKey | null = myScopes ? detectStaffPreset(myScopes) : null
 
+  // Snapshot of every staff user. Roles are UX shortcuts that group
+  // scopes; this listing makes the "who actually holds what" explicit
+  // so the catalogue stops being abstract. Cap at 200 — staff sets
+  // stay tiny; tenant users never appear here.
+  const staffPage = await listUsers({ kind: 'staff', limit: 200 })
+  type StaffUser = {
+    id: string
+    email: string
+    name: string
+    scopes: readonly Scope[]
+  }
+  const usersByPreset = new Map<StaffRoleKey, StaffUser[]>()
+  const customStaff: StaffUser[] = []
+  for (const u of staffPage.users) {
+    const scopes = (u.scopes ?? []) as readonly Scope[]
+    const preset = detectStaffPreset(scopes)
+    const entry: StaffUser = {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      scopes,
+    }
+    if (preset) {
+      const list = usersByPreset.get(preset) ?? []
+      list.push(entry)
+      usersByPreset.set(preset, list)
+    } else {
+      customStaff.push(entry)
+    }
+  }
+
   return (
     <AdminPage
       crumbs={[{ label: t('crumbAdmin'), href: '/core/admin', testId: 'admin' }]}
@@ -127,10 +160,36 @@ export default async function AccessPage() {
                     ))
                   )}
                 </div>
+                <RoleMembers
+                  roleKey={key}
+                  members={usersByPreset.get(key) ?? []}
+                  emptyLabel={t('membersEmpty')}
+                  countLabel={(n: number) => t('membersCount', { count: n })}
+                />
               </Card>
             )
           })}
         </div>
+
+        {customStaff.length > 0 ? (
+          <Card
+            className="mt-4"
+            data-test-id="admin-access-role-custom"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle as="h3">{t('customTitle')}</CardTitle>
+              <Badge variant="ghost">{customStaff.length}</Badge>
+            </div>
+            <CardDesc>{t('customDescription')}</CardDesc>
+            <RoleMembers
+              roleKey="custom"
+              members={customStaff}
+              emptyLabel={t('membersEmpty')}
+              countLabel={(n: number) => t('membersCount', { count: n })}
+              showScopeCount
+            />
+          </Card>
+        ) : null}
       </section>
 
       <section
@@ -207,5 +266,61 @@ export default async function AccessPage() {
         </div>
       </section>
     </AdminPage>
+  )
+}
+
+function RoleMembers({
+  roleKey,
+  members,
+  emptyLabel,
+  countLabel,
+  showScopeCount,
+}: {
+  roleKey: string
+  members: ReadonlyArray<{
+    id: string
+    email: string
+    name: string
+    scopes: readonly Scope[]
+  }>
+  emptyLabel: string
+  countLabel: (n: number) => string
+  showScopeCount?: boolean
+}) {
+  return (
+    <div
+      className="mt-5 border-t border-[var(--ink)]/10 pt-4"
+      data-test-id={`admin-access-role-${roleKey}-members`}
+    >
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+          {countLabel(members.length)}
+        </span>
+      </div>
+      {members.length === 0 ? (
+        <p className="text-sm italic text-[var(--ink-55)]">{emptyLabel}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {members.map((u) => (
+            <li
+              key={u.id}
+              className="flex flex-wrap items-baseline justify-between gap-2"
+              data-test-id={`admin-access-role-${roleKey}-member-${u.id}`}
+            >
+              <Link
+                href={`/core/admin/users/${u.id}`}
+                className="text-sm font-medium text-[var(--ink)] no-underline hover:underline"
+              >
+                {u.name || u.email}
+              </Link>
+              <span className="font-[family-name:var(--mono)] text-[11px] text-[var(--ink-55)]">
+                {u.email}
+                {showScopeCount ? ` · ${u.scopes.length}` : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
