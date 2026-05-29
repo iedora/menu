@@ -65,9 +65,11 @@ export async function AdminShell({
       label: t('access'),
       testId: 'admin-nav-access',
     },
-    // admin-orgs route deleted in the tenancy refactor; a follow-up
-    // `admin-tenants` UI will land in this slot once the cross-product
-    // tenant admin surface is designed. Entry omitted for now.
+    {
+      href: '/core/admin/tenants',
+      label: t('tenants'),
+      testId: 'admin-nav-tenants',
+    },
     {
       href: '/core/admin/sessions',
       label: t('sessions'),

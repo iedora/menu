@@ -12,6 +12,10 @@ import { SCOPES } from '@iedora/auth/scopes'
 import { detectStaffPreset } from '@iedora/auth'
 import type { Scope } from '@iedora/auth/scopes'
 import { listUsers } from '@iedora/auth/server'
+import {
+  drizzleAdminTenantsGateway,
+  listTenants,
+} from '@iedora/product-core/features/admin-tenants'
 import { AdminPage } from '@iedora/product-core/shared/ui/admin-page'
 
 /**
@@ -33,11 +37,17 @@ export default async function CoreAdminOverview() {
   const session = await requireScope(SCOPES.core.staff.admin.read)
   const t = await getTranslations('Core.admin.overview')
 
-  // Cheap aggregate — listUsers paginates by default; we just want a
-  // count probe. (When @iedora/auth.listUsers grows a `total` we can
-  // skip the row fetch entirely.)
+  // Cheap aggregates — both list helpers paginate; we just probe a
+  // single row + the `hasMore`/`total` hint.
   const usersPage = await listUsers({ limit: 1 })
   const totalUsers = usersPage.users.length + (usersPage.hasMore ? 1 : 0)
+  const tenantsPage = await listTenants(drizzleAdminTenantsGateway(), {
+    page: 1,
+    pageSize: 1,
+    sortBy: 'createdAt',
+    sortDirection: 'desc',
+  })
+  const totalTenants = tenantsPage.total
   const userScopes =
     ((session.user as { scopes?: string[] | null }).scopes ?? []) as readonly Scope[]
   const staffPreset = detectStaffPreset(userScopes)
@@ -93,9 +103,15 @@ export default async function CoreAdminOverview() {
             </Button>
           </CardFoot>
         </Card>
-        {/* admin-orgs card removed in the tenancy refactor. A follow-up
-            `admin-tenants` UI will land here once the cross-product
-            tenant admin surface is designed. */}
+        <Card data-test-id="admin-overview-card-tenants">
+          <CardTitle as="h2">{t('tenants.title')}</CardTitle>
+          <CardDesc>{t('tenants.count', { count: totalTenants })}</CardDesc>
+          <CardFoot>
+            <Button as="a" href="/core/admin/tenants" variant="ghost" arrow>
+              {t('tenants.cta')}
+            </Button>
+          </CardFoot>
+        </Card>
         <Card data-test-id="admin-overview-card-sessions">
           <CardTitle as="h2">{t('sessions.title')}</CardTitle>
           <CardDesc>{t('sessions.description')}</CardDesc>

@@ -36,16 +36,29 @@ export const SCOPES = {
         setRole:     'staff:core:users:set-role',
         impersonate: 'staff:core:users:impersonate',
       },
-      orgs: {
-        list: 'staff:core:orgs:list',
-        get:  'staff:core:orgs:get',
+      /**
+       * Cross-tenant management surface — staff acting on tenants
+       * other than their own. Used by `/core/admin/tenants/*` pages
+       * for growth metrics, support troubleshooting, and lifecycle
+       * operations.
+       *
+       * Replaces the dropped `orgs.*` + `invitations.*` taxonomies
+       * (better-auth organization plugin gone). `members.*` here
+       * keeps the cross-tenant blast radius (kicking a member from
+       * any tenant); the per-tenant analog lives under
+       * `tenant.core.members.*`.
+       */
+      tenants: {
+        list:   'staff:core:tenants:list',
+        get:    'staff:core:tenants:get',
+        // Drop the whole tenant + cascade.
+        delete: 'staff:core:tenants:delete',
       },
       members: {
-        remove:     'staff:core:members:remove',
-        updateRole: 'staff:core:members:update-role',
-      },
-      invitations: {
-        cancel: 'staff:core:invitations:cancel',
+        // Remove a user's membership from any tenant.
+        remove:       'staff:core:members:remove',
+        // Edit the scope set on any (tenant, user) membership.
+        updateScopes: 'staff:core:members:update-scopes',
       },
       sessions: {
         list:   'staff:core:sessions:list',

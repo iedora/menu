@@ -150,10 +150,13 @@ export const STAFF_ROLE_PRESETS = {
     SCOPES.core.staff.admin.read,
     SCOPES.core.staff.users.read,
     SCOPES.core.staff.users.ban,
-    SCOPES.core.staff.orgs.list,
-    SCOPES.core.staff.orgs.get,
+    // Tenant visibility for support troubleshooting; cannot delete
+    // tenants (that's admin-only).
+    SCOPES.core.staff.tenants.list,
+    SCOPES.core.staff.tenants.get,
+    // Can kick a stuck member but cannot rewrite their scopes
+    // (escalation blast — admin-only).
     SCOPES.core.staff.members.remove,
-    SCOPES.core.staff.invitations.cancel,
     SCOPES.core.staff.sessions.list,
     SCOPES.core.staff.sessions.revoke,
   ],
