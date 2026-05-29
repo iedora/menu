@@ -45,6 +45,7 @@
       "name": "@iedora/auth",
       "version": "0.1.0",
       "dependencies": {
+        "@iedora/billing": "workspace:*",
         "@iedora/db": "workspace:*",
         "better-auth": "^1.6.11",
         "drizzle-orm": "catalog:",
@@ -67,6 +68,25 @@
       "peerDependencies": {
         "next": "^16.0.0",
         "react": "^19.0.0",
+      },
+    },
+    "packages/billing": {
+      "name": "@iedora/billing",
+      "version": "0.1.0",
+      "dependencies": {
+        "@iedora/auth": "workspace:*",
+        "@iedora/brand": "workspace:*",
+        "@iedora/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+        "server-only": "^0.0.1",
+      },
+      "devDependencies": {
+        "@iedora/eslint-config": "workspace:*",
+        "@types/node": "^22.19.19",
+        "eslint": "catalog:",
+        "typescript": "catalog:",
+        "typescript-eslint": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/brand": {
@@ -598,6 +618,8 @@
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
 
     "@iedora/auth": ["@iedora/auth@workspace:packages/auth"],
+
+    "@iedora/billing": ["@iedora/billing@workspace:packages/billing"],
 
     "@iedora/brand": ["@iedora/brand@workspace:packages/brand"],
 

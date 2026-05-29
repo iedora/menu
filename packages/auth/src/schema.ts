@@ -11,6 +11,17 @@ import {
 
 import type { Scope } from './scopes'
 
+// Billing tables live in the same `core` schema but are owned by
+// `@iedora/billing`. Re-export them here so drizzle-kit's single
+// schema scan (config in `drizzle.config.ts` points at this file)
+// picks up the full set of `core.*` tables and generates one
+// migration set covering both. Helpers + audit hooks for the
+// billing tables live in the billing package, not here.
+import {
+  tenantSubscription,
+  invoice,
+} from '@iedora/billing/schema'
+
 /**
  * Drizzle schema for the iedora auth surface.
  *
@@ -265,6 +276,8 @@ export const schema = {
   verification,
   tenant,
   tenantMember,
+  tenantSubscription,
+  invoice,
   rateLimit,
   auditLog,
 }
