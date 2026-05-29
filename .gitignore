@@ -65,14 +65,12 @@ npm-debug.log*
 yarn-debug.log*
 .pnpm-debug.log*
 
-# env files. `.env` is gitignored. `.env.test` is tracked
-# — single source for the E2E env every CI step + the Playwright
-# webServer reads.
+# env files. App envs vivem em `dev/` (tracked: `local.env` + `test.env`).
+# Tudo o que cair na convenção `.env*` é gitignored.
 .env
 .env.local
 .env.production
 .env.*.local
-!.env.test
 
 # Kamal secrets — só o default `.kamal/secrets` (plain-text) é
 # gitignored. Os ficheiros `secrets-common` e `secrets.<destination>`

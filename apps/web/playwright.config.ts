@@ -10,9 +10,9 @@ import { defineConfig, devices } from '@playwright/test'
  * via `--project=<name>` based on changed paths; locally `bun run
  * test:e2e` runs every project.
  *
- * Env contract: `.env.test` co-located here is the superset every
+ * Env contract: `dev/test.env` (repo root) is the superset every
  * product needs to build `apps/web` (better-auth + menu DB + S3 mock).
- * Loaded by the `test:e2e*` scripts via `bun --env-file=.env.test`.
+ * Loaded by the `test:e2e*` scripts via `bun --env-file=../../dev/test.env`.
  *
  * Spec discovery is glob-based across workspaces — adding a new
  * product = drop a `e2e/` folder under its slices + register a

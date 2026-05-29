@@ -28,4 +28,4 @@ Each product is a Playwright `project` (`menu`, `core`, `imopush`). Locally you 
 - Don't mock the database. The suite hits the real Postgres in the dev stack; that's the whole point.
 - Don't run `next dev` for E2E — `webServer` builds and serves a production build, exactly like prod.
 - Don't add a `playwright.config.ts` inside a product. There is one config, in `apps/web/`.
-- Don't commit `.env.test.local` overrides.
+- Don't commit `dev/test.env.local` overrides.
