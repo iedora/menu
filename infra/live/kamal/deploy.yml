@@ -9,7 +9,7 @@ image: eduvhc/iedora-web
 servers:
   web:
     hosts:
-      - 192.168.50.53
+      - iedora-beelink
 
 ssh:
   user: root

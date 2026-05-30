@@ -117,7 +117,8 @@ done
 ok "tunnel + DNS + R2 reconciliados"
 
 # ─── 5. Detectar cold vs hot ────────────────────────────────────────
-HOST="$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' "$KAMAL_CONFIG" | head -1)"
+# Extrai o primeiro host do bloco `servers.web.hosts` — suporta IP ou hostname (Tailscale MagicDNS).
+HOST="$(awk '/^    hosts:$/{getline; sub(/^[[:space:]]+-[[:space:]]+/,""); print; exit}' "$KAMAL_CONFIG")"
 [[ -n "$HOST" ]] || die "não consegui extrair host de $KAMAL_CONFIG"
 
 SSH_KEY="$HOME/.ssh/ci_ed25519"
