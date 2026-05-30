@@ -1,11 +1,13 @@
+import { IEDORA_ADMIN_ROLE } from '@iedora/auth/role-presets'
 import type { AdminUsersError, AdminUsersGateway } from '../ports'
 
 /**
  * Allow-list of cross-tenant roles. `null` (or empty string) demotes
  * the user back to a regular tenant member with no cross-tenant
- * privileges.
+ * privileges. Sourced from the central role-preset constants — no
+ * literal role strings here.
  */
-export const ALLOWED_CROSS_TENANT_ROLES = ['iedora-admin'] as const
+export const ALLOWED_CROSS_TENANT_ROLES = [IEDORA_ADMIN_ROLE] as const
 export type CrossTenantRole = (typeof ALLOWED_CROSS_TENANT_ROLES)[number]
 
 export type SetRoleInput = {

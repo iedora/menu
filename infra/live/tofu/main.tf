@@ -67,7 +67,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "iedora" {
 
   config = {
     ingress = concat(
-      [for h in var.hostnames : { hostname = h, service = "http://iedora-web-proxy:80" }],
+      [for h in var.hostnames : { hostname = h, service = "http://kamal-proxy:80" }],
       [{ service = "http_status:404" }]
     )
   }
@@ -121,15 +121,29 @@ resource "cloudflare_r2_bucket_cors" "assets" {
 }
 
 # R2 API token com Object Read + Write em todos os buckets da conta.
-# Permission group IDs são UUIDs estáveis publicados pela Cloudflare.
+# Descobrimos os permission group IDs pelo nome via data source — mais
+# resiliente que hardcoded UUIDs (que a CF pode rotar).
+data "cloudflare_api_token_permission_groups_list" "all" {}
+
+locals {
+  r2_read_pg_id = one([
+    for pg in data.cloudflare_api_token_permission_groups_list.all.result :
+    pg.id if pg.name == "Workers R2 Storage Bucket Item Read"
+  ])
+  r2_write_pg_id = one([
+    for pg in data.cloudflare_api_token_permission_groups_list.all.result :
+    pg.id if pg.name == "Workers R2 Storage Bucket Item Write"
+  ])
+}
+
 resource "cloudflare_api_token" "r2_rw" {
   name = "iedora-r2-rw"
 
   policies = [{
     effect = "allow"
     permission_groups = [
-      { id = "2efd5506f9c8494dacb1fa10a3e7d5b6" }, # Workers R2 Storage Bucket Item Read
-      { id = "db37e5f1cb1b4eb19e1ed79b9c1bb220" }, # Workers R2 Storage Bucket Item Write
+      { id = local.r2_read_pg_id },
+      { id = local.r2_write_pg_id },
     ]
     resources = jsonencode({
       "com.cloudflare.api.account.${var.account_id}" = "*"

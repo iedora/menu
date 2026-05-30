@@ -53,6 +53,25 @@ export function isInvoiceStatus(v: unknown): v is InvoiceStatus {
 export const DEFAULT_CURRENCY = 'EUR' as const
 export type Currency = typeof DEFAULT_CURRENCY | (string & {})
 
+// ─── Manual-payment method (admin-recorded offline payments) ──────
+
+/**
+ * Methods supported for the admin-driven "manual payment" ledger —
+ * payments received off-Stripe (today: MBWay, cash). Stripe-driven
+ * payments live in the `invoice` table; manual ones in
+ * `manual_payment`. When Stripe is wired we add `'stripe'` here so the
+ * ledger can unify the two surfaces under one taxonomy.
+ */
+export const MANUAL_PAYMENT_METHODS = ['mbway', 'cash'] as const
+export type ManualPaymentMethod = (typeof MANUAL_PAYMENT_METHODS)[number]
+
+export function isManualPaymentMethod(v: unknown): v is ManualPaymentMethod {
+  return (
+    typeof v === 'string' &&
+    (MANUAL_PAYMENT_METHODS as readonly string[]).includes(v)
+  )
+}
+
 // ─── Audit events emitted by billing helpers ───────────────────────
 
 export const BILLING_AUDIT_EVENTS = {
@@ -62,6 +81,8 @@ export const BILLING_AUDIT_EVENTS = {
   INVOICE_RECORDED: 'invoice.recorded',
   INVOICE_PAID: 'invoice.paid',
   INVOICE_VOIDED: 'invoice.voided',
+  MANUAL_PAYMENT_RECORDED: 'billing.manual-payment.recorded',
+  MANUAL_PAYMENT_DELETED: 'billing.manual-payment.deleted',
 } as const
 export type BillingAuditEvent =
   (typeof BILLING_AUDIT_EVENTS)[keyof typeof BILLING_AUDIT_EVENTS]

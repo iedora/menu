@@ -2,7 +2,8 @@
 
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { recordAudit } from '@iedora/auth/audit'
+import { CORE_AUDIT_EVENTS, recordAudit } from '@iedora/auth'
+import { actorFromSession } from '@iedora/auth/server'
 import { requireScope } from '../../guards'
 import { SCOPES } from '@iedora/auth/scopes'
 import { betterAuthAdminSessionsGateway } from './adapters/better-auth'
@@ -16,13 +17,9 @@ export async function revokeSessionAction(input: {
   const gateway = betterAuthAdminSessionsGateway()
   await gateway.revokeSession({ sessionToken: input.sessionToken })
   await recordAudit({
-    event: 'session.revoked',
+    event: CORE_AUDIT_EVENTS.SESSION_REVOKED,
     outcome: 'success',
-    actor: {
-      userId: session.user.id,
-      role: null, // user.role replaced by user.scopes; audit row keeps null for searchability
-      email: session.user.email,
-    },
+    actor: actorFromSession(session),
     headers: await headers(),
     important: true,
   })

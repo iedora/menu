@@ -89,7 +89,7 @@ export default async function CoreAdminOverview() {
             ) : null}
           </div>
           <Badge
-            variant={staffPreset === 'iedora-admin' ? 'accent' : 'ink'}
+            variant={staffPreset === IEDORA_ADMIN_ROLE ? 'accent' : 'ink'}
             data-test-id="admin-overview-identity-role"
           >
             {staffPreset ?? 'staff'}

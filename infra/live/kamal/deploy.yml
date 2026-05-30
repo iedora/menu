@@ -54,7 +54,7 @@ accessories:
       secret:
         - POSTGRES_PASSWORD
     files:
-      - config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - infra/live/kamal/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     directories:
       - data:/var/lib/postgresql/data
 
@@ -81,7 +81,7 @@ accessories:
       secret:
         - OTEL_AUTH_HEADER
     files:
-      - config/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
+      - infra/live/kamal/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -113,4 +113,4 @@ env:
     - CORE_SECRET
     - S3_ACCESS_KEY
     - S3_SECRET_KEY
-    - MOONSHOT_API_KEY
+    - DEEPSEEK_API_KEY

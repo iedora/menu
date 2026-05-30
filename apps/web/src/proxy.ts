@@ -16,10 +16,7 @@ const protectedPrefixes = ['/menu/dashboard', '/menu/onboarding']
  * redirect to sign-in → sign-in's server-side `auth.api.getSession()`
  * sees the cookie → redirects back → loop.
  */
-const SESSION_COOKIES = [
-  '__Secure-better-auth.session_token',
-  'better-auth.session_token',
-] as const
+import { SESSION_COOKIE_NAMES as SESSION_COOKIES } from '@iedora/auth/cookies'
 
 /**
  * Three jobs in order of precedence:

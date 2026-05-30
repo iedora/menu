@@ -12,7 +12,7 @@ import {
 import {
   STAFF_ROLES,
   STAFF_ROLE_PRESETS,
-  detectStaffPreset,
+  isStaffRole,
   type StaffRoleKey,
 } from '@iedora/auth/role-presets'
 import { listUsers } from '@iedora/auth/server'
@@ -68,11 +68,8 @@ export default async function AccessPage() {
     resources.get(resource)!.push({ scope, verb })
   }
 
-  const myScopes =
-    ((session.user as { scopes?: string[] | null }).scopes ?? null) as
-      | readonly Scope[]
-      | null
-  const myRole: StaffRoleKey | null = myScopes ? detectStaffPreset(myScopes) : null
+  const sessionUserRole = (session.user as { role?: string | null }).role ?? null
+  const myRole: StaffRoleKey | null = isStaffRole(sessionUserRole) ? sessionUserRole : null
 
   // Snapshot of every staff user. Roles are UX shortcuts that group
   // scopes; this listing makes the "who actually holds what" explicit
@@ -88,19 +85,26 @@ export default async function AccessPage() {
   const usersByPreset = new Map<StaffRoleKey, StaffUser[]>()
   const customStaff: StaffUser[] = []
   for (const u of staffPage.users) {
-    const scopes = (u.scopes ?? []) as readonly Scope[]
-    const preset = detectStaffPreset(scopes)
+    // Effective set = role preset ∪ extra_scopes. Mirrors
+    // getEffectiveUserScopes — keep them in sync if either changes.
+    const role = isStaffRole(u.role) ? u.role : null
+    const extra = (u.extraScopes ?? []) as readonly Scope[]
+    const fromRole: readonly Scope[] = role ? STAFF_ROLE_PRESETS[role] : []
+    const scopes =
+      extra.length === 0
+        ? ([...fromRole] as readonly Scope[])
+        : (Array.from(new Set([...fromRole, ...extra])) as readonly Scope[])
     const entry: StaffUser = {
       id: u.id,
       email: u.email,
       name: u.name,
       scopes,
     }
-    if (preset) {
-      const list = usersByPreset.get(preset) ?? []
+    if (role) {
+      const list = usersByPreset.get(role) ?? []
       list.push(entry)
-      usersByPreset.set(preset, list)
-    } else {
+      usersByPreset.set(role, list)
+    } else if (scopes.length > 0) {
       customStaff.push(entry)
     }
   }

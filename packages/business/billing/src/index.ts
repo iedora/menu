@@ -16,12 +16,15 @@ export { schema } from './schema'
 export {
   SUBSCRIPTION_STATUSES,
   INVOICE_STATUSES,
+  MANUAL_PAYMENT_METHODS,
   DEFAULT_CURRENCY,
   BILLING_AUDIT_EVENTS,
   isSubscriptionStatus,
   isInvoiceStatus,
+  isManualPaymentMethod,
   type SubscriptionStatus,
   type InvoiceStatus,
+  type ManualPaymentMethod,
   type Currency,
   type BillingAuditEvent,
 } from './literals'
@@ -48,3 +51,23 @@ export {
   type RecordInvoiceInput,
   type ListInvoicesFilter,
 } from './invoices'
+
+export {
+  recordManualPayment,
+  listManualPayments,
+  getLatestManualPayment,
+  deleteManualPayment,
+  paymentDiscount,
+  paymentValidUntil,
+  type ManualPayment,
+  type RecordManualPaymentInput,
+  type ListManualPaymentsFilter,
+} from './manual-payments'
+
+export {
+  PLAN_CATALOG,
+  getPlanCatalogEntry,
+  getPlanPrice,
+  listProductPlans,
+  type PlanCatalogEntry,
+} from './plans'

@@ -71,14 +71,23 @@ export const user = coreSchema.table('user', {
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
   /**
-   * Cross-tenant authority — the explicit scope set granted to this
-   * user. `null` for regular tenants (their authority lives in
-   * `tenant_member.scopes`, scoped to each tenant). Non-null for
-   * staff: the array IS the source of truth; preset labels like
-   * `'iedora-admin'` are detected by `detectStaffPreset(scopes)`
-   * in `./role-presets` for UI display only.
+   * Named staff role this user holds, drawn from `STAFF_ROLES` in
+   * `./rbac/role-presets`. `null` for regular tenants. The role is
+   * the source of truth for the cross-tenant scope set — at lookup
+   * time `getEffectiveUserScopes()` expands it through
+   * `STAFF_ROLE_PRESETS[role]` so adding a new staff scope to a
+   * preset is picked up by every holder instantly, no per-user
+   * re-grant needed.
    */
-  scopes: text('scopes').array().$type<Scope[]>(),
+  role: text('role'),
+  /**
+   * Bespoke scopes layered on top of the role's preset — used when a
+   * user needs a single extra power without being promoted to a full
+   * role (e.g. a contractor with `staff:core:audit:read` only).
+   * Stored as an array; effective scopes are role ∪ extra_scopes.
+   * Default empty for staff, ignored for tenant-only users.
+   */
+  extraScopes: text('extra_scopes').array().$type<Scope[]>().notNull().default([]),
   /** Flag flipped by `banUser()` (formerly better-auth admin plugin). */
   banned: boolean('banned'),
   banReason: text('ban_reason'),

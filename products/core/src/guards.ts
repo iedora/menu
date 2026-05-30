@@ -1,7 +1,7 @@
 import 'server-only'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
-import { recordAudit } from '@iedora/auth'
+import { CORE_AUDIT_EVENTS, recordAudit } from '@iedora/auth'
 import {
   getSession,
   userHasScope,
@@ -32,7 +32,7 @@ async function recordDenied(input: {
   h: Headers
 }): Promise<void> {
   await recordAudit({
-    event: 'auth.denied',
+    event: CORE_AUDIT_EVENTS.AUTH_DENIED,
     outcome: 'denied',
     actor: input.session?.user
       ? {

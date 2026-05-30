@@ -53,7 +53,7 @@ export async function createCodeAction(input: {
   restaurantId?: string
   label?: string
 }): Promise<ActionResult<{ code: string }>> {
-  await requireScope(SCOPES.menu.tenant.qrCodes.create)
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
   const res = await runCreateCode(drizzleQrCodesGateway, input)
   if (!res.ok) return { ok: false, error: errMsg(res.error) }
   revalidatePath(ADMIN_PATH)
@@ -63,7 +63,7 @@ export async function createCodeAction(input: {
 export async function bulkGenerateAction(
   count: number,
 ): Promise<ActionResult<{ codes: string[] }>> {
-  await requireScope(SCOPES.menu.tenant.qrCodes.create)
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
   const res = await runBulkGenerate(drizzleQrCodesGateway, { count })
   if (!res.ok) return { ok: false, error: errMsg(res.error) }
   revalidatePath(ADMIN_PATH)
@@ -74,7 +74,7 @@ export async function bindCodeAction(input: {
   code: string
   restaurantId: string
 }): Promise<ActionResult> {
-  await requireScope(SCOPES.menu.tenant.qrCodes.update)
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
   const res = await runBind(drizzleQrCodesGateway, input)
   if (!res.ok) return { ok: false, error: errMsg(res.error) }
   revalidatePath(ADMIN_PATH)
@@ -82,7 +82,7 @@ export async function bindCodeAction(input: {
 }
 
 export async function unbindCodeAction(code: string): Promise<ActionResult> {
-  await requireScope(SCOPES.menu.tenant.qrCodes.update)
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
   const res = await runUnbind(drizzleQrCodesGateway, code)
   if (!res.ok) return { ok: false, error: errMsg(res.error) }
   revalidatePath(ADMIN_PATH)
@@ -93,7 +93,7 @@ export async function updateLabelAction(input: {
   code: string
   label: string
 }): Promise<ActionResult> {
-  await requireScope(SCOPES.menu.tenant.qrCodes.update)
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
   const res = await runUpdateLabel(drizzleQrCodesGateway, input)
   if (!res.ok) return { ok: false, error: errMsg(res.error) }
   revalidatePath(ADMIN_PATH)
@@ -101,7 +101,7 @@ export async function updateLabelAction(input: {
 }
 
 export async function deleteCodeAction(code: string): Promise<ActionResult> {
-  await requireScope(SCOPES.menu.tenant.qrCodes.delete)
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
   const res = await runDeleteCode(drizzleQrCodesGateway, code)
   if (!res.ok) return { ok: false, error: errMsg(res.error) }
   revalidatePath(ADMIN_PATH)

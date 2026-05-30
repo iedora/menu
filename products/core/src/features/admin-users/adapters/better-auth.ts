@@ -3,8 +3,8 @@ import { desc, eq } from 'drizzle-orm'
 import {
   getCoreDb,
   schema,
-  detectStaffPreset,
   STAFF_ROLE_PRESETS,
+  TENANT_USER_FILTER,
   isStaffRole,
   type AuditActor,
 } from '@iedora/auth'
@@ -54,9 +54,9 @@ export function betterAuthAdminUsersGateway(
       // listUsers helper. Role-string filter is converted to "staff
       // preset matches": match if user.scopes equals the preset.
       const kindFilter =
-        input.role === 'iedora-admin' || input.role === 'iedora-support'
+        isStaffRole(input.role)
           ? 'staff'
-          : input.role === 'member'
+          : input.role === TENANT_USER_FILTER
             ? 'tenant'
             : undefined
       const result = await listUsersCore({
@@ -166,7 +166,8 @@ function mapUser(u: {
   email: string
   name: string
   emailVerified?: boolean | null
-  scopes?: Scope[] | string[] | null
+  role?: string | null
+  extraScopes?: Scope[] | string[] | null
   banned?: boolean | null
   banReason?: string | null
   banExpires?: Date | string | number | null
@@ -176,19 +177,26 @@ function mapUser(u: {
   const banExpires = u.banExpires
     ? new Date(u.banExpires).getTime()
     : null
-  // Detect named preset for UI display. Custom scope sets show as null
-  // ("Custom") — the admin UI can choose to label them as such.
-  const role =
-    u.scopes && u.scopes.length > 0
-      ? detectStaffPreset(u.scopes as readonly Scope[])
-      : null
+  // Effective scope set for the admin UI = role preset expansion ∪
+  // bespoke extras. Mirrors `getEffectiveUserScopes` exactly so the
+  // count + per-scope list shown in the admin chip matches the live
+  // gate that `requireScope` consults.
+  const role = isStaffRole(u.role) ? u.role : null
+  const extra = (u.extraScopes ?? []) as readonly Scope[]
+  const fromRole: readonly Scope[] = role ? STAFF_ROLE_PRESETS[role] : []
+  const effective =
+    role === null && extra.length === 0
+      ? null
+      : extra.length === 0
+        ? [...fromRole]
+        : Array.from(new Set([...fromRole, ...extra]))
   return {
     id: u.id,
     email: u.email,
     name: u.name,
     emailVerified: Boolean(u.emailVerified),
     role,
-    scopes: (u.scopes as string[] | null | undefined) ?? null,
+    scopes: effective,
     banned: Boolean(u.banned),
     banReason: u.banReason ?? null,
     banExpires,

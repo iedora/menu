@@ -110,3 +110,6 @@ dist/
 
 
 menu-taberna-do-jose.extracted.json
+
+# Local-dev fingerprint cache for `bun run dev` migrate skip.
+.dev-cache/

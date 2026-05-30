@@ -28,7 +28,8 @@ async function readSession(): Promise<Session | null> {
       id: s.user.id,
       email: s.user.email,
       name: s.user.name,
-      scopes: (s.user as { scopes?: string[] | null }).scopes ?? null,
+      role: (s.user as { role?: string | null }).role ?? null,
+      extraScopes: (s.user as { extraScopes?: string[] }).extraScopes ?? [],
     },
     session: {
       id: s.session.id,
@@ -50,6 +51,20 @@ export const drizzleAuthGateway: AuthGateway = {
           eq(restaurant.tenantId, tenantId),
         ),
       )
+      .limit(1)
+    return rows[0] ?? null
+  },
+
+  async findRestaurantBySlugAnyOrg(slug) {
+    const rows = await db
+      .select({
+        id: restaurant.id,
+        name: restaurant.name,
+        slug: restaurant.slug,
+        tenantId: restaurant.tenantId,
+      })
+      .from(restaurant)
+      .where(eq(restaurant.slug, slug))
       .limit(1)
     return rows[0] ?? null
   },

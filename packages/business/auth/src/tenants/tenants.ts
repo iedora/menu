@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { getCoreDb } from '../db'
 import { schema } from '../schema'
 import type { Scope } from '../rbac/scopes'
@@ -85,6 +85,28 @@ export async function createTenant(input: {
     meta: { scopes: founderScopes, founder: true },
   })
   return row
+}
+
+/**
+ * Free-text search across `tenant.name` for admin pickers (e.g. the
+ * restaurant-transfer flow). Ordered by recency, capped at 50.
+ * Anyone can call — gating belongs at the caller (`requireScope`).
+ */
+export async function searchTenants(input: {
+  search?: string
+  limit?: number
+}): Promise<Tenant[]> {
+  const db = getCoreDb()
+  const limit = Math.min(input.limit ?? 20, 50)
+  if (!input.search) {
+    return db.select().from(tenant).orderBy(desc(tenant.createdAt)).limit(limit)
+  }
+  return db
+    .select()
+    .from(tenant)
+    .where(ilike(tenant.name, `%${input.search}%`))
+    .orderBy(desc(tenant.createdAt))
+    .limit(limit)
 }
 
 /** Returns the tenant if it exists, otherwise null. */

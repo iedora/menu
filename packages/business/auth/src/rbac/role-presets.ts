@@ -46,6 +46,19 @@ export const IEDORA_SUPPORT_ROLE = 'iedora-support' as const
 export const STAFF_ROLES = [IEDORA_ADMIN_ROLE, IEDORA_SUPPORT_ROLE] as const
 export type StaffRoleKey = (typeof STAFF_ROLES)[number]
 
+/**
+ * URL/UI literal used by admin filters to mean "non-staff user"
+ * (i.e. `user.role IS NULL`). Coincides with the tenant preset key
+ * `'member'` so URLs read naturally — `?role=member` — but the
+ * semantic is `kind=tenant`, not "holds the tenant `member` preset".
+ *
+ * Lives here, alongside the role constants, so every filter callsite
+ * (admin pages, filter bars, gateway adapters) imports the SAME
+ * value. Changing it = one edit instead of greping the repo.
+ */
+export const TENANT_USER_FILTER = 'member' as const
+export type TenantUserFilter = typeof TENANT_USER_FILTER
+
 // ─── Presets — UX shortcuts that expand to scope arrays ─────────────
 
 const STAFF_PREFIX = 'staff:'
@@ -149,4 +162,29 @@ export function detectTenantPreset(
  */
 export function isStaffRole(role: unknown): role is StaffRoleKey {
   return typeof role === 'string' && (STAFF_ROLES as readonly string[]).includes(role)
+}
+
+/**
+ * Tenant membership-aware scope check. Returns true when `scope` is in
+ * the literal stored array OR — if `stored` still matches a known
+ * tenant preset — when the *current* preset includes the scope. This
+ * lets a new scope added to a tenant preset propagate to every
+ * holder of that role without a per-membership re-grant.
+ *
+ * Bespoke (custom-mixed) scope arrays are kept literal — they're not
+ * a preset and never auto-expand.
+ *
+ * No staff variant: cross-tenant authority lives in `user.role` (live
+ * preset key) + `user.extra_scopes` (bespoke layer). The staff side
+ * is resolved by expanding the role at lookup time —
+ * `getEffectiveUserScopes` does that. Preset detection is unnecessary
+ * because the role IS the preset.
+ */
+export function presetAwareIncludes(
+  stored: readonly Scope[],
+  scope: Scope,
+): boolean {
+  if (stored.includes(scope)) return true
+  const preset = detectTenantPreset(stored)
+  return preset !== null && (TENANT_ROLE_PRESETS[preset] as readonly Scope[]).includes(scope)
 }

@@ -5,6 +5,13 @@ import { getInvoiceYears, getInvoicesForYear } from '@iedora/product-menu/featur
 import { PLANS, getOrganizationPlan } from '@iedora/product-menu/features/plans'
 import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
 import { Badge } from '@iedora/design-system'
+import {
+  getLatestManualPayment,
+  getPlanCatalogEntry,
+  paymentDiscount,
+  paymentValidUntil,
+} from '@iedora/billing'
+import { PRODUCTS } from '@iedora/brand'
 import { UpgradeButton } from './upgrade-button'
 
 function formatMoney(amountCents: number, currency: string, locale: string) {
@@ -52,10 +59,29 @@ export default async function BillingPage({
   const t = await getTranslations('Billing')
   const locale = await getLocale()
 
-  const [current, years] = await Promise.all([
+  const [current, years, latestPayment] = await Promise.all([
     getOrganizationPlan(tenantId),
     getInvoiceYears(tenantId),
+    getLatestManualPayment({ tenantId, product: PRODUCTS.menu }),
   ])
+
+  // Latest offline payment derived view — discount + validity window.
+  // `getPlanCatalogEntry` returns null for renamed plans; we fall back
+  // to 0 so the card still renders without crashing on stale rows.
+  const paymentView = latestPayment
+    ? (() => {
+        const catalog = getPlanCatalogEntry(PRODUCTS.menu, latestPayment.planCode)
+        const discount = paymentDiscount(latestPayment, catalog?.monthlyCents ?? 0)
+        const validUntil = paymentValidUntil(latestPayment)
+        return {
+          payment: latestPayment,
+          planName: catalog?.name ?? latestPayment.planCode,
+          monthlyCents: catalog?.monthlyCents ?? 0,
+          discount,
+          validUntil,
+        }
+      })()
+    : null
 
   const currentYear = new Date().getFullYear()
   const availableYears = years.length > 0 ? years : [currentYear]
@@ -73,6 +99,78 @@ export default async function BillingPage({
       eyebrow={t(`plans.${current.code}.name`)}
       data-test-id="billing"
     >
+      {paymentView && (
+        <section
+          className="rounded border border-[var(--ink-14)] bg-[var(--paper-2)] p-4 space-y-3"
+          data-test-id="billing-latest-payment"
+          aria-labelledby="billing-latest-payment-heading"
+        >
+          <header className="flex items-baseline justify-between gap-3">
+            <h2
+              id="billing-latest-payment-heading"
+              className="font-[family-name:var(--serif)] text-lg"
+            >
+              {t('latestPayment.heading')}
+            </h2>
+            {paymentView.payment.campaignTag && (
+              <span
+                className="rounded border border-[var(--ink-40)] px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-[var(--ink-55)]"
+                data-test-id="billing-latest-payment-campaign"
+              >
+                {paymentView.payment.campaignTag}
+              </span>
+            )}
+          </header>
+          <dl className="grid grid-cols-2 gap-y-2 text-sm">
+            <dt className="text-[var(--ink-55)]">{t('latestPayment.plan')}</dt>
+            <dd className="text-right">{paymentView.planName}</dd>
+
+            <dt className="text-[var(--ink-55)]">{t('latestPayment.period')}</dt>
+            <dd className="text-right tabular-nums">
+              {formatIssuedAt(paymentView.payment.paidAt, locale)}
+              {' → '}
+              {formatIssuedAt(paymentView.validUntil, locale)}
+            </dd>
+
+            <dt className="text-[var(--ink-55)]">{t('latestPayment.paid')}</dt>
+            <dd className="text-right font-[family-name:var(--mono)] tabular-nums">
+              {formatMoney(
+                paymentView.payment.amountCents,
+                paymentView.payment.currency,
+                locale,
+              )}
+            </dd>
+
+            {paymentView.monthlyCents > 0 && (
+              <>
+                <dt className="text-[var(--ink-55)]">{t('latestPayment.listPrice')}</dt>
+                <dd className="text-right font-[family-name:var(--mono)] tabular-nums">
+                  {formatMoney(
+                    paymentView.discount.expectedCents,
+                    paymentView.payment.currency,
+                    locale,
+                  )}
+                </dd>
+
+                <dt className="text-[var(--ink-55)]">{t('latestPayment.discount')}</dt>
+                <dd className="text-right font-[family-name:var(--mono)] tabular-nums">
+                  {paymentView.discount.discountPct > 0
+                    ? `−${paymentView.discount.discountPct}%`
+                    : paymentView.discount.discountPct < 0
+                      ? `+${Math.abs(paymentView.discount.discountPct)}%`
+                      : '—'}
+                </dd>
+              </>
+            )}
+
+            <dt className="text-[var(--ink-55)]">{t('latestPayment.method')}</dt>
+            <dd className="text-right uppercase tracking-wide">
+              {t(`latestPayment.methodLabel.${paymentView.payment.method}`)}
+            </dd>
+          </dl>
+        </section>
+      )}
+
       <section
         className="billing-plans"
         data-test-id="billing-plan-section"
@@ -80,7 +178,7 @@ export default async function BillingPage({
       >
         {PLANS.map((plan) => {
           const isCurrent = plan.code === current.code
-          const isRecommended = plan.code === 'casa'
+          const isRecommended = Boolean(plan.isRecommended)
           const restaurantsCopy =
             plan.limits.restaurants === Number.POSITIVE_INFINITY
               ? t('unlimitedRestaurants')

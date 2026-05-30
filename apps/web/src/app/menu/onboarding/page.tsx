@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { DottedStepper, Masthead, OrnamentRule, PaperCard, Stage } from '@iedora/design-system'
+import { isStaffRole } from '@iedora/auth/role-presets'
 import {
   getEffectiveOrganizationId,
   getSession,
@@ -26,6 +27,11 @@ export default async function OnboardingPage({
 }) {
   const session = await getSession()
   if (!session?.user) redirect(signInUrl(publicUrl(ONBOARDING_STEPS.name.path).toString()))
+
+  // Staff bypass: iedora-admin / iedora-support never need to onboard
+  // a tenant of their own — the dashboard is cross-tenant for them.
+  const role = (session.user as { role?: string | null }).role ?? null
+  if (isStaffRole(role)) redirect('/menu/dashboard')
 
   const sp = (await searchParams) ?? {}
   const addAnotherRaw = sp[ADD_ANOTHER_QUERY_KEY]

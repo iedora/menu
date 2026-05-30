@@ -17,6 +17,7 @@ export {
   STAFF_ROLES,
   IEDORA_ADMIN_ROLE,
   IEDORA_SUPPORT_ROLE,
+  TENANT_USER_FILTER,
   STAFF_ROLE_PRESETS,
   TENANT_ROLE_PRESETS,
   TENANT_ROLE_PRESET_KEYS,
@@ -25,10 +26,17 @@ export {
   isStaffRole,
   type StaffRoleKey,
   type TenantRolePresetKey,
+  type TenantUserFilter,
 } from './rbac/role-presets'
 
 export { schema } from './schema'
 export { getCoreDb } from './db'
+
+export {
+  SESSION_COOKIE_NAME,
+  SECURE_SESSION_COOKIE_NAME,
+  SESSION_COOKIE_NAMES,
+} from './cookies'
 
 export { recordAudit } from './audit/audit'
 export type { AuditInput, AuditOutcome } from './audit/audit'
@@ -45,6 +53,7 @@ export {
   getTenantById,
   listUserTenants,
   hasAnyTenant,
+  searchTenants,
   type Tenant,
 } from './tenants/tenants'
 export {
@@ -63,6 +72,11 @@ export {
 // `admin` plugin surface — ban / impersonate / list-users live here
 // now, working over the schema columns better-auth had configured.
 export {
+  getUserRole,
+  setUserRole,
+  getUserExtraScopes,
+  setUserExtraScopes,
+  getEffectiveUserScopes,
   getUserScopes,
   setUserScopes,
   userHasScope,

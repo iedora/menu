@@ -12,6 +12,7 @@ import {
   Wordmark,
 } from '@iedora/design-system'
 import { SCOPES, type Scope } from '@iedora/auth/scopes'
+import { IEDORA_ADMIN_ROLE } from '@iedora/auth/role-presets'
 import { ActiveSidebarLinks, type ActiveSidebarItem } from '@iedora/design-system'
 
 /**
@@ -42,6 +43,8 @@ export async function AdminShell({
   // Scope-aware nav: omits links the caller can't reach. Reads scopes
   // directly from the array (no AC binding indirection).
   const canSeeAudit = userScopes?.includes(SCOPES.core.staff.audit.read) ?? false
+  const canManagePayments =
+    userScopes?.includes(SCOPES.core.staff.billing.manage) ?? false
 
   const items: ReadonlyArray<ActiveSidebarItem> = [
     {
@@ -75,6 +78,15 @@ export async function AdminShell({
       label: t('sessions'),
       testId: 'admin-nav-sessions',
     },
+    ...(canManagePayments
+      ? ([
+          {
+            href: '/core/admin/payments',
+            label: t('payments'),
+            testId: 'admin-nav-payments',
+          },
+        ] as const)
+      : []),
     ...(canSeeAudit
       ? ([
           {
@@ -125,7 +137,7 @@ export async function AdminShell({
               </span>
               {staffRoleLabel ? (
                 <Badge
-                  variant={staffRoleLabel === 'iedora-admin' ? 'accent' : 'ink'}
+                  variant={staffRoleLabel === IEDORA_ADMIN_ROLE ? 'accent' : 'ink'}
                   data-test-id="admin-user-role"
                 >
                   {staffRoleLabel}

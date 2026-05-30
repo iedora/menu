@@ -21,7 +21,7 @@ import { signInUrl } from '@iedora/product-core/url'
 import { publicUrl } from '@iedora/product-menu/shared/url'
 import { db } from '@iedora/product-menu/shared/db/client'
 import { menu, restaurant } from '@iedora/product-menu/shared/db/schema'
-import { canAddRestaurant } from '@iedora/product-menu/features/plans'
+import { canAddRestaurant, DEFAULT_PLAN } from '@iedora/product-menu/features/plans'
 import { enforceRateLimit } from '@iedora/product-menu/features/rate-limit'
 import { ONBOARDING_STEPS } from '@iedora/product-menu/features/menu-onboarding'
 
@@ -190,7 +190,7 @@ async function createOrgAndFirstRestaurant(
     await createSubscription({
       tenantId,
       product: PRODUCTS.menu,
-      plan: 'free',
+      plan: DEFAULT_PLAN.code,
       status: 'active',
       actor: { userId: session.user.id, email: session.user.email },
     })

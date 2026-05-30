@@ -124,6 +124,8 @@
     "qrCodeLede": "Print stickers your guests can scan at the table.",
     "settingsTitle": "Theme & settings",
     "settingsLede": "Colours, fonts, logo, languages and slug.",
+    "transferTitle": "Transfer ownership",
+    "transferLede": "Hand this restaurant to another tenant + owner.",
     "viewPublicTitle": "View public menu",
     "viewPublicLede": "See exactly what your guests see.",
     "menus": "Menus",
@@ -234,6 +236,59 @@
     "updateMenuDoneDescription": "{added, plural, =0 {No dishes added} =1 {1 dish added} other {# dishes added}} · {updated, plural, =0 {nothing updated} =1 {1 updated} other {# updated}} · {removed, plural, =0 {nothing removed} =1 {1 removed} other {# removed}}.",
     "updateMenuDone": "Close"
   },
+  "RestaurantTransfer": {
+    "eyebrow": "Admin",
+    "title": "Transfer {name}",
+    "context": {
+      "heading": "Currently",
+      "subtitle": "What the restaurant, tenant and member roster look like today.",
+      "restaurantName": "Restaurant",
+      "restaurantSlug": "Slug",
+      "restaurantCreated": "Created",
+      "tenantName": "Tenant",
+      "tenantCreated": "Tenant created",
+      "membersHeading": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
+      "membersEmpty": "Tenant has no members.",
+      "role": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "member": "Member",
+        "viewer": "Viewer",
+        "custom": "Custom"
+      }
+    },
+    "description": "Hand this restaurant to another tenant + owner. You lose access once it's done.",
+    "crumbRestaurant": "Restaurant",
+    "tenantHeading": "Destination tenant",
+    "tenantHint": "Pick an existing tenant or create a brand new one to house this restaurant.",
+    "pickExistingTenant": "Pick existing",
+    "createTenant": "Create new",
+    "tenantSearchPlaceholder": "Search tenants by name…",
+    "tenantNameLabel": "Tenant name",
+    "tenantNamePlaceholder": "e.g. Taberna do José",
+    "ownerHeading": "Owner",
+    "ownerHint": "Pick an existing user or create a brand new one. Owners get full powers in the destination tenant.",
+    "pickExistingUser": "Pick existing",
+    "createUser": "Create new",
+    "userSearchPlaceholder": "Search users by email or name…",
+    "userEmailLabel": "Email",
+    "userNameLabel": "Name",
+    "userPasswordLabel": "Initial password",
+    "userPasswordHint": "Min 12 chars. Share with the new owner — they can change it on first login.",
+    "staffMarker": "Staff",
+    "confirmHeading": "Review",
+    "rowRestaurant": "Restaurant",
+    "rowTenant": "Destination tenant",
+    "rowOwner": "Owner",
+    "newSuffix": "(new)",
+    "pendingTenant": "—",
+    "pendingOwner": "—",
+    "handoffNotice": "After the transfer you no longer belong to the destination tenant. Every step is audited.",
+    "submit": "Transfer",
+    "submitting": "Transferring…",
+    "emptyList": "No matches.",
+    "searching": "Searching…"
+  },
   "Settings": {
     "livePreview": "Live preview",
     "Identity": {
@@ -301,6 +356,19 @@
   },
   "Billing": {
     "title": "Billing",
+    "latestPayment": {
+      "heading": "Latest payment",
+      "plan": "Plan",
+      "period": "Period",
+      "paid": "You paid",
+      "listPrice": "List price",
+      "discount": "Discount",
+      "method": "Method",
+      "methodLabel": {
+        "mbway": "MB WAY",
+        "cash": "Cash"
+      }
+    },
     "currentPlanTitle": "Current plan",
     "currentPlanSubtitle": "Switch any time. Changes apply on the next invoice.",
     "upgradeCta": "Upgrade to add more",
@@ -555,6 +623,45 @@
         "filterImpersonated": "Impersonated only",
         "filterApply": "Apply"
       },
+      "payments": {
+        "title": "Manual payments",
+        "description": "Offline payments (MBWay, cash) recorded by hand. Discount vs. list price is computed live from the plan registry.",
+        "crumbAdmin": "Admin",
+        "empty": "No payments recorded yet.",
+        "openForm": "+ Record payment",
+        "cancelForm": "Cancel",
+        "formHeading": "Record payment",
+        "tenantLabel": "Tenant",
+        "tenantSearchPlaceholder": "Search tenants…",
+        "planLabel": "Plan",
+        "paidAtLabel": "Paid on",
+        "validMonthsLabel": "Valid (months)",
+        "amountLabel": "Amount received (list {eur} €)",
+        "methodLabel": "Method",
+        "campaignLabel": "Campaign tag",
+        "campaignPlaceholder": "e.g. beta-user, launch-50",
+        "notesLabel": "Notes",
+        "submit": "Record",
+        "submitting": "Recording…",
+        "filterMethod": "Method",
+        "filterMethodAll": "All methods",
+        "filterCampaignPlaceholder": "Filter by campaign…",
+        "searching": "Searching…",
+        "deleteAction": "Delete",
+        "deleting": "Deleting…",
+        "deleteConfirm": "Delete this payment? The audit row stays.",
+        "discountNone": "no discount",
+        "discountPreview": "{pct}% discount vs. list price.",
+        "overpaidPreview": "Overpaid by {pct}%.",
+        "listPriceMatch": "Matches list price.",
+        "errorTenant": "Pick a tenant.",
+        "errorPlan": "Pick a plan.",
+        "errorAmount": "Amount must be ≥ 0.",
+        "method": {
+          "mbway": "MB WAY",
+          "cash": "Cash"
+        }
+      },
       "nav": {
         "ariaLabel": "Admin navigation",
         "openNavigation": "Open navigation",
@@ -567,6 +674,7 @@
         "access": "Access",
         "tenants": "Tenants",
         "sessions": "Sessions",
+        "payments": "Payments",
         "audit": "Audit",
         "signOut": "Sign out"
       },
@@ -629,6 +737,9 @@
               "admin": {
                 "read": "Enter the cross-tenant admin shell. Held by every staff role."
               },
+              "billing": {
+                "manage": "Record / delete manual offline payments (MBWay, cash) across tenants."
+              },
               "audit": {
                 "read": "Read the append-only audit log of every state change on the auth + admin surface."
               },
@@ -670,6 +781,17 @@
             }
           },
           "menu": {
+            "staff": {
+              "ai": {
+                "unlimited": "Bypass the weekly AI-generation quota on menu imports."
+              },
+              "restaurants": {
+                "transfer": "Transfer a restaurant to a different tenant + owner."
+              },
+              "qr-codes": {
+                "manage": "Cross-tenant QR-code inventory admin (mint, bind, delete)."
+              }
+            },
             "tenant": {
               "restaurants": {
                 "read": "View restaurants belonging to this tenant.",

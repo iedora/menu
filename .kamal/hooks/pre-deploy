@@ -39,6 +39,6 @@ echo "[pre-deploy] migrating DBs against version $KAMAL_VERSION..."
 # explícito — `kamal app exec` passa a string como `docker run image CMD`
 # sem auto-wrap, então `&&` precisa de shell que o entenda.
 # Falha de qualquer migração curto-circuita + aborta o deploy.
-kamal -c infra/live/kamal/deploy.yml app exec --primary --version="$KAMAL_VERSION" \
+kamal app exec -c infra/live/kamal/deploy.yml --primary --version="$KAMAL_VERSION" \
   'sh -c "node /app/packages/core-auth/migrate.mjs && node /app/products/menu/migrate.mjs && node /app/products/imopush/migrate.mjs"'
 echo "[pre-deploy] migrations ok."

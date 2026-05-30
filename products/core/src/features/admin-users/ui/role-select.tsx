@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { Combobox } from '@iedora/design-system'
+import { IEDORA_ADMIN_ROLE } from '@iedora/auth/role-presets'
 import { setUserRoleAction } from '../actions'
 import type { CrossTenantRole } from '../use-cases/set-role'
 
@@ -45,7 +46,7 @@ export function RoleSelect({ userId, currentRole, disabled, canSetRole }: Props)
         className="text-sm text-[var(--ink-70)]"
         data-test-id={`admin-users-role-readonly-${userId}`}
       >
-        {currentRole === 'iedora-admin' ? t('iedoraAdmin') : t('member')}
+        {currentRole === IEDORA_ADMIN_ROLE ? t('iedoraAdmin') : t('member')}
       </span>
     )
   }
@@ -57,7 +58,7 @@ export function RoleSelect({ userId, currentRole, disabled, canSetRole }: Props)
         onChange={change}
         disabled={disabled || pending}
         options={[
-          { value: 'iedora-admin', label: t('iedoraAdmin') },
+          { value: IEDORA_ADMIN_ROLE, label: t('iedoraAdmin') },
         ]}
         placeholder={t('member')}
         clearable

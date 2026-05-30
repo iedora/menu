@@ -1,6 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { hasScope } from '@iedora/auth/server'
+import { SCOPES } from '@iedora/auth/scopes'
 import { requireRestaurantBySlug } from '../auth'
 import type { LanguageCode } from '../i18n'
 import { revalidateRestaurant } from '../menu-publishing'
@@ -59,8 +61,9 @@ export async function analyzeMenuImage(
   // Auth guard: verifies the caller belongs to the restaurant's org.
   const { tenantId } = await requireRestaurantBySlug(slug)
 
+  const isAdmin = await hasScope(SCOPES.menu.staff.ai.unlimited)
   const gate = await canGenerateAiMenu(tenantId)
-  if (!gate.ok) {
+  if (!isAdmin && !gate.ok) {
     return {
       error: `Weekly AI menu limit reached (${gate.used}/${gate.limit}). Upgrade to Casa for 5 imports per week.`,
       reason: 'ai-weekly-limit',
@@ -155,8 +158,9 @@ export async function analyzeMenuPatch(
 ): Promise<AnalyzePatchResult> {
   const { tenantId } = await requireRestaurantBySlug(slug)
 
+  const isAdmin = await hasScope(SCOPES.menu.staff.ai.unlimited)
   const gate = await canGenerateAiMenu(tenantId)
-  if (!gate.ok) {
+  if (!isAdmin && !gate.ok) {
     return {
       error: `Weekly AI menu limit reached (${gate.used}/${gate.limit}). Upgrade to Casa for 5 imports per week.`,
       reason: 'ai-weekly-limit',

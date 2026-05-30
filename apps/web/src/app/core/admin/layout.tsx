@@ -1,6 +1,6 @@
 import { requireScope } from '@iedora/product-core'
 import { SCOPES, type Scope } from '@iedora/auth/scopes'
-import { detectStaffPreset } from '@iedora/auth'
+import { STAFF_ROLE_PRESETS, isStaffRole, type StaffRoleKey } from '@iedora/auth/role-presets'
 import { AdminShell } from '@iedora/product-core/shared/ui/admin-shell'
 
 /**
@@ -15,11 +15,20 @@ export default async function CoreAdminLayout({
   children: React.ReactNode
 }) {
   const session = await requireScope(SCOPES.core.staff.admin.read)
-  const userScopes =
-    ((session.user as { scopes?: string[] | null }).scopes ?? null) as
-      | readonly Scope[]
-      | null
-  const staffRoleLabel = userScopes ? detectStaffPreset(userScopes) : null
+  const sessionRole = (session.user as { role?: string | null }).role ?? null
+  const sessionExtra =
+    ((session.user as { extraScopes?: string[] | null }).extraScopes ?? []) as
+      readonly Scope[]
+  const staffRoleLabel: StaffRoleKey | null = isStaffRole(sessionRole) ? sessionRole : null
+  const fromRole: readonly Scope[] = staffRoleLabel
+    ? STAFF_ROLE_PRESETS[staffRoleLabel]
+    : []
+  const userScopes: readonly Scope[] | null =
+    staffRoleLabel === null && sessionExtra.length === 0
+      ? null
+      : sessionExtra.length === 0
+        ? [...fromRole]
+        : Array.from(new Set([...fromRole, ...sessionExtra]))
   return (
     <AdminShell
       userEmail={session.user.email}

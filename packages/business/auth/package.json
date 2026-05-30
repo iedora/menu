@@ -12,6 +12,7 @@
     "./server": "./src/server/index.ts",
     "./role-presets": "./src/rbac/role-presets.ts",
     "./scopes": "./src/rbac/scopes.ts",
+    "./cookies": "./src/cookies.ts",
     "./audit": "./src/audit/audit.ts"
   },
   "scripts": {

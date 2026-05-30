@@ -26,6 +26,7 @@ import {
 } from '../actions'
 import type { QrCodeListRow } from '../ports'
 import type { QrStats } from '../stats'
+import { QrPrintSheetDialog } from './qr-print-sheet-dialog'
 
 type RestaurantOption = { id: string; name: string; slug: string }
 
@@ -330,6 +331,7 @@ function CodeRow({
 }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [printOpen, setPrintOpen] = useState(false)
   const stickerUrl = `${publicOrigin}/q/${row.code}`
   const brandedUrl = row.restaurant ? `${publicOrigin}/r/${row.restaurant.slug}` : null
   const createdAgo = formatRelative(row.createdAt)
@@ -416,8 +418,17 @@ function CodeRow({
       {/* Label column — inline edit; commits on blur. */}
       <InlineLabelField row={row} disabled={pending} onError={setError} />
 
-      {/* Actions — right-justified at lg+, full-width on mobile. */}
-      <div className="flex justify-end lg:pt-[26px]">
+      {/* Actions — stacked full-width on mobile, right-justified row at lg+. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end lg:pt-[26px]">
+        <Button
+          variant="ghost"
+          type="button"
+          onClick={() => setPrintOpen(true)}
+          disabled={pending}
+          data-test-id={`qr-codes-row-print-${row.code}`}
+        >
+          Print A4
+        </Button>
         <Button
           variant="ghost"
           type="button"
@@ -428,6 +439,15 @@ function CodeRow({
           Delete
         </Button>
       </div>
+
+      <QrPrintSheetDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        code={row.code}
+        stickerUrl={stickerUrl}
+        label={row.label}
+      />
+
 
       {error && (
         <p

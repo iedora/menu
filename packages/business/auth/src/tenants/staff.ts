@@ -1,8 +1,13 @@
 import 'server-only'
-import { and, desc, eq, gt, ilike, isNotNull, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, gt, ilike, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { getCoreDb } from '../db'
 import { schema } from '../schema'
 import type { Scope } from '../rbac/scopes'
+import {
+  STAFF_ROLE_PRESETS,
+  isStaffRole,
+  type StaffRoleKey,
+} from '../rbac/role-presets'
 import { recordAudit } from '../audit/audit'
 import { CORE_AUDIT_EVENTS, type AuditActor } from '../audit/audit-events'
 
@@ -31,7 +36,8 @@ export type UserRow = {
   id: string
   name: string
   email: string
-  scopes: Scope[] | null
+  role: StaffRoleKey | null
+  extraScopes: Scope[]
   banned: boolean | null
   banReason: string | null
   banExpires: Date | null
@@ -39,68 +45,211 @@ export type UserRow = {
   updatedAt: Date
 }
 
-// ─── Staff scope reads / writes ────────────────────────────────────
+// ─── Staff role + extra-scope reads / writes ──────────────────────
 
-/** Returns the user's staff scopes, or `null` when they're a tenant. */
-export async function getUserScopes(userId: string): Promise<Scope[] | null> {
+/** Returns the user's staff role (named preset), or null for tenants. */
+export async function getUserRole(
+  userId: string,
+): Promise<StaffRoleKey | null> {
   const db = getCoreDb()
   const rows = await db
-    .select({ scopes: user.scopes })
+    .select({ role: user.role })
     .from(user)
     .where(eq(user.id, userId))
     .limit(1)
-  return rows[0]?.scopes ?? null
+  const r = rows[0]?.role ?? null
+  return isStaffRole(r) ? r : null
+}
+
+/** Returns the user's bespoke extra scopes layered on top of the role. */
+export async function getUserExtraScopes(userId: string): Promise<Scope[]> {
+  const db = getCoreDb()
+  const rows = await db
+    .select({ extraScopes: user.extraScopes })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+  return rows[0]?.extraScopes ?? []
 }
 
 /**
- * Set / clear the user's staff scopes. Pass `null` to demote a staff
- * user to regular tenant. Pass `[]` to keep staff status but strip
- * every power (rare; use `null` instead unless there's a reason).
+ * Effective staff scopes for a user — role-preset expansion ∪ bespoke
+ * extras. Returns null when the user is tenant-only (role IS NULL AND
+ * extra_scopes is empty). Adding a scope to a role preset propagates
+ * to every holder of that role with no per-user write.
  */
-export async function setUserScopes(
+export async function getEffectiveUserScopes(
   userId: string,
-  scopes: readonly Scope[] | null,
+): Promise<Scope[] | null> {
+  const role = await getUserRole(userId)
+  const extra = await getUserExtraScopes(userId)
+  if (role === null && extra.length === 0) return null
+  const fromRole: readonly Scope[] = role ? STAFF_ROLE_PRESETS[role] : []
+  if (extra.length === 0) return [...fromRole]
+  // De-dupe — a bespoke grant may overlap the preset.
+  return Array.from(new Set([...fromRole, ...extra]))
+}
+
+/**
+ * Set the user's staff role. Pass `null` to demote to tenant. Audits
+ * the change with `from → to`. Doesn't touch `extra_scopes`.
+ */
+export async function setUserRole(
+  userId: string,
+  role: StaffRoleKey | null,
   /** Actor performing the grant. Required — highest blast surface. */
   actor: AuditActor,
 ): Promise<void> {
   const db = getCoreDb()
-  // Snapshot before so the audit row carries the delta.
   const before = await db
-    .select({ scopes: user.scopes })
+    .select({ role: user.role })
     .from(user)
     .where(eq(user.id, userId))
     .limit(1)
-  const previous = before[0]?.scopes ?? null
-  const next = scopes === null ? null : [...scopes]
+  const previous = before[0]?.role ?? null
   await db
     .update(user)
-    .set({ scopes: next, updatedAt: new Date() })
+    .set({ role, updatedAt: new Date() })
     .where(eq(user.id, userId))
   await recordAudit({
     event: CORE_AUDIT_EVENTS.USER_SCOPES_UPDATED,
     outcome: 'success',
     actor,
     target: { userId },
-    meta: { from: previous, to: next },
+    meta: { kind: 'role', from: previous, to: role },
   })
 }
 
 /**
- * Non-throwing scope probe over `user.scopes`. Returns false for
- * anonymous / tenant-only users and for ban'd staff.
+ * Set the user's bespoke extra scopes. Pass `[]` to clear. These add
+ * to the role's preset; they do NOT replace it.
+ */
+export async function setUserExtraScopes(
+  userId: string,
+  scopes: readonly Scope[],
+  actor: AuditActor,
+): Promise<void> {
+  const db = getCoreDb()
+  const before = await db
+    .select({ extraScopes: user.extraScopes })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+  const previous = before[0]?.extraScopes ?? []
+  const next = [...scopes]
+  await db
+    .update(user)
+    .set({ extraScopes: next, updatedAt: new Date() })
+    .where(eq(user.id, userId))
+  await recordAudit({
+    event: CORE_AUDIT_EVENTS.USER_SCOPES_UPDATED,
+    outcome: 'success',
+    actor,
+    target: { userId },
+    meta: { kind: 'extra', from: previous, to: next },
+  })
+}
+
+/**
+ * Non-throwing scope probe over effective staff scopes. Returns false
+ * for anonymous / tenant-only users and for banned staff (ban check is
+ * on the session layer, not here — this only consults the grant).
  */
 export async function userHasScope(
   userId: string,
   scope: Scope,
 ): Promise<boolean> {
-  const scopes = await getUserScopes(userId)
-  return scopes?.includes(scope) ?? false
+  const scopes = await getEffectiveUserScopes(userId)
+  if (!scopes) return false
+  return scopes.includes(scope)
 }
 
-/** True iff the user has any staff scope at all. */
+/** True iff the user has a staff role OR any bespoke extra scope. */
 export async function isStaffUser(userId: string): Promise<boolean> {
-  const scopes = await getUserScopes(userId)
+  const scopes = await getEffectiveUserScopes(userId)
   return scopes !== null && scopes.length > 0
+}
+
+// ─── Back-compat shims kept for callers not yet migrated. ─────────
+
+/** @deprecated use getEffectiveUserScopes / getUserRole. */
+export const getUserScopes = getEffectiveUserScopes
+
+/**
+ * @deprecated use setUserRole + setUserExtraScopes.
+ *
+ * Legacy single-array setter. Splits the input on the fly:
+ *   - `null` → demote (role=null, extra_scopes=[]).
+ *   - matches a staff preset exactly → set role to that key, extra=[].
+ *   - any other non-empty array → role=null, extra_scopes=input.
+ *
+ * Writes both columns + emits a single audit row carrying the
+ * combined delta so the timeline matches what callers expect from
+ * the legacy single-write API. New code should hit the typed
+ * primitives instead (they emit per-column rows).
+ */
+export async function setUserScopes(
+  userId: string,
+  scopes: readonly Scope[] | null,
+  actor: AuditActor,
+): Promise<void> {
+  const db = getCoreDb()
+  // Late import to avoid a cycle (role-presets imports from this module
+  // indirectly via type re-exports in some toolchains).
+  const { detectStaffPreset } = await import('../rbac/role-presets')
+
+  let nextRole: StaffRoleKey | null
+  let nextExtra: Scope[]
+  if (scopes === null) {
+    nextRole = null
+    nextExtra = []
+  } else {
+    const preset = detectStaffPreset(scopes as readonly Scope[])
+    if (preset) {
+      nextRole = preset
+      nextExtra = []
+    } else {
+      nextRole = null
+      nextExtra = [...scopes]
+    }
+  }
+
+  const before = await db
+    .select({ role: user.role, extraScopes: user.extraScopes })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+  const previousRole = (before[0]?.role as StaffRoleKey | null) ?? null
+  const previousExtra = before[0]?.extraScopes ?? []
+
+  await db
+    .update(user)
+    .set({ role: nextRole, extraScopes: nextExtra, updatedAt: new Date() })
+    .where(eq(user.id, userId))
+
+  await recordAudit({
+    event: CORE_AUDIT_EVENTS.USER_SCOPES_UPDATED,
+    outcome: 'success',
+    actor,
+    target: { userId },
+    meta: {
+      from: scopesShape(previousRole, previousExtra),
+      to: scopesShape(nextRole, nextExtra),
+    },
+  })
+}
+
+function scopesShape(
+  role: StaffRoleKey | null,
+  extra: readonly Scope[],
+): Scope[] | null {
+  if (role === null && extra.length === 0) return null
+  // Inline expansion mirrors getEffectiveUserScopes without the DB
+  // round-trip — the legacy audit meta wants the effective set so the
+  // history reads the same shape it always did.
+  const fromRole: readonly Scope[] = role ? STAFF_ROLE_PRESETS[role] : []
+  if (extra.length === 0) return [...fromRole]
+  return Array.from(new Set([...fromRole, ...extra]))
 }
 
 // ─── Ban / unban (was: better-auth admin plugin `banUser`) ─────────
@@ -252,7 +401,7 @@ export async function stopImpersonating(
 export type ListUsersFilter = {
   /** Free-text — matches email or name (ILIKE). */
   search?: string
-  /** Only staff (scopes IS NOT NULL) or only tenants (IS NULL). */
+  /** Only staff (role IS NOT NULL OR extra_scopes non-empty) or only tenants (the inverse). */
   kind?: 'staff' | 'tenant'
   /** Only banned users (banned=true AND not expired). */
   bannedOnly?: boolean
@@ -277,8 +426,23 @@ export async function listUsers(
     const q = `%${filter.search}%`
     conditions.push(or(ilike(user.email, q), ilike(user.name, q))!)
   }
-  if (filter.kind === 'staff') conditions.push(isNotNull(user.scopes))
-  if (filter.kind === 'tenant') conditions.push(isNull(user.scopes))
+  if (filter.kind === 'staff') {
+    // role IS NOT NULL OR extra_scopes != '{}' (any bespoke power).
+    conditions.push(
+      or(
+        isNotNull(user.role),
+        sql`array_length(${user.extraScopes}, 1) > 0`,
+      )!,
+    )
+  }
+  if (filter.kind === 'tenant') {
+    conditions.push(
+      and(
+        isNull(user.role),
+        sql`coalesce(array_length(${user.extraScopes}, 1), 0) = 0`,
+      )!,
+    )
+  }
   if (filter.bannedOnly) {
     const now = new Date()
     conditions.push(eq(user.banned, true))

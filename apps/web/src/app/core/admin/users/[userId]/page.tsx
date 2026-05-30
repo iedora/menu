@@ -11,6 +11,7 @@ import {
 } from '@iedora/design-system'
 import { hasScope, requireScope } from '@iedora/product-core'
 import { SCOPES } from '@iedora/auth/scopes'
+import { IEDORA_ADMIN_ROLE } from '@iedora/auth/role-presets'
 import {
   betterAuthAdminUsersGateway,
   listUserSessions,
@@ -134,7 +135,7 @@ export default async function UserAdminDetailPage({
                     ? t('scopesSourceBuiltIn')
                     : t('scopesSourceCustom')
               }
-              highlight={user.role === 'iedora-admin'}
+              highlight={user.role === IEDORA_ADMIN_ROLE}
             />
           </div>
           <div className="mt-4">

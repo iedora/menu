@@ -67,6 +67,7 @@
         "access": "Accès",
         "organizations": "Organisations",
         "sessions": "Sessions",
+        "payments": "Paiements",
         "audit": "Audit",
         "signOut": "Se déconnecter"
       },
@@ -125,6 +126,9 @@
               "admin": {
                 "read": "Entrer dans le shell admin cross-tenant. Tous les rôles staff l'ont."
               },
+              "billing": {
+                "manage": "Enregistrer / supprimer des paiements manuels hors-ligne (MBWay, espèces) cross-tenant."
+              },
               "audit": {
                 "read": "Lire le journal d'audit append-only de chaque changement d'état sur la surface auth + admin."
               },
@@ -166,6 +170,17 @@
             }
           },
           "menu": {
+            "staff": {
+              "ai": {
+                "unlimited": "Contourner le quota hebdomadaire de génération IA sur les imports de menu."
+              },
+              "restaurants": {
+                "transfer": "Transférer un restaurant vers un autre tenant + propriétaire."
+              },
+              "qr-codes": {
+                "manage": "Administration cross-tenant de l'inventaire QR (créer, lier, supprimer)."
+              }
+            },
             "tenant": {
               "restaurants": {
                 "read": "Voir les restaurants de ce tenant.",

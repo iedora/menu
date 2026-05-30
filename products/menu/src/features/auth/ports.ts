@@ -14,17 +14,20 @@
  * `@iedora/auth/server.getActiveTenantId()` (for the active tenant id,
  * with lazy membership revalidation). Translated by `adapters/drizzle.ts`.
  *
- * `scopes` is the cross-tenant scope set on the user (`null` for tenant
- * users; populated for staff). Tenant-level scopes are NOT carried on
- * the session — they're read per-request via `getMemberScopes(active
- * tenant, userId)`.
+ * `role` is the named staff preset (`'iedora-admin'` / `'iedora-support'`
+ * / `null` for tenants). `extraScopes` carries bespoke grants layered
+ * on top of the role. Effective staff scopes = preset[role] ∪ extraScopes —
+ * compute via `@iedora/auth.getEffectiveUserScopes` when needed.
+ * Tenant-level scopes are NOT on the session; read via
+ * `getMemberScopes(activeTenant, userId)`.
  */
 export type Session = {
   user: {
     id: string
     email: string
     name: string
-    scopes: string[] | null
+    role: string | null
+    extraScopes: string[]
   }
   session: {
     id: string
@@ -48,6 +51,16 @@ export interface AuthGateway {
   }): Promise<{ id: string } | null>
 
   /** Same, but resolved by URL slug. */
+  /**
+   * Cross-tenant slug lookup — finds the restaurant in ANY tenant.
+   * Caller must already be authorised cross-tenant (the staff branch
+   * of `requireRestaurantBySlug` is the only legit caller today).
+   */
+  findRestaurantBySlugAnyOrg(slug: string): Promise<
+    | { id: string; name: string; slug: string; tenantId: string }
+    | null
+  >
+
   findRestaurantBySlugInOrg(params: {
     slug: string
     tenantId: string

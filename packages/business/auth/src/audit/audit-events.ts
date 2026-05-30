@@ -23,6 +23,11 @@ export const CORE_AUDIT_EVENTS = {
 
   // ── Session ──────────────────────────────────────────────────────
   TENANT_ACTIVE_SWITCHED: 'tenant.active.switched',
+  SESSION_REVOKED: 'session.revoked',
+  SESSION_ALL_REVOKED_FOR_USER: 'session.all-revoked-for-user',
+
+  // ── Auth-surface decisions ──────────────────────────────────────
+  AUTH_DENIED: 'auth.denied',
 
   // ── Staff scope grants (highest blast radius) ────────────────────
   USER_SCOPES_UPDATED: 'user.scopes.updated',

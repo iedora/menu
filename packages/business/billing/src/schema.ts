@@ -2,6 +2,7 @@ import {
   text,
   timestamp,
   integer,
+  smallint,
   boolean,
   index,
   uniqueIndex,
@@ -9,7 +10,12 @@ import {
 } from 'drizzle-orm/pg-core'
 import type { ProductId } from '@iedora/brand'
 
-import type { SubscriptionStatus, InvoiceStatus, Currency } from './literals'
+import type {
+  SubscriptionStatus,
+  InvoiceStatus,
+  Currency,
+  ManualPaymentMethod,
+} from './literals'
 
 /**
  * Billing tables — live in the `core` schema alongside auth, since
@@ -96,7 +102,58 @@ export const invoice = coreSchema.table(
   ],
 )
 
+/**
+ * `manual_payment` — admin-recorded offline payments (MBWay, cash).
+ * Lives parallel to `invoice` because the source-of-truth is different:
+ * invoices are issued *by* iedora (Stripe-driven, eventually); manual
+ * payments are *received* off-channel and stamped into the ledger by
+ * an iedora-admin via the `/core/admin/payments` surface.
+ *
+ *   - `amountCents` is what the customer actually paid — discount is
+ *     derived (`plan.monthlyCents × validMonths − amountCents`), never
+ *     stored, so changing the plan's list price re-prices history
+ *     visibly.
+ *   - `validMonths` says how many months this single payment covers.
+ *     Combined with `paidAt` you derive the validity window
+ *     (`paidAt → paidAt + validMonths`) in the UI.
+ *   - `campaignTag` is free-text ("beta-user", "launch-50") — used by
+ *     the UI as a chip + by reports for grouping.
+ *   - `createdByUserId` is the admin who recorded; required so the
+ *     ledger has attribution without round-tripping the audit log.
+ */
+export const manualPayment = coreSchema.table(
+  'manual_payment',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull(),
+    /** Cross-product discriminator (`'menu'`, `'imopush'`, ...). */
+    product: text('product').$type<ProductId>().notNull(),
+    /** Snapshot of the plan code at the moment of payment. */
+    planCode: text('plan_code').notNull(),
+    paidAt: timestamp('paid_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    validMonths: smallint('valid_months').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    currency: text('currency').$type<Currency>().notNull(),
+    method: text('method').$type<ManualPaymentMethod>().notNull(),
+    /** Free-text campaign label — surfaces as a chip in the UI. */
+    campaignTag: text('campaign_tag'),
+    notes: text('notes'),
+    /** Admin who recorded the payment. */
+    createdByUserId: text('created_by_user_id').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // "Latest payment for tenant" — the tenant billing card's hot path.
+    index('manual_payment_tenant_paid_idx').on(t.tenantId, t.paidAt),
+    index('manual_payment_method_idx').on(t.method),
+    index('manual_payment_campaign_idx').on(t.campaignTag),
+  ],
+)
+
 export const schema = {
   tenantSubscription,
   invoice,
+  manualPayment,
 } as const

@@ -213,6 +213,12 @@ export type MenuImportWizardProps = {
    */
   initialQuota?: { used: number; limit: number }
   /**
+   * When true, the caller holds `staff:menu:ai:unlimited` and the
+   * weekly AI quota is bypassed — the quota badge is hidden and the
+   * upload CTAs stay enabled even at `used >= limit`.
+   */
+  unlimited?: boolean
+  /**
    * When true, the preview renders an opt-in checkbox offering to use
    * the AI-detected language as the restaurant's default. Pre-checked
    * (sensible default for the onboarding flow), but the operator has to
@@ -232,6 +238,7 @@ export function MenuImportWizard({
   onImported,
   extraActions,
   initialQuota,
+  unlimited = false,
   offerSetDefaultLanguage = false,
 }: MenuImportWizardProps) {
   const t = useTranslations('Restaurant')
@@ -464,7 +471,7 @@ export function MenuImportWizard({
           onCancel={() => setStep({ kind: 'upload' })}
         />
 
-        {quota && (
+        {quota && !unlimited && (
           <p
             className="text-center text-xs uppercase tracking-[0.16em] text-[var(--ink-55)] font-[family-name:var(--mono)]"
             data-test-id="menu-import-quota"
@@ -489,7 +496,7 @@ export function MenuImportWizard({
     const remaining = quota
       ? Math.max(0, quota.limit - quota.used)
       : null
-    const disabled = pending || remaining === 0
+    const disabled = pending || (!unlimited && remaining === 0)
 
     function handlePicked(event: React.ChangeEvent<HTMLInputElement>) {
       const file = event.target.files?.[0]
@@ -535,7 +542,7 @@ export function MenuImportWizard({
           </div>
         )}
 
-        {quota && (
+        {quota && !unlimited && (
           <p
             className="text-center text-xs uppercase tracking-[0.16em] text-[var(--ink-55)] font-[family-name:var(--mono)]"
             data-test-id="menu-import-quota"

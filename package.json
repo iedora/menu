@@ -9,14 +9,16 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "bun run --cwd apps/web dev",
+    "dev": "bun run dev:migrate:fast && bun run --cwd apps/web dev",
+    "dev:no-migrate": "bun run --cwd apps/web dev",
+    "dev:migrate:fast": "set -a && . apps/web/.env && [ -f apps/web/.env.local ] && . apps/web/.env.local; set +a && bun scripts/dev-migrate.mjs",
     "dev:up": "docker compose -f infra/dev/docker-compose.yml up -d",
     "dev:down": "docker compose -f infra/dev/docker-compose.yml down",
     "dev:logs": "docker compose -f infra/dev/docker-compose.yml logs -f",
     "dev:reset": "docker compose -f infra/dev/docker-compose.yml down -v",
     "dev:migrate": "set -a && . apps/web/.env && [ -f apps/web/.env.local ] && . apps/web/.env.local; set +a && bun run --cwd packages/business/auth db:migrate && bun run --cwd products/menu db:migrate && bun run --cwd products/imopush db:migrate",
     "deploy": "./infra/live/deploy.sh",
-    "kamal": "kamal -c infra/live/kamal/deploy.yml",
+    "kamal": "./infra/live/kamal/kamal-wrapper.sh",
     "typecheck": "bun run scripts/run-parallel.mjs typecheck",
     "lint": "bun run scripts/run-parallel.mjs lint",
     "test": "bun run --workspaces test",

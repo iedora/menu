@@ -124,6 +124,8 @@
     "qrCodeLede": "Imprime autocolantes para os clientes lerem à mesa.",
     "settingsTitle": "Tema e definições",
     "settingsLede": "Cores, tipografia, logótipo, idiomas e slug.",
+    "transferTitle": "Transferir propriedade",
+    "transferLede": "Entregar este restaurante a outro tenant + owner.",
     "viewPublicTitle": "Ver menu público",
     "viewPublicLede": "Vê exatamente o que os teus clientes veem.",
     "menus": "Menus",
@@ -234,6 +236,59 @@
     "updateMenuDoneDescription": "{added, plural, =0 {Nenhum prato novo} =1 {1 prato adicionado} other {# pratos adicionados}} · {updated, plural, =0 {nada atualizado} =1 {1 atualizado} other {# atualizados}} · {removed, plural, =0 {nada removido} =1 {1 removido} other {# removidos}}.",
     "updateMenuDone": "Fechar"
   },
+  "RestaurantTransfer": {
+    "eyebrow": "Admin",
+    "title": "Transferir {name}",
+    "context": {
+      "heading": "Estado atual",
+      "subtitle": "Como o restaurante, tenant e roster de members estão hoje.",
+      "restaurantName": "Restaurante",
+      "restaurantSlug": "Slug",
+      "restaurantCreated": "Criado em",
+      "tenantName": "Tenant",
+      "tenantCreated": "Tenant criado em",
+      "membersHeading": "{count, plural, =0 {Sem members} =1 {1 member} other {# members}}",
+      "membersEmpty": "Tenant não tem members.",
+      "role": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "member": "Member",
+        "viewer": "Viewer",
+        "custom": "Custom"
+      }
+    },
+    "description": "Entrega este restaurante a outro tenant + owner. Perdes acesso assim que confirmares.",
+    "crumbRestaurant": "Restaurante",
+    "tenantHeading": "Tenant destino",
+    "tenantHint": "Escolhe um tenant existente ou cria um novo para alojar este restaurante.",
+    "pickExistingTenant": "Escolher existente",
+    "createTenant": "Criar novo",
+    "tenantSearchPlaceholder": "Pesquisar tenants por nome…",
+    "tenantNameLabel": "Nome do tenant",
+    "tenantNamePlaceholder": "ex.: Taberna do José",
+    "ownerHeading": "Owner",
+    "ownerHint": "Escolhe um user existente ou cria um novo. Owners ficam com poderes totais no tenant destino.",
+    "pickExistingUser": "Escolher existente",
+    "createUser": "Criar novo",
+    "userSearchPlaceholder": "Pesquisar users por email ou nome…",
+    "userEmailLabel": "Email",
+    "userNameLabel": "Nome",
+    "userPasswordLabel": "Password inicial",
+    "userPasswordHint": "Mínimo 12 caracteres. Partilha com o novo owner — ele muda no primeiro login.",
+    "staffMarker": "Staff",
+    "confirmHeading": "Resumo",
+    "rowRestaurant": "Restaurante",
+    "rowTenant": "Tenant destino",
+    "rowOwner": "Owner",
+    "newSuffix": "(novo)",
+    "pendingTenant": "—",
+    "pendingOwner": "—",
+    "handoffNotice": "Após a transferência deixas de pertencer ao tenant destino. Cada passo fica em audit.",
+    "submit": "Transferir",
+    "submitting": "A transferir…",
+    "emptyList": "Sem resultados.",
+    "searching": "A pesquisar…"
+  },
   "Settings": {
     "livePreview": "Pré-visualização",
     "Identity": {
@@ -301,6 +356,19 @@
   },
   "Billing": {
     "title": "Faturação",
+    "latestPayment": {
+      "heading": "Último pagamento",
+      "plan": "Plano",
+      "period": "Período",
+      "paid": "Pagaste",
+      "listPrice": "Preço de tabela",
+      "discount": "Desconto",
+      "method": "Método",
+      "methodLabel": {
+        "mbway": "MB WAY",
+        "cash": "Dinheiro"
+      }
+    },
     "currentPlanTitle": "Plano atual",
     "currentPlanSubtitle": "Muda quando quiseres. Aplica-se na próxima fatura.",
     "upgradeCta": "Faz upgrade para adicionar mais",
@@ -483,6 +551,45 @@
         "filterImpersonated": "Apenas personificadas",
         "filterApply": "Aplicar"
       },
+      "payments": {
+        "title": "Pagamentos manuais",
+        "description": "Pagamentos offline (MBWay, dinheiro) registados à mão. O desconto vs. preço de tabela é calculado em runtime a partir do registry de planos.",
+        "crumbAdmin": "Admin",
+        "empty": "Ainda não há pagamentos registados.",
+        "openForm": "+ Registar pagamento",
+        "cancelForm": "Cancelar",
+        "formHeading": "Registar pagamento",
+        "tenantLabel": "Tenant",
+        "tenantSearchPlaceholder": "Pesquisar tenants…",
+        "planLabel": "Plano",
+        "paidAtLabel": "Data de pagamento",
+        "validMonthsLabel": "Válido (meses)",
+        "amountLabel": "Valor recebido (tabela {eur} €)",
+        "methodLabel": "Método",
+        "campaignLabel": "Tag de campanha",
+        "campaignPlaceholder": "ex.: beta-user, launch-50",
+        "notesLabel": "Notas",
+        "submit": "Registar",
+        "submitting": "A registar…",
+        "filterMethod": "Método",
+        "filterMethodAll": "Todos os métodos",
+        "filterCampaignPlaceholder": "Filtrar por campanha…",
+        "searching": "A pesquisar…",
+        "deleteAction": "Apagar",
+        "deleting": "A apagar…",
+        "deleteConfirm": "Apagar este pagamento? O audit log mantém-se.",
+        "discountNone": "sem desconto",
+        "discountPreview": "{pct}% de desconto vs. preço de tabela.",
+        "overpaidPreview": "Pagou {pct}% acima do tabela.",
+        "listPriceMatch": "Igual ao preço de tabela.",
+        "errorTenant": "Escolhe um tenant.",
+        "errorPlan": "Escolhe um plano.",
+        "errorAmount": "Valor tem que ser ≥ 0.",
+        "method": {
+          "mbway": "MB WAY",
+          "cash": "Dinheiro"
+        }
+      },
       "nav": {
         "ariaLabel": "Navegação de admin",
         "openNavigation": "Abrir navegação",
@@ -495,6 +602,7 @@
         "access": "Acessos",
         "organizations": "Organizações",
         "sessions": "Sessões",
+        "payments": "Pagamentos",
         "audit": "Auditoria",
         "signOut": "Terminar sessão"
       },
@@ -553,6 +661,9 @@
               "admin": {
                 "read": "Entrar no shell admin cross-tenant. Todos os roles de staff têm-no."
               },
+              "billing": {
+                "manage": "Registar / apagar pagamentos manuais offline (MBWay, dinheiro) cross-tenant."
+              },
               "audit": {
                 "read": "Ler o log de auditoria append-only de todas as mudanças de estado em auth + admin."
               },
@@ -594,6 +705,17 @@
             }
           },
           "menu": {
+            "staff": {
+              "ai": {
+                "unlimited": "Ignorar a quota semanal de geração de IA nos imports de menu."
+              },
+              "restaurants": {
+                "transfer": "Transferir um restaurante para outro tenant + owner."
+              },
+              "qr-codes": {
+                "manage": "Gerir o inventário cross-tenant de QR codes (mint, bind, apagar)."
+              }
+            },
             "tenant": {
               "restaurants": {
                 "read": "Ver restaurantes deste tenant.",

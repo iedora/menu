@@ -10,6 +10,12 @@ import {
   Combobox,
   Button,
 } from '@iedora/design-system'
+import {
+  IEDORA_ADMIN_ROLE,
+  TENANT_USER_FILTER,
+  type StaffRoleKey,
+  type TenantUserFilter,
+} from '@iedora/auth/role-presets'
 
 /**
  * Filter bar for the users list. Everything is URL state — refresh,
@@ -23,7 +29,7 @@ type Props = {
   /** Initial values from `searchParams` (server-side). */
   defaults: {
     q?: string
-    role?: 'iedora-admin' | 'member' | null
+    role?: StaffRoleKey | TenantUserFilter | null
     banned?: 'true' | 'false' | null
   }
 }
@@ -80,8 +86,8 @@ export function UsersFilterBar({ defaults }: Props) {
           value={defaults.role ?? null}
           onChange={(v) => update({ role: v ?? null })}
           options={[
-            { value: 'iedora-admin', label: t('roleIedoraAdmin') },
-            { value: 'member', label: t('roleMember') },
+            { value: IEDORA_ADMIN_ROLE, label: t('roleIedoraAdmin') },
+            { value: TENANT_USER_FILTER, label: t('roleMember') },
           ]}
           placeholder={t('roleAny')}
           data-test-id="admin-users-filter-role"

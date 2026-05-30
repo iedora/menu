@@ -29,11 +29,13 @@ export function MenuOnboardingPage({
   slug,
   restaurantId,
   initialQuota,
+  unlimited,
   onComplete,
 }: {
   slug: string
   restaurantId: string
   initialQuota?: { used: number; limit: number }
+  unlimited?: boolean
   /**
    * Fired before the dashboard redirect on both completion paths
    * (Skip + AI import). The route entry passes the server action
@@ -91,6 +93,7 @@ export function MenuOnboardingPage({
             slug={slug}
             restaurantId={restaurantId}
             initialQuota={initialQuota}
+            unlimited={unlimited}
             offerSetDefaultLanguage
             onImported={goToDashboard}
             extraActions={

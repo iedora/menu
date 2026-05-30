@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { recordAudit, type AuditActor } from '@iedora/auth'
+import { recordAudit, CORE_AUDIT_EVENTS, type AuditActor } from '@iedora/auth'
 import { requireScope } from '../../guards'
 import { SCOPES } from '@iedora/auth/scopes'
 import { betterAuthAdminUsersGateway } from './adapters/better-auth'
@@ -96,7 +96,7 @@ export async function revokeUserSessionAction(input: {
   const gateway = betterAuthAdminUsersGateway(toAuditActor(session))
   await revokeUserSessionUseCase(gateway, { sessionToken: input.sessionToken })
   await recordAudit({
-    event: 'session.revoked',
+    event: CORE_AUDIT_EVENTS.SESSION_REVOKED,
     outcome: 'success',
     actor: toAuditActor(session),
     target: { userId: input.userId },
@@ -115,7 +115,7 @@ export async function revokeAllUserSessionsAction(input: {
   const gateway = betterAuthAdminUsersGateway(toAuditActor(session))
   await revokeUserSessionsUseCase(gateway, { userId: input.userId })
   await recordAudit({
-    event: 'session.all-revoked-for-user',
+    event: CORE_AUDIT_EVENTS.SESSION_ALL_REVOKED_FOR_USER,
     outcome: 'success',
     actor: toAuditActor(session),
     target: { userId: input.userId },

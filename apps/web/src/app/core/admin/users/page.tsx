@@ -9,6 +9,7 @@ import {
 } from '@iedora/design-system'
 import { hasScope, requireScope } from '@iedora/product-core'
 import { SCOPES } from '@iedora/auth/scopes'
+import { IEDORA_ADMIN_ROLE, TENANT_USER_FILTER } from '@iedora/auth/role-presets'
 import {
   betterAuthAdminUsersGateway,
   listUsers,
@@ -46,9 +47,9 @@ export default async function UsersAdminPage({
 
   const q = params.q?.trim() || undefined
   const role =
-    params.role === 'iedora-admin'
-      ? 'iedora-admin'
-      : params.role === 'member'
+    params.role === IEDORA_ADMIN_ROLE
+      ? IEDORA_ADMIN_ROLE
+      : params.role === TENANT_USER_FILTER
         ? null
         : undefined
   const banned =
@@ -83,7 +84,7 @@ export default async function UsersAdminPage({
           defaults={{
             q: params.q,
             role:
-              params.role === 'iedora-admin' || params.role === 'member'
+              params.role === IEDORA_ADMIN_ROLE || params.role === TENANT_USER_FILTER
                 ? params.role
                 : null,
             banned:
@@ -128,7 +129,7 @@ export default async function UsersAdminPage({
                       </Link>
                     </td>
                     <td>
-                      {u.role === 'iedora-admin' ? (
+                      {u.role === IEDORA_ADMIN_ROLE ? (
                         <Badge>{t('roleIedoraAdmin')}</Badge>
                       ) : (
                         <span className="text-xs text-[var(--ink-70)]">

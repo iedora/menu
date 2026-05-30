@@ -33,7 +33,11 @@ export function BanUserDialog({
   userId,
   userEmail,
   triggerLabel,
-  asChild,
+  // The default trigger IS a <Button>, and the caller's custom
+  // children are virtually always also a button/menu-item. Defaulting
+  // to true means DialogTrigger uses Radix's <Slot> to merge with the
+  // child instead of wrapping it — no nested <button> hydration error.
+  asChild = true,
   children,
 }: Props) {
   const t = useTranslations('Core.admin.users.ban')

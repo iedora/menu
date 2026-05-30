@@ -61,11 +61,13 @@ describe('DEFAULT_CURRENCY', () => {
 })
 
 describe('BILLING_AUDIT_EVENTS', () => {
-  it('exposes the six known event keys', () => {
+  it('exposes the known event keys', () => {
     expect(Object.keys(BILLING_AUDIT_EVENTS).sort()).toEqual([
       'INVOICE_PAID',
       'INVOICE_RECORDED',
       'INVOICE_VOIDED',
+      'MANUAL_PAYMENT_DELETED',
+      'MANUAL_PAYMENT_RECORDED',
       'SUBSCRIPTION_CANCELLED',
       'SUBSCRIPTION_CREATED',
       'SUBSCRIPTION_UPDATED',
@@ -73,8 +75,10 @@ describe('BILLING_AUDIT_EVENTS', () => {
   })
 
   it('uses namespaced dotted strings', () => {
+    // Three namespaces today: stripe-shape subscription/invoice events
+    // + the iedora-internal `billing.*` ledger for offline payments.
     for (const v of Object.values(BILLING_AUDIT_EVENTS)) {
-      expect(v).toMatch(/^(subscription|invoice)\.[a-z-]+$/)
+      expect(v).toMatch(/^(subscription|invoice|billing)\.[a-z-]+(\.[a-z-]+)?$/)
     }
   })
 })

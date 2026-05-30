@@ -74,6 +74,13 @@ export const SCOPES = {
         // staff role holds it; tenant users don't.
         read: 'staff:core:admin:read',
       },
+      billing: {
+        // Record / delete the admin-driven manual payments ledger
+        // (`/core/admin/payments`). Held by iedora-admin via the
+        // staff:* wildcard. Tenants never get this — their payments
+        // are READ-only on their own dashboard via tenant scope.
+        manage: 'staff:core:billing:manage',
+      },
     },
     /**
      * Cross-tenant concerns that aren't product-specific (a tenant's
@@ -106,6 +113,30 @@ export const SCOPES = {
 
   // ── menu: restaurant SaaS ──────────────────────────────────────
   menu: {
+    staff: {
+      ai: {
+        // Bypass the weekly AI-generation quota on menu imports.
+        // Held by iedora-admin via the staff:* wildcard.
+        unlimited: 'staff:menu:ai:unlimited',
+      },
+      restaurants: {
+        // Move a restaurant from its current tenant to a different
+        // one (existing or freshly created). Used by the admin-driven
+        // ownership-transfer flow: admin builds the menu, then hands
+        // the restaurant to the operator. Held by iedora-admin via
+        // the staff:* wildcard.
+        transfer: 'staff:menu:restaurants:transfer',
+      },
+      qrCodes: {
+        // Manage the cross-tenant QR-code inventory at
+        // `/menu/dashboard/admin/qr-codes` — admin binds physical
+        // stickers to restaurants regardless of tenant. The page is
+        // gated here (not on the tenant-scoped `tenant:menu:qr-codes:*`)
+        // so a staff user without an active tenant pinned still gets
+        // in. Held by iedora-admin via the staff:* wildcard.
+        manage: 'staff:menu:qr-codes:manage',
+      },
+    },
     tenant: {
       restaurants: {
         read:   'tenant:menu:restaurants:read',

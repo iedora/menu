@@ -3,8 +3,10 @@ import { cache } from 'react'
 import { headers } from 'next/headers'
 import { auth, type AuthSession } from '../auth/auth'
 import { recordAudit } from '../audit/audit'
+import { CORE_AUDIT_EVENTS, type AuditActor } from '../audit/audit-events'
 import { getActiveTenantId } from '../auth/sessions'
 import { getMemberScopes } from '../tenants/tenant-members'
+import { isStaffRole, presetAwareIncludes } from '../rbac/role-presets'
 import { userHasScope } from '../tenants/staff'
 import type { Scope } from '../rbac/scopes'
 
@@ -36,6 +38,39 @@ import type { Scope } from '../rbac/scopes'
 export const getSession = cache(async (): Promise<AuthSession | null> => {
   return auth.api.getSession({ headers: await headers() })
 })
+
+/**
+ * Build the `AuditActor` snapshot from a better-auth session. Single
+ * source for "how do we attribute a write to a user" — every action
+ * that calls a `recordAudit`-emitting primitive (`createTenant`,
+ * `upsertMember`, `recordManualPayment`, …) should derive the actor
+ * from here instead of building the object inline with a hardcoded
+ * `'iedora-admin'` string.
+ *
+ * `role` is read from the session's typed `user.role` (validated
+ * through `isStaffRole`) so renaming a staff role flips here, not
+ * in every caller.
+ */
+export function actorFromSession(
+  session: NonNullable<AuthSession>,
+): AuditActor {
+  const rawRole = (session.user as { role?: string | null }).role ?? null
+  return {
+    userId: session.user.id,
+    email: session.user.email,
+    role: isStaffRole(rawRole) ? rawRole : null,
+  }
+}
+
+/**
+ * Convenience for actions that need the actor + want to short-circuit
+ * on missing session. Returns null when there's no session; callers
+ * decide whether that's a redirect, an error, or silent.
+ */
+export async function getActor(): Promise<AuditActor | null> {
+  const s = await getSession()
+  return s ? actorFromSession(s) : null
+}
 
 /**
  * Asserts there's a session; redirects to sign-in if not. Returns
@@ -74,7 +109,8 @@ export async function hasScope(scope: Scope): Promise<boolean> {
   })
   if (!tenantId) return false
   const scopes = await getMemberScopes({ tenantId, userId: s.user.id })
-  return scopes?.includes(scope) ?? false
+  if (!scopes) return false
+  return presetAwareIncludes(scopes, scope)
 }
 
 /**
@@ -90,7 +126,7 @@ export async function requireScope(scope: Scope): Promise<void> {
   if (ok) return
   const s = await getSession()
   await recordAudit({
-    event: 'auth.denied',
+    event: CORE_AUDIT_EVENTS.AUTH_DENIED,
     outcome: 'denied',
     actor: s?.user
       ? {
@@ -129,13 +165,19 @@ export async function hasScopeInTenant(
   if (!s?.user) return false
   if (await userHasScope(s.user.id, scope)) return true
   const scopes = await getMemberScopes({ tenantId, userId: s.user.id })
-  return scopes?.includes(scope) ?? false
+  if (!scopes) return false
+  return presetAwareIncludes(scopes, scope)
 }
 
 // ─── Helpful re-exports ────────────────────────────────────────────
 
 export { getActiveTenantId, setActiveTenant } from '../auth/sessions'
 export {
+  getUserRole,
+  setUserRole,
+  getUserExtraScopes,
+  setUserExtraScopes,
+  getEffectiveUserScopes,
   getUserScopes,
   setUserScopes,
   userHasScope,

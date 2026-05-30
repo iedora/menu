@@ -1,3 +1,5 @@
+import { hasScope } from '@iedora/auth/server'
+import { SCOPES } from '@iedora/auth/scopes'
 import { requireRestaurantBySlug } from '@iedora/product-menu/features/auth'
 import { MenuOnboardingPage } from '@iedora/product-menu/features/menu-onboarding'
 import { canGenerateAiMenu } from '@iedora/product-menu/features/plans'
@@ -22,6 +24,7 @@ export default async function Page({
 }) {
   const { slug } = await params
   const { restaurant, tenantId } = await requireRestaurantBySlug(slug)
+  const unlimited = await hasScope(SCOPES.menu.staff.ai.unlimited)
   const gate = await canGenerateAiMenu(tenantId)
 
   // Bind the slug into a server-action closure the wizard can call
@@ -37,6 +40,7 @@ export default async function Page({
       slug={restaurant.slug}
       restaurantId={restaurant.id}
       initialQuota={{ used: gate.used, limit: gate.limit }}
+      unlimited={unlimited}
       onComplete={onComplete}
     />
   )

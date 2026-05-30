@@ -19,9 +19,13 @@ import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
  * apply here.
  */
 export default async function QrCodesAdminPage() {
-  // Page-level gate is the most permissive scope this surface needs —
-  // mutations are gated individually inside each server action.
-  await requireScope(SCOPES.menu.tenant.qrCodes.read)
+  // Staff-only cross-tenant surface — gated by the dedicated
+  // `staff:menu:qr-codes:manage` (auto-included in the iedora-admin
+  // preset via the staff:* wildcard). The tenant-scope variant
+  // (`tenant:menu:qr-codes:read`) doesn't fit here: staff have no
+  // tenant pinned, so that gate would 404 every admin.
+  // Mutations inside each server action add their own narrower gate.
+  await requireScope(SCOPES.menu.staff.qrCodes.manage)
 
   const [rows, restaurants] = await Promise.all([
     listQrCodesForAdmin(),

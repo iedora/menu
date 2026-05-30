@@ -2,10 +2,12 @@ import 'server-only'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { nextCookies } from 'better-auth/next-js'
+import { eq } from 'drizzle-orm'
 import { getCoreDb } from '../db'
 import { schema } from '../schema'
-import { IEDORA_ADMIN_ROLE, STAFF_ROLE_PRESETS, detectStaffPreset } from '../rbac/role-presets'
+import { IEDORA_ADMIN_ROLE } from '../rbac/role-presets'
 import { recordAudit } from '../audit/audit'
+import { CORE_AUDIT_EVENTS } from '../audit/audit-events'
 
 /**
  * The canonical iedora auth instance. Every product imports this — there
@@ -72,8 +74,12 @@ function build() {
       // `input: false` blocks the field from being written through the
       // public sign-up form — only server-side code (hooks, our own
       // primitives in `./staff`) may touch it.
+      // Better-auth introspects the drizzle schema by the JS key
+      // (camelCase). Snake-case in the DB is handled by drizzle's
+      // `casing: 'snake_case'` config — no `fieldName` overrides here.
       additionalFields: {
-        scopes: { type: 'string[]', required: false, defaultValue: null, input: false },
+        role: { type: 'string', required: false, defaultValue: null, input: false },
+        extraScopes: { type: 'string[]', required: false, defaultValue: [], input: false },
         banned: { type: 'boolean', required: false, defaultValue: false, input: false },
         banReason: { type: 'string', required: false, defaultValue: null, input: false },
         banExpires: { type: 'date', required: false, defaultValue: null, input: false },
@@ -93,16 +99,19 @@ function build() {
       user: {
         create: {
           // Bootstrap the founding iedora-admin on first signup. Sets
-          // `user.scopes` to the iedora-admin preset (every staff
-          // scope) so the founder lands in the admin surface without
-          // a post-deploy SQL UPDATE. Idempotent: only fires on row
+          // `user.role = 'iedora-admin'` so the founder lands in the
+          // admin surface without a post-deploy SQL UPDATE. The
+          // effective scope set is expanded at read time from
+          // `STAFF_ROLE_PRESETS[role]` — adding a new staff scope to
+          // the preset propagates to the bootstrap admin instantly,
+          // no per-user write needed. Idempotent: only fires on row
           // creation.
           before: async (user) => {
             if (bootstrapAdminEmails.has(user.email.toLowerCase())) {
               return {
                 data: {
                   ...user,
-                  scopes: [...STAFF_ROLE_PRESETS[IEDORA_ADMIN_ROLE]],
+                  role: IEDORA_ADMIN_ROLE,
                 },
               }
             }
@@ -110,16 +119,13 @@ function build() {
           },
           after: async (user) => {
             const promoted = bootstrapAdminEmails.has(user.email.toLowerCase())
-            // `detectStaffPreset` reverse-maps the scope array back to
-            // the named preset for audit display ("iedora-admin").
-            const scopes = (user.scopes as string[] | undefined) ?? null
-            const presetLabel = scopes ? detectStaffPreset(scopes as never) : null
+            const role = (user.role as string | null | undefined) ?? null
             await recordAudit({
               event: 'user.signed-up',
               outcome: 'success',
               actor: {
                 userId: user.id,
-                role: presetLabel,
+                role,
                 email: user.email,
               },
               target: { userId: user.id },
@@ -134,6 +140,46 @@ function build() {
       session: {
         create: {
           after: async (session) => {
+            // Bootstrap-admin reconcile: cobre o caso de a CSV ser
+            // editada DEPOIS do user já existir. Idempotente — só
+            // promove se o email está na lista E o user ainda tem
+            // role IS NULL (não pisa staff custom nem demotes).
+            if (bootstrapAdminEmails.size > 0) {
+              const db = getCoreDb()
+              const [u] = await db
+                .select({
+                  id: schema.user.id,
+                  email: schema.user.email,
+                  role: schema.user.role,
+                })
+                .from(schema.user)
+                .where(eq(schema.user.id, session.userId))
+                .limit(1)
+              if (
+                u &&
+                u.role === null &&
+                bootstrapAdminEmails.has(u.email.toLowerCase())
+              ) {
+                await db
+                  .update(schema.user)
+                  .set({ role: IEDORA_ADMIN_ROLE, updatedAt: new Date() })
+                  .where(eq(schema.user.id, u.id))
+                await recordAudit({
+                  event: CORE_AUDIT_EVENTS.USER_SCOPES_UPDATED,
+                  outcome: 'success',
+                  actor: { userId: u.id, email: u.email, role: IEDORA_ADMIN_ROLE },
+                  target: { userId: u.id },
+                  meta: {
+                    kind: 'role',
+                    from: null,
+                    to: IEDORA_ADMIN_ROLE,
+                    bootstrapAdminPromotion: true,
+                  },
+                  important: true,
+                })
+              }
+            }
+
             await recordAudit({
               event: 'user.signed-in',
               outcome: 'success',

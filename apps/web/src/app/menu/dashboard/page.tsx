@@ -1,9 +1,14 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { requireActiveOrganization } from '@iedora/product-menu/features/auth'
+import {
+  getEffectiveOrganizationId,
+  getSession,
+  IEDORA_ADMIN_ROLE,
+  requireActiveOrganization,
+} from '@iedora/product-menu/features/auth'
 import { listRestaurantsWithCounts } from '@iedora/product-menu/features/dashboard-home'
 import { getOrganizationMonthlyViews } from '@iedora/product-menu/features/metrics'
-import { canAddRestaurant, getOrganizationPlan } from '@iedora/product-menu/features/plans'
+import { DEFAULT_PLAN, canAddRestaurant, getOrganizationPlan } from '@iedora/product-menu/features/plans'
 import { addAnotherRestaurantHref } from '@iedora/product-menu/features/menu-onboarding'
 import { Card, CardDesc, CardTitle } from '@iedora/design-system'
 import { DashboardPage as PageShell } from '@iedora/product-menu/shared/ui/dashboard-page'
@@ -17,17 +22,33 @@ import {
 const VIEW_NUDGE_RATIO = 0.8
 
 export default async function DashboardPage() {
-  const { tenantId } = await requireActiveOrganization()
+  // Staff (iedora-admin) can land here without an active tenant — they
+  // just see the empty restaurants list. Tenant users still get the
+  // onboarding redirect via requireActiveOrganization() below.
+  const session = await getSession()
+  const role = (session?.user as { role?: string | null } | undefined)?.role ?? null
+  const isStaff = role === IEDORA_ADMIN_ROLE
+  const activeTenantId = isStaff ? await getEffectiveOrganizationId() : null
+  const tenantId = isStaff && !activeTenantId
+    ? null
+    : (await requireActiveOrganization()).tenantId
   const t = await getTranslations('Dashboard')
   const tBilling = await getTranslations('Billing')
   const locale = await getLocale()
 
-  const [restaurants, gate, plan, viewCount] = await Promise.all([
-    listRestaurantsWithCounts(tenantId),
-    canAddRestaurant(tenantId),
-    getOrganizationPlan(tenantId),
-    getOrganizationMonthlyViews(tenantId),
-  ])
+  const [restaurants, gate, plan, viewCount] = tenantId
+    ? await Promise.all([
+        listRestaurantsWithCounts(tenantId),
+        canAddRestaurant(tenantId),
+        getOrganizationPlan(tenantId),
+        getOrganizationMonthlyViews(tenantId),
+      ])
+    : [
+        [] as Awaited<ReturnType<typeof listRestaurantsWithCounts>>,
+        { ok: false, reason: 'restaurant-limit', limit: 0, current: 0 } as Awaited<ReturnType<typeof canAddRestaurant>>,
+        DEFAULT_PLAN,
+        0,
+      ]
 
   const viewLimit = plan.limits.monthlyViews
   const isUnlimitedViews = !Number.isFinite(viewLimit)

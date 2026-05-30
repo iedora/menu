@@ -1,46 +1,16 @@
 /**
- * Plans contract. Closed union of `PlanCode` mirrors the language registry
- * pattern — adding a plan means a new folder with `index.ts`, a new code in
- * the union below, and a new entry in `registry.ts`. The DB stores the code
- * as plain text; the registry coerces unknown values back to the default.
+ * Plan type contract for menu. The definitions LIVE in
+ * `@iedora/billing/products/menu` because pricing is a billing
+ * concern owned cross-product. This file is a thin re-export so
+ * existing slice-local imports keep working without dragging the
+ * deep path through every caller.
+ *
+ * New menu code should prefer `import { ... } from
+ * '@iedora/billing/products/menu'` directly.
  */
-
-export type PlanCode = 'free' | 'casa'
-
-/**
- * Discrete capabilities a plan can unlock. Add a literal here when you wire a
- * new gated feature into the UI/DAL — every plan module then states whether
- * it includes it. Capacity-style gates (e.g. restaurant count) live in
- * `PlanLimits`, not here.
- */
-export type PlanFeature =
-  | 'exportPdf'
-  | 'customBranding'
-  | 'analytics'
-
-export type PlanLimits = {
-  /** Hard cap on restaurants per organization. Use `Infinity` for unlimited. */
-  restaurants: number
-  /**
-   * Soft cap on combined public menu views per calendar month. We only nudge
-   * the user toward an upgrade as they approach this number — never block
-   * service. `Infinity` disables the meter entirely.
-   */
-  monthlyViews: number
-  /**
-   * Hard cap on AI menu-import generations per rolling 7-day window. Each
-   * `analyzeMenuImage` call (the Gemini vision request) consumes one slot.
-   * `0` disables the AI surface entirely; `Infinity` for unlimited.
-   */
-  aiMenuGenerationsPerWeek: number
-}
-
-export type Plan = {
-  readonly code: PlanCode
-  /** English label, used as fallback when no locale-specific label is present. */
-  readonly englishName: string
-  readonly limits: PlanLimits
-  readonly features: ReadonlySet<PlanFeature>
-  /** Exactly one plan in the registry must set this to `true`. */
-  readonly isDefault: boolean
-}
+export type {
+  Plan,
+  PlanCode,
+  PlanFeature,
+  PlanLimits,
+} from '@iedora/billing/products/menu'

@@ -58,14 +58,14 @@ gh auth status >/dev/null 2>&1 || die "gh não autenticado — corre: gh auth lo
 if [[ ! -f "$SOPS_FILE" ]]; then
   warn "SOPS file em falta — vou criá-lo agora"
   mkdir -p "$(dirname "$SOPS_FILE")"
-  prompt "MOONSHOT_API_KEY"
+  prompt "DEEPSEEK_API_KEY"
   DEEPSEEK="$REPLY"
   TMP="$(mktemp)"
   cat >"$TMP" <<EOF
 CORE_SECRET: $(openssl rand -base64 48 | tr -d '+/=')
 POSTGRES_PASSWORD: $(openssl rand -base64 24 | tr -d '+/=')
 OPENOBSERVE_ADMIN_PASSWORD: $(openssl rand -base64 24 | tr -d '+/=')
-MOONSHOT_API_KEY: $DEEPSEEK
+DEEPSEEK_API_KEY: $DEEPSEEK
 EOF
   SOPS_AGE_RECIPIENTS="$AGE_PUBKEY" sops encrypt "$TMP" > "$SOPS_FILE"
   chmod 600 "$SOPS_FILE"
@@ -129,17 +129,29 @@ if ssh -i "$SSH_KEY" -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecki
   ok "hot deploy (postgres up)"
 else
   COLD=1
-  warn "cold deploy detectado (postgres não up) — kamal deploy correrá 2x"
+  warn "cold deploy detectado (postgres não up)"
 fi
 
-# ─── 6. Kamal deploy ────────────────────────────────────────────────
-step "Kamal deploy"
-kamal -c "$KAMAL_CONFIG" deploy
-
+# ─── 6. Cold start: bootar accessories primeiro ─────────────────────
+# `kamal deploy` NÃO boota accessories — apenas a app. /up healthcheck
+# da app exige postgres, então cold deploy sem accessories falha sempre.
 if (( COLD )); then
-  step "Cold deploy — re-correr para aplicar migrations"
-  kamal -c "$KAMAL_CONFIG" deploy
+  step "Boot accessories (postgres + openobserve + otel-collector + cloudflared)"
+  kamal accessory boot all -c "$KAMAL_CONFIG"
+  step "Aguardar postgres ficar ready"
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if ssh -i "$SSH_KEY" -o BatchMode=yes root@"$HOST" \
+        'docker exec iedora-web-postgres pg_isready -U postgres' >/dev/null 2>&1; then
+      ok "postgres ready"
+      break
+    fi
+    sleep 2
+  done
 fi
+
+# ─── 7. Kamal deploy ────────────────────────────────────────────────
+step "Kamal deploy"
+kamal deploy -c "$KAMAL_CONFIG"
 
 # ─── 7. Smoke check ─────────────────────────────────────────────────
 step "Smoke check"

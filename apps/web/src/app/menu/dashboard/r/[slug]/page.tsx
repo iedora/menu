@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
+import { hasScope } from '@iedora/auth/server'
+import { SCOPES } from '@iedora/auth/scopes'
 import { requireRestaurantBySlug } from '@iedora/product-menu/features/auth'
 import { loadRestaurantAdminMenus } from '@iedora/product-menu/features/menu-publishing'
 import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
@@ -43,6 +45,7 @@ export default async function RestaurantPage({
   // Auth + tenant scoping. The cached snapshot below trusts that the
   // slug is OK to read because this guard ran first.
   const { restaurant: r } = await requireRestaurantBySlug(slug)
+  const canTransfer = await hasScope(SCOPES.menu.staff.restaurants.transfer)
   const t = await getTranslations('Restaurant')
   const tDash = await getTranslations('Dashboard')
   const locale = await getLocale()
@@ -255,6 +258,29 @@ export default async function RestaurantPage({
                 ›
               </span>
             </Link>
+
+            {canTransfer && (
+              <Link
+                href={`/menu/dashboard/r/${slug}/transfer`}
+                className="restaurant-action-card restaurant-action-card--link"
+                data-test-id="restaurant-action-transfer"
+              >
+                <div className="restaurant-action-card__head">
+                  <h3 className="restaurant-action-card__title">
+                    {t('transferTitle')}
+                  </h3>
+                  <p className="restaurant-action-card__lede">
+                    {t('transferLede')}
+                  </p>
+                </div>
+                <span
+                  className="restaurant-action-card__chevron"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </Link>
+            )}
 
             <Link
               href={`/r/${r.slug}`}
