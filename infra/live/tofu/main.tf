@@ -2,7 +2,7 @@
 # Tunnel token escrito para .tunnel-token (lido por .kamal/secrets).
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.15.5"
   required_providers {
     cloudflare = { source = "cloudflare/cloudflare", version = "~> 5.19" }
     random     = { source = "hashicorp/random",      version = "~> 3.9"  }
