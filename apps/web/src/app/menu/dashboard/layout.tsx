@@ -1,6 +1,27 @@
+import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+
+// Installable PWA scope = /menu/dashboard. Manifest lives in /public so
+// it ships as a static asset; icons under /public/icons are shared by
+// the manifest entries and the iOS apple-touch link.
+export const metadata: Metadata = {
+  manifest: '/menu/dashboard/manifest.webmanifest',
+  applicationName: 'Iedora Menu',
+  appleWebApp: {
+    capable: true,
+    title: 'Iedora',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    apple: '/icons/apple-touch-icon.png',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#EFE7D7',
+}
 import {
   ActiveSidebarLinks,
   type ActiveSidebarItem,
