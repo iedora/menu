@@ -70,7 +70,7 @@
       },
       "peerDependencies": {
         "next": "^16.0.0",
-        "react": "^19.0.0",
+        "react": "^19.2.7",
       },
     },
     "packages/business/billing": {
@@ -187,8 +187,8 @@
       },
       "peerDependencies": {
         "next": "^16.0.0",
-        "react": "^19.2.0",
-        "react-dom": "^19.2.0",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
       },
     },
     "packages/platform/eslint-config": {
@@ -278,7 +278,7 @@
       "peerDependencies": {
         "next": "^16.2.6",
         "next-intl": "^4.9.2",
-        "react": "^19.2.0",
+        "react": "^19.2.7",
       },
     },
     "products/imopush": {
@@ -312,7 +312,7 @@
       },
       "peerDependencies": {
         "next": "^16.2.6",
-        "react": "^19.2.0",
+        "react": "^19.2.7",
       },
     },
     "products/menu": {
@@ -373,8 +373,8 @@
       "peerDependencies": {
         "next": "^16.2.6",
         "next-intl": "^4.9.2",
-        "react": "^19.2.0",
-        "react-dom": "^19.2.0",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
       },
     },
   },

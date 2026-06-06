@@ -95,8 +95,8 @@
   "peerDependencies": {
     "next": "^16.2.6",
     "next-intl": "^4.9.2",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.4.5",
