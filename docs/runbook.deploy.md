@@ -1,182 +1,158 @@
-# Runbook — deploy
+# Runbook — deploy (Coolify)
 
-Operador único, Mac → Beelink. Sem CI, sem runner. Kamal corre no Mac e
-faz build local (amd64 via buildx) + push GHCR + SSH ao Beelink.
+Single-node homelab. Deploy é **`git push origin main`** → Coolify webhook
+→ build (apps/web/Dockerfile) → swap. Nada corre no Mac.
 
 ## Stack
 
-- **Registry:** GHCR (`ghcr.io/eduvhc/iedora-web`). Auth via `gh auth token`.
-- **Host:** Beelink. Acesso via **Tailscale MagicDNS** (`iedora-beelink`) — funciona de qualquer rede com a app Tailscale ligada. SSH config (`~/.ssh/config`) mapeia `iedora-beelink` → `root` + key `~/.ssh/ci_ed25519`. Único container pré-Kamal: pihole.
-- **Ingress:** Cloudflare tunnel `iedora` → cloudflared accessory → kamal-proxy
-  (mesma docker network, por container name). TLS termina no CF.
-- **Accessories Kamal** (em `config/deploy.yml`):
-  - `postgres` (Postgres 17, 3 DBs: core/menu/imopush)
-  - `openobserve` (logs/traces/metrics, UI em `:5080` do host)
-  - `otel-collector` (scrape kamal-proxy + OTLP da app → OO)
-  - `cloudflared` (tunnel ingress)
-- **Secrets:** SOPS+age em `~/.config/iedora/secrets.sops.yaml` (decrypt key
-  em `~/.config/sops/age/keys.txt`, creation rule em `~/.config/iedora/.sops.yaml`).
-  `.kamal/secrets` faz `eval $(sops -d --output-type dotenv …)` — auto-importa
-  **todas** as keys do SOPS, sem lista a manter.
-- **Infra declarativa:** `infra/` (Tofu) gere CF zone + tunnel + DNS.
+- **Coolify** v4.1.x — UI em `https://coolify.iedora.com` (atrás de Authelia).
+  Plataforma gerida por [`iedora-iac`](https://github.com/eduvhc/iedora-iac).
+- **Runner**: `coolify-runner-01` LXC (Docker + Traefik). Builds + serve.
+- **Ingress**: Cloudflare tunnel `coolify-iedora` (HA, 8 conexões).
+  Wildcard `*.iedora.com` → Traefik no runner → app pelo Host header.
+- **DB**: Postgres 18 como **Coolify Resource** (1 container, 3 DBs: core,
+  menu, imopush — criadas em `infra/live/coolify/init-databases.sql`).
+- **Object storage**: R2 bucket `iedora-assets` + token bucket-scoped
+  (credenciais como env vars no Coolify).
+- **Registry**: nenhum — Coolify builda no runner a partir do GitHub clone,
+  imagem fica no Docker local do runner.
 
-## Pré-requisitos no Mac
+## Setup inicial (uma vez)
 
-```bash
-gem install kamal -v 2.11.0
-brew install sops age tofu gh docker
-brew install --cask tailscale          # app — login no mesmo tailnet do Beelink
-gh auth login                          # scopes: write:packages, read:packages
-docker buildx create --use             # uma vez, para emulação amd64
-```
+### 1. Coolify Resource — Postgres
 
-`CLOUDFLARE_API_TOKEN` é carregado do macOS Keychain pelo `~/.zshrc`:
+UI Coolify → Project `iedora` → "+ New Resource" → "PostgreSQL 18":
 
-```bash
-security add-generic-password -a "$USER" -s CLOUDFLARE_API_TOKEN -w
-# adiciona ao ~/.zshrc:
-# export CLOUDFLARE_API_TOKEN="$(security find-generic-password -a "$USER" -s CLOUDFLARE_API_TOKEN -w 2>/dev/null)"
-```
-
-## Secrets — gestão
-
-**Single source of truth para valores estáticos:** `~/.config/iedora/secrets.sops.yaml`.
-Editas com `sops <ficheiro>` (abre `$EDITOR` com plaintext, re-encripta ao salvar).
-
-Conteúdo actual:
-
-| Key | O que é |
+| Campo | Valor |
 |---|---|
-| `CORE_SECRET` | better-auth JWT secret |
-| `POSTGRES_PASSWORD` | password root do postgres accessory |
-| `OPENOBSERVE_ADMIN_PASSWORD` | password da admin UI do OO (collector usa para Basic auth) |
-| `DEEPSEEK_API_KEY` | LLM (DeepSeek) |
-| `MOONSHOT_API_KEY` | LLM (Moonshot/Kimi) |
+| Server | `coolify-runner-01` |
+| Name | `iedora-pg` |
+| Postgres User | `postgres` |
+| Postgres DB | `postgres` (default; outras 3 criadas pelo init script abaixo) |
+| Init Script | conteúdo de [`infra/live/coolify/init-databases.sql`](../infra/live/coolify/init-databases.sql) |
+| Backups | schedule = `0 3 * * *`, destination = R2 (mesmas creds que iac state), retention = 14d |
 
-**Não vivem no SOPS** (são gerados):
+Anota a password gerada — vai para o `DATABASE_URL`.
 
-| Key | Origem |
+### 2. Coolify Application — iedora-web
+
+UI Coolify → Project `iedora` → "+ New Resource" → "Public Repository":
+
+| Campo | Valor |
 |---|---|
-| `KAMAL_REGISTRY_PASSWORD` | `gh auth token` (rotaciona automaticamente) |
-| `TUNNEL_TOKEN` | `tofu apply` escreve em `infra/live/tofu/.tunnel-token` |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `tofu apply` (R2 creds via CF API) |
-| `CORE_DATABASE_URL`, `MENU_DATABASE_URL`, `IMOPUSH_DATABASE_URL` | Compostos a partir de `POSTGRES_PASSWORD` em `.kamal/secrets` |
-| `ZO_ROOT_USER_PASSWORD`, `OTEL_AUTH_HEADER` | Derivados de `OPENOBSERVE_ADMIN_PASSWORD` |
+| Repository | `https://github.com/eduvhc/iedora` |
+| Branch | `main` |
+| Build Pack | Dockerfile |
+| Dockerfile Location | `/apps/web/Dockerfile` |
+| Base Directory | `/` (repo root é o build context) |
+| Port (container) | `3000` |
+| Health Check Path | `/up` |
+| Domains | `iedora.com,menu.iedora.com,core.iedora.com,imopush.iedora.com` |
+| Webhook auto-deploy | ✓ enabled |
 
-**Ver tudo o que vai ao container** (env.clear + env.secret resolvido, mascarado por defeito):
+### 3. Environment variables (Coolify UI → Application → Environment)
 
-```bash
-bun run secrets:show               # mascarado
-bun run secrets:show --reveal      # plaintext
+Plaintext (não-secret):
+
+```
+NODE_ENV=production
+CORE_BASE_URL=https://core.iedora.com
+CORE_COOKIE_DOMAIN=.iedora.com
+CORE_TRUSTED_ORIGINS=https://iedora.com,https://menu.iedora.com,https://core.iedora.com
+NEXT_PUBLIC_CORE_URL=https://core.iedora.com
+NEXT_PUBLIC_MENU_URL=https://menu.iedora.com
+NEXT_PUBLIC_IMOPUSH_URL=https://imopush.iedora.com
+NEXT_PUBLIC_BRAND_URL=https://iedora.com
+IEDORA_BOOTSTRAP_ADMIN_EMAILS=eduardoferdcarvalho@gmail.com
+LOG_LEVEL=info
+S3_REGION=auto
+S3_BUCKET=iedora-assets
+S3_ENDPOINT=https://2716bf6ee8be2880904e70f19050d2ef.r2.cloudflarestorage.com
 ```
 
-**Workflow — adicionar secret novo a prod (2 ficheiros):**
+Secrets (marca "Is Secret" ✓):
 
-```bash
-# 1. valor → SOPS
-sops ~/.config/iedora/secrets.sops.yaml      # adiciona linha "NOVO_SECRET: valor"
-
-# 2. declarar em deploy.yml (committed)
-#    infra/live/kamal/deploy.yml → env.secret:
-#      - NOVO_SECRET
-
-# 3. deploy
-bun run deploy
+```
+CORE_SECRET=                # 48 chars, openssl rand -base64 48 | tr -d '+/='
+CORE_DATABASE_URL=postgresql://postgres:<pg-pw>@iedora-pg:5432/core
+MENU_DATABASE_URL=postgresql://postgres:<pg-pw>@iedora-pg:5432/menu
+IMOPUSH_DATABASE_URL=postgresql://postgres:<pg-pw>@iedora-pg:5432/imopush
+S3_ACCESS_KEY=              # R2 token id
+S3_SECRET_KEY=              # sha256(R2 token value)
+DEEPSEEK_API_KEY=
+MOONSHOT_API_KEY=
 ```
 
-`.kamal/secrets` **não é editado** — auto-importa tudo do SOPS via `eval $(sops -d --output-type dotenv …)`. Só mexes nele se quiseres lógica de derivação nova (nova DB, novo header composto, etc).
+(`<pg-pw>` é a password gerada pelo Coolify Resource Postgres no passo 1.)
 
-## Day 0 — primeiro deploy
+### 4. Migrations (pre-deploy command)
 
-```bash
-cp infra/live/tofu/terraform.tfvars.example infra/live/tofu/terraform.tfvars   # editar account_id
-export CLOUDFLARE_API_TOKEN=...                                                # Zone:Read, DNS:Edit, Tunnel:Edit
-./infra/live/deploy.sh
+Coolify UI → Application → "Pre-deployment Command":
+
+```sh
+sh -c "node /app/packages/business/auth/migrate.mjs && node /app/products/menu/migrate.mjs && node /app/products/imopush/migrate.mjs"
 ```
 
-`infra/live/deploy.sh` valida pré-requisitos, corre `tofu apply`, faz `kamal deploy`,
-e detecta cold-start (postgres ainda não up) para re-correr `kamal deploy` e
-aplicar migrations automaticamente. Termina com smoke check em `https://iedora.com/up`.
+Corre num container efémero antes do traffic swap. Falha aborta o deploy.
 
-Verificar manualmente:
+### 5. Deploy
 
-```bash
-ssh root@iedora-beelink 'docker ps'             # iedora-web, kamal-proxy, postgres, openobserve, otel-collector, cloudflared, pihole
-curl https://iedora.com/up                       # 200
-```
+Carrega "Deploy" na UI Coolify (1× manual para validar). Subsequent pushes
+em `main` disparam via webhook automaticamente.
 
 ## Deploy normal
 
 ```bash
-export CLOUDFLARE_API_TOKEN=...                 # só necessário se infra mudou
-./infra/live/deploy.sh                          # idempotent — tofu apply é no-op se nada mudou
+git push origin main
 ```
 
-Ou directamente, sem reconcile do Tofu:
-
-```bash
-bun run kamal deploy                            # = kamal -c infra/live/kamal/deploy.yml deploy
-```
-
-`bun run kamal <cmd>` é wrapper que injecta `-c infra/live/kamal/deploy.yml`. Para qualquer
-sub-comando Kamal (`logs`, `app exec`, `rollback`, `proxy reboot`, etc) usa o mesmo prefixo.
-
-`KAMAL_VERSION` = git SHA. Pre-deploy hook (`.kamal/hooks/pre-deploy`)
-corre as 3 drizzle migrations (`auth` → `menu` → `imopush`) num
-container efémero antes do swap. Falha aborta o deploy.
+Coolify pega no webhook → faz `git pull` no runner → `docker build` →
+corre migrations → swap. Logs em real-time na UI.
 
 ## Rollback
 
-```bash
-bun run kamal rollback <version>                # version = SHA antigo (ver `bun run kamal app versions`)
-```
-
-Pre-deploy skipa em rollback (sem schema novo para aplicar).
-
-## Mudar hostnames públicos
-
-Editar `infra/live/tofu/main.tf:hostnames` **e** `config/deploy.yml:proxy.hosts`
-(têm de bater). Depois:
-
-```bash
-(cd infra/live/tofu && tofu apply)              # actualiza ingress + DNS
-bun run kamal proxy reboot                      # kamal-proxy recarrega host routing
-```
+UI Coolify → Application → "Deployments" tab → escolhe deployment
+anterior → "Redeploy". Coolify guarda as N últimas imagens locais.
 
 ## Ops
 
 ```bash
-HOST=iedora-beelink                              # via Tailscale MagicDNS
-ssh root@$HOST docker logs -f --tail=200 iedora-web
-ssh -t root@$HOST docker exec -it iedora-web-postgres psql -U postgres
-ssh root@$HOST docker ps
-open http://iedora-beelink:5080                  # OpenObserve UI (precisa de Tailscale ligado)
+# logs em tempo real — via UI (mais simples) ou:
+ssh root@192.168.50.210 'docker logs -f --tail=200 $(docker ps -qf "label=coolify.applicationName=iedora-web")'
+
+# psql contra a DB
+ssh root@192.168.50.210 'docker exec -it $(docker ps -qf "name=iedora-pg") psql -U postgres'
 ```
 
-## Tear-down (raro)
+## Mudar hostnames
 
-```bash
-bun run kamal remove                            # remove containers/accessories no Beelink
-(cd infra/live/tofu && tofu destroy)            # destrói tunnel + DNS
-```
+UI Coolify → Application → Domains → adicionar/remover. Coolify regenera
+Traefik routing. CF tunnel wildcard `*.iedora.com` já cobre subdominios
+— apex `iedora.com` precisa de route explícita no `iedora-iac`
+(`services/coolify-runner-01/tunnel-routes.yaml`).
 
-Pihole **não** é tocado — vive fora do Kamal em `/srv/docker/pihole`.
+## Backups & recovery
+
+- **Postgres**: backup diário Coolify → R2 (retenção 14d). Restore = UI →
+  Database → Backups tab → "Restore".
+- **App image**: rebuild via `git push` (idempotente — o Dockerfile é
+  determinístico para o mesmo SHA).
+- **Env vars**: hoje só vivem na UI Coolify. Se Coolify morrer,
+  reconstrói-se do BWS (TODO: migrar env vars para BWS-driven via tofu no
+  `iedora-iac/iac/stacks/platform/`).
+- **Uploads R2**: bucket sobrevive — versionamento + soft delete são
+  feature do CF Dashboard (configurar se ainda não estiver).
 
 ## Layout do repo (deploy-related)
 
 ```
 iedora/
+  apps/web/Dockerfile                 Multi-stage, Node runtime
   infra/
-    dev/docker-compose.yml                # Postgres + s3mock para dev local
-    live/
-      deploy.sh                           # one-shot do Mac: tofu apply + kamal deploy
-      tofu/
-        main.tf                           # CF zone + tunnel + DNS
-        .tunnel-token                     # gitignored, escrito por `tofu apply`
-      kamal/
-        deploy.yml                        # Kamal: image, proxy, accessories, env
-        otel-collector.yaml               # collector → openobserve accessory
-        postgres/init.sql                 # create 3 DBs (core, menu, imopush)
-        .kamal/secrets                    # SOPS reads + gh auth token + Tofu .tunnel-token
-        .kamal/hooks/pre-deploy           # drizzle migrations no container efémero
+    dev/docker-compose.yml            Postgres + s3mock (local dev)
+    live/coolify/
+      init-databases.sql              CREATE DATABASE core/menu/imopush
 ```
+
+Toda a infra (LXC, CF tunnel, DNS, Coolify install) vive em
+[`iedora-iac`](https://github.com/eduvhc/iedora-iac).

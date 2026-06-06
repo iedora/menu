@@ -3,12 +3,11 @@
 # workspaces monorepo. The shell hosts every logical product (menu,
 # core, house) via host-based rewrites in src/proxy.ts.
 #
-# Build context is the REPO ROOT. The image is built + pushed to the
-# Gitea OCI registry by `.gitea/workflows/deploy.yml`; the running
-# container is managed by Kamal (zero-downtime hot-swap). Bun installs
-# the workspace deps; Node executes the build (Bun + next build is
-# unstable per AGENTS.md); final image runs server.js on Node over
-# Next's standalone output.
+# Build context is the REPO ROOT. Built + deployed by Coolify on every
+# push to `main` (GitHub webhook → Coolify runner). Bun installs the
+# workspace deps; Node executes the build (Bun + next build is unstable
+# per AGENTS.md); final image runs server.js on Node over Next's
+# standalone output.
 #
 # All three stages are glibc (Debian) — no musl→glibc handoff between
 # install/build/runtime keeps native-module prebuilts (postgres-js, sharp,
@@ -170,11 +169,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:3000/up').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Links the image to its source repo on Gitea.
-LABEL org.opencontainers.image.source="https://git.iedora.com/eduvhc/iedora"
-
-# Kamal verifica este label antes de aceitar a imagem (evita correr
-# imagens de outros services no mesmo host).
-LABEL service="iedora-web"
+LABEL org.opencontainers.image.source="https://github.com/eduvhc/iedora"
 
 CMD ["node", "server.js"]

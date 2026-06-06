@@ -1,9 +1,0 @@
-.terraform/
-.terraform.lock.hcl
-terraform.tfstate
-terraform.tfstate.*
-terraform.tfvars
-.tunnel-token
-.s3-access-key
-.s3-secret-key
-.terraform.tfstate.lock.info

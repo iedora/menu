@@ -7,7 +7,9 @@ host-based rewrites.
 - **Core** (`core.iedora.com`) — better-auth sign-in via `@iedora/auth`
 - **House** (`iedora.com`) — brand landing
 
-Deploy: **Kamal** + **`infra/live/`** (Tofu para Cloudflare). Mac-driven, ver [`docs/runbook.deploy.md`](docs/runbook.deploy.md).
+Deploy: **Coolify** no homelab (gerido por
+[`iedora-iac`](https://github.com/eduvhc/iedora-iac)). Ver
+[`docs/runbook.deploy.md`](docs/runbook.deploy.md).
 
 ## Quick start
 
@@ -18,15 +20,8 @@ bun run dev:migrate      # schema nas DBs locais
 bun run dev              # Next.js HMR em :3000
 ```
 
-## Ship it
-
-```bash
-export CLOUDFLARE_API_TOKEN=...
-bun run deploy                    # tofu apply + kamal deploy (cold-aware, idempotent)
-```
-
 ## Docs
 
 - [AGENTS.md](AGENTS.md) — stack, rules, conventions
 - [docs/runbook.dev.md](docs/runbook.dev.md) — dev local
-- [docs/runbook.deploy.md](docs/runbook.deploy.md) — deploy + ops
+- [docs/runbook.deploy.md](docs/runbook.deploy.md) — deploy + ops via Coolify

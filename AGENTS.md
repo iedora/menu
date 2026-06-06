@@ -13,7 +13,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 > `packages/platform/design-system/`, `packages/platform/observability/`).
 > `bun install` runs ONCE at the repo root and resolves every workspace.
 >
-> Deploy: **Kamal** + **`infra/live/`** (Tofu para Cloudflare, Kamal para o resto). Mac-driven via `bun run deploy`.
+> Deploy: **Coolify** no homelab — infra é managed pelo repo
+> [`iedora-iac`](https://github.com/eduvhc/iedora-iac); este repo só ship
+> app code + Dockerfile. Detalhes em [`docs/runbook.deploy.md`](docs/runbook.deploy.md).
 
 ## What this is
 
@@ -32,7 +34,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **shadcn/ui** + Tailwind v4 — menu only. Editorial primitives from **`@iedora/design-system`**.
 - **@dnd-kit** — menu's drag-and-drop builder.
 - **Bun** — package manager, test runner, dev orchestrator. **Production runtime is Node** — `bun + next build` is unstable as of 2026 (oven-sh/bun#23944); `next start` runs under Node in the production container.
-- **Kamal** — deploy tool (SSH + Docker, zero-downtime hot-swap).
+- **Coolify** — self-hosted PaaS; builds + deploys from GitHub via webhook on push to `main`. Runs on the homelab (`iedora-iac` manages the platform).
 
 ## Hard rules — cross-product
 
@@ -56,14 +58,7 @@ iedora/
   infra/
     dev/docker-compose.yml               Postgres + s3mock (local dev)
     live/
-      deploy.sh                          One-shot do Mac (tofu + kamal)
-      tofu/main.tf                       CF zone + tunnel + DNS
-      kamal/
-        deploy.yml                       Kamal: image, proxy, accessories, env
-        otel-collector.yaml              OTel collector → OpenObserve accessory
-        postgres/init.sql                CREATE DATABASE core / menu / imopush
-        .kamal/secrets                   SOPS reads + gh auth token + .tunnel-token
-        .kamal/hooks/pre-deploy          Drizzle migrations ephemeral container
+      coolify/init-databases.sql         Postgres init: CREATE DATABASE core/menu/imopush
 
   packages/
     business/                            Business tier — product-facing primitives
@@ -84,7 +79,7 @@ iedora/
     web/                                 Next.js 16 — serves all 3 hostnames
       src/proxy.ts                       Host-based rewrite
       src/app/                           Routes (menu, core, house, api)
-      Dockerfile                         Multi-stage, Kamal label, Node runtime
+      Dockerfile                         Multi-stage, Node runtime, built by Coolify
 
   products/
     menu/                                Menu slices, schema, i18n, templates
@@ -92,22 +87,9 @@ iedora/
 
 ## Deploy
 
-Mac-driven, idempotent. Detalhes em [`docs/runbook.deploy.md`](docs/runbook.deploy.md).
-
-```bash
-export CLOUDFLARE_API_TOKEN=...
-bun run deploy                            # tofu apply + kamal deploy (cold-aware)
-bun run kamal rollback <sha>              # rollback
-bun run kamal app details                 # status
-```
-
-### Ops
-
-```bash
-ssh root@192.168.50.53
-docker logs -f --tail=200 iedora-web
-docker exec -it iedora-web-postgres psql -U postgres
-```
+`git push origin main` → Coolify webhook → build (Dockerfile) → swap.
+Rollback e logs na UI Coolify (`https://coolify.iedora.com`). Detalhes
+em [`docs/runbook.deploy.md`](docs/runbook.deploy.md).
 
 ## Commands
 
