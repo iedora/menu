@@ -10,7 +10,8 @@
  *   - It runs as a subprocess, so observability + logging are surface-level.
  *
  * Behaviour:
- *   1. Ensures the target database exists (CREATE DATABASE IF NOT EXISTS).
+ *   1. Best-effort ensures the target database exists — skipped when the role
+ *      lacks the privilege (prod least-privilege role; provisioned out-of-band).
  *   2. Pre-creates the target pg-schema (CREATE SCHEMA IF NOT EXISTS).
  *   3. Acquires a `pg_advisory_lock` keyed on a crc32 of `lockName`.
  *   4. Runs drizzle's programmatic `migrate()`.
@@ -99,8 +100,13 @@ async function ensureDatabase(connStr, log) {
       await adminSql.unsafe(`CREATE DATABASE "${targetDb.replace(/"/g, '""')}"`)
       log(`created database "${targetDb}"`)
     }
+  } catch (err) {
+    // Least-privilege app roles can't CREATE DATABASE — it's provisioned
+    // out-of-band (ops/ansible), like Authelia. Skip; the migrate step errors
+    // clearly if the database is truly missing.
+    log(`skipping ensure-database (assuming provisioned): ${err.message}`)
   } finally {
-    await adminSql.end()
+    await adminSql.end().catch(() => {})
   }
 }
 
