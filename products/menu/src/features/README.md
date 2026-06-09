@@ -13,8 +13,7 @@ Each slice is self-contained:
 - `ui/` — client components for the slice
 - `<slice>.test.ts` — Vitest + PGLite tests for the use-cases
 - `index.ts` — the slice's public API (only what other slices/app import)
-- `testing/` (optional) — server-only test surface (profile + seeds + routes + barrel)
-- `e2e/` (optional) — Playwright specs scoped to the slice
+- `testing/` (optional) — server-only test surface (profile + seeds + routes + barrel) reused by the product integration suite
 
 Full contract in [`docs/agents/slice-pattern.md`](../../../../docs/agents/slice-pattern.md).
 

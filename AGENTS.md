@@ -128,4 +128,3 @@ Deploy é Mac-driven (`bun run deploy`), sem job de deploy no CI.
 | `postgres` | Read-only query of local `menu` DB | local Postgres on `:5432` |
 | `bun` | Run Bun scripts/tests via MCP | — |
 | `next-devtools` | Next.js 16 devtools introspection | — |
-| `playwright` | Drive a browser for E2E exploration | — |

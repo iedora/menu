@@ -6,7 +6,7 @@ These bind every product that ships UI to humans (menu + house, plus any future 
 
 Interactive elements — buttons, links, list items, table rows, cards, dialog/sheet roots, status pills, the trigger of any compound widget (Combobox, DropdownMenu, Tabs, …) — MUST expose a `data-test-id` attribute.
 
-Specs target by intent (`page.getByTestId('qr-codes-create-button')`), not by visible text (drifts with i18n + copy edits) or CSS class (drifts with Tailwind refactors).
+Tests target by intent (`getByTestId('qr-codes-create-button')`), not by visible text (drifts with i18n + copy edits) or CSS class (drifts with Tailwind refactors).
 
 **Convention:** `<slice>-<role>[-<modifier>]`. Collections use a stable id suffix:
 
@@ -20,7 +20,7 @@ data-test-id="sessions-revoke-button-{sessionId}"
 
 **Design-system primitives** (`@iedora/design-system`) forward `data-test-id` to their root via the standard prop-spread; never re-declare on the consumer.
 
-**Playwright** is wired with `testIdAttribute: 'data-test-id'` per product so the hyphenated form resolves directly via `getByTestId()`.
+The `data-test-id` attribute keeps the same stable hook whether queried from integration tests or future browser-driven suites.
 
 ## 2. Visible UI text goes through translation
 

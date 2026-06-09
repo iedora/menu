@@ -6,5 +6,3 @@ inserted. Surface holds route helpers only.
 - `menuPublishingRoutes.public(slug)` → `/r/{slug}`
 - `menuPublishingRoutes.track(slug)` → `/api/track/{slug}` (beacon)
 - `publicVisitorProfile` — placeholder for symmetry.
-
-For beacon-driven specs, see `@/shared/testing/e2e-beacon`.

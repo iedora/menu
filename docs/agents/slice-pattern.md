@@ -18,9 +18,12 @@ src/features/<slice>/
 ├── actions.ts                    'use server' shells: auth guard → use-case → revalidate
 ├── ui/                           slice-owned React components (optional)
 ├── <slice>.test.ts               co-located Vitest suite — fakes the port, hits PGLite
-├── testing/                      server-only test surface (profile + seeds + routes + barrel)
-└── e2e/<capability>.spec.ts      Playwright specs scoped to this slice
+└── testing/                      server-only test surface (profile + seeds + routes + barrel)
 ```
+
+Integration coverage (real Postgres + MinIO via testcontainers) lives under
+`tests/integration/` per product, not co-located per slice — see
+[products/menu/CLAUDE.md](../../products/menu/CLAUDE.md) rule 15.
 
 Reference: `apps/web/src/features/auth/` — ports, two adapters, several use-cases, one co-located test. Larger slices (`menu-builder`, `menu-publishing`, `upload`) add `types.ts` / `format.ts` for domain helpers; smaller slices collapse the boilerplate (`i18n` has no adapter — the language registry is pure data).
 
@@ -59,7 +62,7 @@ Reference: `apps/web/src/features/auth/` — ports, two adapters, several use-ca
 5. Wire **`index.ts`**: bind production adapter, wrap loaders in `React.cache()`, re-export types.
 6. If mutations, add **`actions.ts`** with `'use server'`. Each action: auth guard → use-case → revalidate.
 7. Co-located **`<slice>.test.ts`** — use `makeTestDb()` from `@/shared/testing/pglite`, hand-roll a port adapter against the test DB.
-8. **`testing/`** + **`e2e/`** — slice's E2E surface (`profile.ts` / `seeds.ts` / `routes.ts` / barrel) + Playwright specs. See [products/menu/CLAUDE.md](../../products/menu/CLAUDE.md) rule 15.
+8. **`testing/`** — slice's server-only test surface (`profile.ts` / `seeds.ts` / `routes.ts` / barrel) reused by the product's integration suite. See [products/menu/CLAUDE.md](../../products/menu/CLAUDE.md) rule 15.
 9. Short **`README.md`** at the slice root.
 10. Compose the slice from `src/app/`. The route file should be a thin shell.
 

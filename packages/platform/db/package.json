@@ -14,7 +14,8 @@
     "typecheck": "tsgo --noEmit",
     "lint": "eslint src --cache --cache-location node_modules/.cache/.eslintcache",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest --passWithNoTests"
+    "test:watch": "vitest --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@iedora/observability": "workspace:*",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.4.5",
     "@iedora/eslint-config": "workspace:*",
+    "@iedora/testing-integration": "workspace:*",
     "@types/node": "^22.19.19",
     "eslint": "catalog:",
     "typescript": "catalog:",

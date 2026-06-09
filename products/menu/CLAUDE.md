@@ -40,7 +40,7 @@ Paths starting with `src/...` are menu-relative.
 
 14. **Slices are vertical and own everything for one capability.** Files inside a slice import via relative paths; cross-slice imports go through the sibling's `index.ts` (enforced by `eslint-plugin-boundaries`). **Six** sanctioned exceptions for cross-slice subpath imports: `actions` (`'use server'` doesn't traverse barrels), `client` (browser-only API), `server` (server-only entry), `ui/**` (kept off the barrel), `rsc/**` (server-only render layer), **`testing` / `testing/**`** (slice's public test surface — see rule 15). Everything else is slice-private. `src/shared/` is for primitives with no domain knowledge. `src/app/` is delivery — routes compose slice exports. Use-cases take their port as the first argument so tests wire fakes against a real PGLite database.
 
-15. **Tests co-locate with the slice they exercise.** Each slice owns `testing/` (`'server-only'`: `profile.ts` derived from `./scopes`, `seeds.ts`, `routes.ts`, barrel `index.ts`) and `e2e/<capability>.spec.ts` (Playwright specs). Cross-slice flows live ONLY at `tests/e2e/journeys/`. `tests/e2e/helpers/` is zero-domain — anything with domain knowledge moves into the owning slice's `testing/`. Production code (adapters / use-cases / ui / actions / rsc) MUST NOT import `testing/*` (enforced by `no-restricted-imports`). Tag specs with `@smoke` / `@critical` for selective execution. See [tests/README.md](tests/README.md) for the spec template + multi-tenant pattern.
+15. **Tests co-locate with the slice they exercise.** Each slice owns `testing/` (`'server-only'`: `profile.ts` derived from `./scopes`, `seeds.ts`, `routes.ts`, barrel `index.ts`). Unit specs are co-located `<slice>.test.ts` (PGLite, fakes the port). Integration specs are `*.integration.test.ts` (real Postgres + MinIO via `@iedora/testing-integration` testcontainers, `bun run test:integration`); cross-slice ones live in `tests/integration/`. Production code (adapters / use-cases / ui / actions / rsc) MUST NOT import `testing/*` (enforced by `no-restricted-imports`).
 
 16. **Redirects build URLs via `publicUrl()`.** Every absolute URL the server hands to the browser (NextResponse.redirect Location, post-login redirect, post-logout URL) MUST be built via `publicUrl()` from `@/shared/url` (publicUrl) or `@iedora/brand`. Never derive from `req.url`, `req.nextUrl.origin`, `req.nextUrl.clone()`, or `req.headers.get('host')` — Cloudflare Tunnel terminates TLS at the edge and forwards plain HTTP to the upstream bind `HOSTNAME=0.0.0.0 PORT=3000`; any URL built from those carries the internal bind and the browser can't follow `http://0.0.0.0:3000/...`. User-supplied path inputs (`?next=`, `return_url=`) MUST be validated with `isSameOriginPath()` from `@iedora/brand` (env-free, safe to import from unit tests) BEFORE being passed to `publicUrl()`. `req.nextUrl` is fine as a *path source* — pass `req.nextUrl.pathname` AS A PATH into `publicUrl()`. ESLint doesn't catch this; manual review at code time is the only gate.
 
@@ -73,7 +73,7 @@ apps/web/
       showcase/                        public marketing surface
       page.tsx, layout.tsx, globals.css
     features/                        every slice: {adapters,use-cases,ui,actions.ts,ports.ts,index.ts,
-                                                    <slice>.test.ts, testing/, e2e/, README.md}
+                                                    <slice>.test.ts, testing/, README.md}
       auth/                          DAL guards + scopes.ts (role/scope taxonomy over @iedora/auth)
       billing/                       invoice ledger
       dashboard-home/                restaurants-with-counts aggregate
@@ -116,14 +116,9 @@ apps/web/
                                      Tracked dev env é `apps/web/.env`; secrets em `apps/web/.env.local`.
   package.json                       workspace deps to @iedora/auth, @iedora/design-system, @iedora/observability
   scripts/check-migrations.ts        dev-time guardrail
-  tests/e2e/
-    fixtures.ts                      auto-fixture: fails fast on RSC errors / 5xx responses
-    global-setup.ts                  builds menu_test_template DB (migrations applied)
-    global-teardown.ts               drops per-worker DBs
-    helpers/                         (server-only stub today; future zero-domain helpers live
-                                     under src/shared/testing/e2e-{db,storage,beacon}.ts)
-    journeys/                        cross-slice user journeys (tenant-isolation, onboarding,
-                                     menu-build-and-publish, qr-to-public-view, plan-upgrade, …)
+  tests/integration/
+    global-setup.ts                  boots testcontainers Postgres + MinIO (@iedora/testing-integration)
+    *.test.ts                        cross-slice integration specs (savepoint-per-test)
 ```
 
 Dev: `bun run dev:up && bun run dev:migrate && bun run dev` no root.
@@ -138,7 +133,7 @@ Kamal corre migrations via pre-deploy hook + blue-green swap.
 - `bun run typecheck` — TS check without emit.
 - `bun run lint` — ESLint (boundary rules included).
 - `bun run test` / `bun run test:watch` — Vitest unit suite (PGLite, co-located).
-- `bun run test:e2e` / `:ui` / `:debug` — Playwright suite (production build + start).
+- `bun run test:integration` — Vitest integration suite (testcontainers Postgres + MinIO).
 - `bun run db:generate` — generate a Drizzle migration.
 - `bun run db:migrate` — apply pending migrations.
 - `bun run db:push` — push schema directly (dev only).

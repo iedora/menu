@@ -44,10 +44,7 @@ Reset volumes: `bun run dev:reset`. Logs: `bun run dev:logs`.
 | `bun run start` | `next start` no output standalone. |
 | `bun run typecheck` | `tsgo --build`. |
 | `bun run lint` | ESLint com cache. |
-| `bun run build:test` | Build de produção com env `.env.test` (para E2E). |
-| `bun run test:e2e` | Playwright suite contra a build de teste. |
-| `bun run test:e2e:ui` | Playwright em modo interactivo. |
-| `bun run test:e2e:debug` | Playwright com `PWDEBUG=1`. |
+| `bun run --cwd products/menu test:integration` | Vitest integration suite (testcontainers Postgres + MinIO). |
 | `bun run db:migrate:test` | Aplica migrations nas DBs `*_test` (chama `scripts/migrate-test.mjs`). |
 
 ## Comandos (`products/menu`, `packages/business/auth`)

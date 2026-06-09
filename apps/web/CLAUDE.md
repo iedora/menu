@@ -95,7 +95,8 @@ apps/web/
 - `bun run lint` — ESLint (`next` recommended).
 
 Real tests live with the products: `bun run --cwd products/menu test` /
-`test:e2e`, `bun run --cwd packages/business/auth test`, etc.
+`test:integration` (testcontainers Postgres + MinIO),
+`bun run --cwd packages/business/auth test`, etc.
 
 ## Deployable artefact
 

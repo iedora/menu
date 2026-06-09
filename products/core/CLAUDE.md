@@ -46,7 +46,7 @@ Auth SDK contract: [`../../packages/business/auth/README.md`](../../packages/bus
 - `bun run typecheck`
 - `bun run lint`
 - `bun run test` — vitest with `--passWithNoTests` (no test files yet).
-- `bun run test:e2e` / `:ui` / `:debug` — Playwright suite (planned — harness not yet built).
+- `bun run test:integration` — Vitest integration suite (testcontainers; add when needed).
 
 CI: GitHub Actions — single `ci.yml` workflow typechecks + lints + tests
 all workspaces (see `.github/workflows/ci.yml`).

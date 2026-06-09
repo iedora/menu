@@ -11,10 +11,10 @@ import { next, boundaries, vitest } from '@iedora/eslint-config'
  * (actions, client, server, ui/**, rsc/**, testing, testing/**). See
  * AGENTS.md menu rule 14.
  *
- * `testing/**` is the slice's E2E surface (rule 15). The boundaries plugin
- * allows it cross-slice (so journeys can compose seeds + profiles), but
- * production code — anything outside `e2e/`, `testing/`, or unit tests —
- * must not import it. That extra guard is the `no-restricted-imports`
+ * `testing/**` is the slice's integration-test surface (rule 15). The
+ * boundaries plugin allows it cross-slice (so integration suites can compose
+ * seeds + profiles), but production code — anything outside `testing/` or unit
+ * tests — must not import it. That extra guard is the `no-restricted-imports`
  * block below.
  */
 const eslintConfig = defineConfig([
@@ -31,7 +31,6 @@ const eslintConfig = defineConfig([
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: [
-      'src/features/*/e2e/**',
       'src/features/*/testing/**',
       'src/**/*.test.{ts,tsx}',
     ],

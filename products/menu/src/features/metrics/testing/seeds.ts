@@ -3,8 +3,7 @@ import { testDb } from '../../../shared/testing/e2e-db'
 
 /**
  * Pre-seed a daily_view bucket. Useful for analytics-range specs that
- * need history without firing N beacons through the public route. For
- * happy-path beacon coverage use `@/shared/testing/e2e-beacon`.
+ * need history without firing N beacons through the public route.
  */
 export async function seedDailyView(input: {
   tenantId: string
