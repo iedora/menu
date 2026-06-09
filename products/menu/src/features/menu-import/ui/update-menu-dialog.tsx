@@ -23,7 +23,6 @@ import { analyzeMenuPatch, applyMenuPatchAction } from '../actions'
 import {
   buildProposedTree,
   type DiffState,
-  type ProposedCategory,
 } from '../use-cases/build-proposed-tree'
 import { BuildingAnimation } from './building-animation'
 import { CameraCapture } from './camera-capture'

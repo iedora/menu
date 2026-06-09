@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import QRCode from 'qrcode'
 import {
@@ -35,6 +35,17 @@ import {
   type PrintGrid,
 } from './print-layout'
 
+// SSR-safe "are we on the client?" without a setState-in-effect: the
+// server snapshot is false, the client snapshot true, so the portal
+// (which needs `document`) only renders after hydration.
+const subscribeNoop = () => () => {}
+const useMounted = () =>
+  useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  )
+
 export function QrPrintSheetDialog({
   open,
   onOpenChange,
@@ -52,9 +63,7 @@ export function QrPrintSheetDialog({
   const [gutterInput, setGutterInput] = useState<number>(DEFAULT_GUTTER_MM)
   const [pageMarginInput, setPageMarginInput] = useState<number>(DEFAULT_PAGE_MARGIN_MM)
   const [svgMarkup, setSvgMarkup] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  const mounted = useMounted()
 
   // margin: 0 — the print sheet's gutter supplies the QR's quiet zone.
   useEffect(() => {

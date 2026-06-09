@@ -85,7 +85,6 @@ describeLive('Kimi extraction snapshot · Taberna do José', () => {
       lines.push('─'.repeat(60))
       lines.push(`Wrote snapshot → ${SNAPSHOT}`)
       lines.push('')
-      // eslint-disable-next-line no-console
       console.log(lines.join('\n'))
 
       // ── 3. Loose sanity checks — proves the model returned a usable
@@ -110,7 +109,6 @@ describeLive('Kimi extraction snapshot · Taberna do José', () => {
 })
 
 if (!HAS_KEY) {
-  // eslint-disable-next-line no-console
   console.info(
     '[taberna-extraction.live] skipped — set MOONSHOT_API_KEY to run.',
   )
