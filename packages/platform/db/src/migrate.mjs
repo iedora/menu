@@ -36,12 +36,11 @@ function dbNameFromUrl(connStr) {
 }
 
 /**
- * Best-effort: create the target database if missing AND we have the privilege.
- * In prod the app connects as a least-privilege role that can't CREATE DATABASE
- * (or reach the maintenance db) — there the database is provisioned out-of-band
- * (the iedora-infra postgres role), like Authelia, and this no-ops. In dev/CI a
- * privileged role creates it. Failures here are swallowed; a genuinely missing
- * database surfaces at the migrate step.
+ * Create the target database if it's missing. Used in dev/CI where a privileged
+ * role provisions databases on demand (e.g. per-worker E2E dbs). Skipped in prod
+ * via MIGRATE_SKIP_DB_CREATE=1 — there the database is provisioned out-of-band
+ * (the iedora-infra postgres role) and the app runs as a least-privilege role
+ * (the Authelia pattern: ops provisions, the app only migrates schema).
  *
  * @param {string} url    Target connection string.
  * @param {string} label  Log label.
@@ -55,16 +54,8 @@ async function ensureDatabase(url, label) {
       await adminSql.unsafe(`CREATE DATABASE "${targetDb.replace(/"/g, '""')}"`)
       console.error(`[migrate:${label}] created database "${targetDb}"`)
     }
-  } catch (err) {
-    // A least-privilege app role (prod) can't reach the maintenance db or run
-    // CREATE DATABASE — the database is provisioned out-of-band (the
-    // iedora-infra postgres role), exactly like Authelia. Skip rather than
-    // fail; the migrate step below errors clearly if the db is truly missing.
-    console.error(
-      `[migrate:${label}] skipping ensure-database (assuming provisioned): ${err.message}`,
-    )
   } finally {
-    await adminSql.end({ timeout: 5 }).catch(() => {})
+    await adminSql.end({ timeout: 5 })
   }
 }
 
@@ -91,7 +82,9 @@ export async function runMigrations({ url, folder, tag }) {
     console.error(`[migrate:${label}] connection URL em falta`)
     process.exit(1)
   }
-  await ensureDatabase(url, label)
+  // Ops provisions databases in prod (MIGRATE_SKIP_DB_CREATE=1); dev/CI create
+  // them on demand here.
+  if (process.env.MIGRATE_SKIP_DB_CREATE !== '1') await ensureDatabase(url, label)
   const sql = postgres(url, { max: 1 })
   try {
     console.error(`[migrate:${label}] ${url.replace(/:[^@]+@/, ':***@')} ← ${folder}`)
