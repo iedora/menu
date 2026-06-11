@@ -3,7 +3,7 @@
 #   changes      → detecta o que mudou (code / docker)
 #   correctness  → typecheck + lint + test (só se code mudou)
 #   security     → gitleaks + hadolint + osv-scanner (sempre em PR/push/cron)
-#   image        → build + push para ghcr.io/iedora/web (push em main; PR só builda)
+#   image        → build + push para ghcr.io/iedora/frontend (push em main; PR só builda)
 #                  com cache GHA, provenance + SBOM, e attestation assinada.
 #
 # Cron weekly só corre `security` (changes/correctness/image skipam via `if:`)
@@ -147,7 +147,7 @@ jobs:
       id-token: write       # keyless attestation signing
       attestations: write   # write the provenance attestation
     env:
-      IMAGE: ghcr.io/iedora/web
+      IMAGE: ghcr.io/iedora/frontend
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
