@@ -7,7 +7,7 @@
 # See observability/README.md.
 #
 # Action pins (match CI):
-#   actions/checkout@v6.0.2
+#   actions/checkout@v6.0.3
 name: Dashboards
 
 on:
@@ -25,7 +25,7 @@ jobs:
     # Skip (don't fail) until OpenObserve apply is configured in repo settings.
     if: vars.O2_OBSERVE_URL != ''
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v6.0.2
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - name: Apply dashboards to OpenObserve
         env:
           O2_URL: ${{ vars.O2_OBSERVE_URL }}
