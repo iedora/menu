@@ -2,7 +2,7 @@
  * Canonical auth-page URLs. The auth flow (sign-in / sign-up /
  * sign-out) lives under the menu surface — `menu.iedora.com/sign-in`
  * in prod, `http://localhost:3000/menu/sign-in` in dev (both resolved
- * via `NEXT_PUBLIC_MENU_URL` through `productUrl`).
+ * via `MENU_SURFACE_URL` through `productUrl`).
  *
  * Pure strings + URL builders — no env validation, no I/O, safe to
  * import from server AND client components (and the proxy middleware).

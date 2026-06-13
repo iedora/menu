@@ -19,13 +19,14 @@ import { z } from 'zod'
 const serverSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-  // Menu's public URL — used for absolute URL construction via
-  // `publicUrl()`. Must match the canonical hostname the menu serves
-  // (`https://menu.iedora.com` in prod, `http://localhost:3000` in
-  // dev). `NEXT_PUBLIC_` so the client bundle has it too (mirrors
-  // `NEXT_PUBLIC_CORE_URL`'s shape — every product's public URL
-  // follows this convention).
-  NEXT_PUBLIC_MENU_URL: z.url(),
+  // Menu's public URL — used for absolute URL construction via `publicUrl()`.
+  // Must match the hostname the menu serves in THIS environment
+  // (`https://menu.iedora.com` prod, `https://staging-menu.iedora.com` staging,
+  // `http://localhost:3000/menu` dev). A PLAIN runtime var (not `NEXT_PUBLIC_`),
+  // so the same image serves any env; read server-side via this schema. Defaults
+  // to the prod menu host so a deployment that hasn't set it yet (or prod itself)
+  // stays correct — no crash window during the env-var migration.
+  MENU_SURFACE_URL: z.url().default('https://menu.iedora.com'),
 })
 
 type ServerEnv = z.infer<typeof serverSchema>

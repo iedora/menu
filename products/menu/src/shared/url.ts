@@ -22,7 +22,7 @@ import { env } from './env'
  */
 
 /**
- * Build an absolute URL anchored at NEXT_PUBLIC_MENU_URL.
+ * Build an absolute URL anchored at MENU_SURFACE_URL.
  *
  * Rejects absolute or protocol-relative inputs as a defence — callers
  * that want to redirect off-host (e.g. to the apex) pass
@@ -43,7 +43,7 @@ export function publicUrl(
   }
   const url = new URL(
     path.startsWith('/') ? path : `/${path}`,
-    env.NEXT_PUBLIC_MENU_URL,
+    env.MENU_SURFACE_URL,
   )
   if (searchParams) {
     const entries =

@@ -22,7 +22,7 @@ import {
  */
 
 const ENV_KEYS = {
-  menu: 'NEXT_PUBLIC_MENU_URL',
+  menu: 'MENU_SURFACE_URL',
 } as const satisfies Record<ProductId, string>
 
 afterEach(() => {
@@ -53,7 +53,7 @@ describe('productUrl()', () => {
   })
 
   it('returns the env var when set', () => {
-    process.env.NEXT_PUBLIC_MENU_URL = 'http://localhost:3000/menu'
+    process.env.MENU_SURFACE_URL = 'http://localhost:3000/menu'
 
     expect(productUrl(PRODUCTS.menu)).toBe('http://localhost:3000/menu')
   })
