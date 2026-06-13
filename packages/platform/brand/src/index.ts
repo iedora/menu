@@ -14,8 +14,13 @@
  *   - brand           → "where is product X?"  (productUrl(id))
  *   - product-X/…     → "how do I build /foo on X?" (xFooUrl(...))
  *
- * Pure: no env reads at module init, no I/O, safe to import from
- * server AND client components.
+ * Safe to import from server AND client. The URL helpers read PLAIN
+ * (non-`NEXT_PUBLIC`) runtime env vars, which are NOT inlined at build, so the
+ * SAME image serves any environment — set `BRAND_URL`/`MENU_SURFACE_URL` per
+ * deployment. Server contexts (middleware, RSC, server actions) read the real
+ * per-env value at request time; in the browser these vars are absent, so a
+ * client call falls back to the prod apex (only cosmetic links call them client
+ * side). Routing and auth — the parts that must be correct per env — are server-side.
  */
 
 export const BRAND_DOMAIN = 'iedora.com'
@@ -23,19 +28,16 @@ export const BRAND_NAME = 'iedora'
 export const CONTACT_EMAIL = `hello@${BRAND_DOMAIN}`
 
 /**
- * Absolute URL for the iedora apex. Reads `NEXT_PUBLIC_BRAND_URL` so
- * dev (`http://localhost:3000`) and prod (`https://iedora.com`) route
- * "Back to iedora" / footer-brand / sign-out fallback to the actual
- * host — same env-driven shape as `productUrl(PRODUCTS.<id>)`. Next.js
- * inlines the literal string access at build time; a dynamic
- * `process.env[key]` would NOT be inlined, which is why each URL gets
- * a hand-written branch.
+ * Absolute URL for this environment's brand apex (house surface). Reads the
+ * runtime `BRAND_URL` (prod `https://iedora.com`, staging
+ * `https://staging.iedora.com`, dev `http://localhost:3000/house`); falls back
+ * to the prod apex when unset (prod default, and the browser).
  */
 export function brandUrl(): string {
-  return process.env.NEXT_PUBLIC_BRAND_URL ?? `https://${BRAND_DOMAIN}`
+  return process.env.BRAND_URL ?? `https://${BRAND_DOMAIN}`
 }
 
-export { PRODUCTS, productUrl, type ProductId } from './products'
+export { PRODUCTS, productUrl, surfaceHost, type ProductId } from './products'
 
 // ─── URL validators (no env, no I/O) ────────────────────────────────────
 

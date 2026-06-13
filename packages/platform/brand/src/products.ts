@@ -14,21 +14,38 @@
  *   - this file        → "which products exist? where do they live?"
  *   - product-X/url    → "how to build /foo under X"
  *
- * URL backing: each entry reads `NEXT_PUBLIC_<ID>_URL`. Next.js inlines
- * those at build time, which is why the switch is hand-written —
- * `process.env[dynamicKey]` is NOT inlined.
+ * URL backing: each entry reads a PLAIN runtime env var (`<ID>_SURFACE_URL`,
+ * NOT `NEXT_PUBLIC_*`) so the same image serves any environment — set the value
+ * per deployment. Read server-side at request time; absent in the browser, where
+ * it falls back to the prod host (only cosmetic links call this client-side).
+ * `MENU_URL` is taken (the Go menu service), hence `MENU_SURFACE_URL`.
  *
  * Adding a product:
  *   1. Append the id to `PRODUCTS`.
  *   2. Add a `case` branch to `productUrl` (TypeScript exhaustiveness
  *      catches the missing branch).
- *   3. The new env var (`NEXT_PUBLIC_<ID>_URL`) is composed by the
- *      local dev environments (dev) and Kamal/proxy configuration (prod).
+ *   3. Set its `<ID>_SURFACE_URL` per environment (dev .env, infra deploy_env).
  *
  * Pure — no `server-only`, no I/O, safe for client + server.
  */
 
 import { BRAND_DOMAIN } from './index'
+
+/**
+ * The public hostname for a surface in THIS environment, from its runtime URL
+ * env var — used by the host router (surfaces.ts / middleware), server-side.
+ * Falls back to the prod host when unset or when the URL is localhost (dev,
+ * where routing is path-based, not host-based), so dev and prod are unchanged.
+ */
+export function surfaceHost(envUrl: string | undefined, prodHost: string): string {
+  if (!envUrl) return prodHost
+  try {
+    const h = new URL(envUrl).hostname
+    return h === 'localhost' ? prodHost : h
+  } catch {
+    return prodHost
+  }
+}
 
 /**
  * The canonical product-id constants. Use these instead of bare
@@ -44,6 +61,6 @@ export type ProductId = (typeof PRODUCTS)[keyof typeof PRODUCTS]
 export function productUrl(id: ProductId): string {
   switch (id) {
     case PRODUCTS.menu:
-      return process.env.NEXT_PUBLIC_MENU_URL ?? `https://menu.${BRAND_DOMAIN}`
+      return process.env.MENU_SURFACE_URL ?? `https://menu.${BRAND_DOMAIN}`
   }
 }

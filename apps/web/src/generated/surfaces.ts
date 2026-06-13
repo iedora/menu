@@ -1,8 +1,17 @@
 // Host-to-surface topology consumed by src/proxy.ts and per-surface pages.
 // Hand-maintained — adding a new surface here is rule #5 in apps/web/CLAUDE.md.
 // (Previously emitted by `iedora emit-topology`, retired with the Go pipeline.)
+//
+// Consumed SERVER-SIDE only (the middleware + the root server page), so the host
+// lists derive from this environment's runtime URL env vars (BRAND_URL,
+// MENU_SURFACE_URL) — the same vars brandUrl()/productUrl() read. The router
+// then matches this env's real hosts (prod menu.iedora.com, staging
+// staging-menu.iedora.com) from one shared image. Unset -> prod hosts.
 
-import { BRAND_DOMAIN, PRODUCTS } from '@iedora/brand'
+import { BRAND_DOMAIN, PRODUCTS, surfaceHost } from '@iedora/brand'
+
+const brandHost = surfaceHost(process.env.BRAND_URL, BRAND_DOMAIN)
+const menuHost = surfaceHost(process.env.MENU_SURFACE_URL, `menu.${BRAND_DOMAIN}`)
 
 export type Surface = {
   readonly name: string
@@ -27,12 +36,12 @@ export type Surface = {
 export const surfaces: ReadonlyArray<Surface> = [
   {
     name: "house",
-    hosts: [BRAND_DOMAIN, `www.${BRAND_DOMAIN}`],
+    hosts: [brandHost, `www.${brandHost}`],
     rewritePath: "/house",
   },
   {
     name: PRODUCTS.menu,
-    hosts: [`menu.${BRAND_DOMAIN}`, "menu.localhost"],
+    hosts: [menuHost, "menu.localhost"],
     rewritePath: "/menu",
     aliasPaths: [
       "/dashboard",
