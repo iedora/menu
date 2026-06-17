@@ -1,0 +1,30 @@
+{
+  "name": "@iedora/server-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared backend runtime for the iedora Hono services (Bun): env loading with the _FILE secret convention, graceful Bun.serve bootstrap, and the Kysely connection + transaction-in-context plumbing. Ports the Go internal/{config,boot,db,pgtx} packages.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts",
+    "./boot": "./src/boot.ts"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "lint": "eslint src --cache --cache-location node_modules/.cache/.eslintcache",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "hono": "catalog:",
+    "kysely": "catalog:",
+    "kysely-postgres-js": "catalog:"
+  },
+  "devDependencies": {
+    "@iedora/eslint-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

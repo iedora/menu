@@ -1,0 +1,30 @@
+{
+  "name": "@iedora/service-audit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Audit service (Hono/Bun): the read/query API over the append-only audit_log. Migration pilot — the smallest, lowest-risk service to port first.",
+  "exports": {
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsgo --noEmit",
+    "lint": "eslint src --cache --cache-location node_modules/.cache/.eslintcache",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@iedora/contracts": "workspace:*",
+    "@iedora/server-kit": "workspace:*",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@iedora/eslint-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}
