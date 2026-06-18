@@ -2,6 +2,22 @@ import { env, requireEnv } from "@iedora/server-kit";
 
 import type { S3Config } from "./blob";
 
+// Kamal runs each role as `<service>-<role>-<version>` on the shared `kamal`
+// docker network and provides NO stable role alias — only the versioned
+// container name resolves. All roles deploy at the same version, and Kamal
+// injects KAMAL_VERSION + KAMAL_CONTAINER_NAME, so we address a sibling role by
+// reconstructing its versioned name. Falls back to localhost off-Kamal (and an
+// explicit AUTH_BASE_URL/BILLING_BASE_URL env always wins — compose sets those).
+function siblingUrl(role: string, port: number): string {
+  const version = process.env.KAMAL_VERSION;
+  const self = process.env.KAMAL_CONTAINER_NAME; // <service>-<thisRole>-<version>
+  if (version && self?.endsWith(`-menu-${version}`)) {
+    const service = self.slice(0, -`-menu-${version}`.length); // <service> (e.g. iedora-backend)
+    return `http://${service}-${role}-${version}:${port}`;
+  }
+  return `http://localhost:${port}`;
+}
+
 export interface MenuConfig {
   port: number;
   menuDatabaseUrl: string;
@@ -34,8 +50,8 @@ export function loadConfig(): MenuConfig {
     apiJwtPublicKey: requireEnv("API_JWT_PUBLIC_KEY"),
     apiJwtIssuer: requireEnv("API_JWT_ISSUER"),
     apiJwtAudience: env("API_JWT_AUDIENCE", "iedora-api"),
-    authBaseUrl: env("AUTH_BASE_URL", "http://localhost:8080"),
-    billingBaseUrl: env("BILLING_BASE_URL", "http://localhost:8083"),
+    authBaseUrl: env("AUTH_BASE_URL", "") || siblingUrl("web", 8080), // auth runs in the `web` role
+    billingBaseUrl: env("BILLING_BASE_URL", "") || siblingUrl("billing", 8083),
     serviceClientId: requireEnv("SERVICE_CLIENT_ID"),
     serviceClientSecret: requireEnv("SERVICE_CLIENT_SECRET"),
     s3: {
