@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "workspaces": [
     "packages/platform/*",
+    "packages/server/*",
     "products/*",
+    "services/*",
     "apps/*"
   ],
   "scripts": {
@@ -13,6 +15,10 @@
     "dev:down": "docker compose -f ../backend/docker-compose.yml down",
     "dev:logs": "docker compose -f ../backend/docker-compose.yml logs -f",
     "dev:reset": "docker compose -f ../backend/docker-compose.yml down -v",
+    "api:up": "docker compose up -d",
+    "api:down": "docker compose down",
+    "api:logs": "docker compose logs -f",
+    "api:reset": "docker compose down -v",
     "typecheck": "bun run scripts/run-parallel.mjs typecheck",
     "lint": "bun run scripts/run-parallel.mjs lint",
     "test": "bun run --workspaces test",
@@ -29,7 +35,22 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "@types/node": "^22.19.19",
+    "@types/bun": "^1.3.14",
+    "hono": "^4.12.25",
+    "@hono/otel": "^1.1.2",
+    "@hono/zod-validator": "^0.8.0",
+    "kysely-codegen": "^0.20.0",
+    "pg": "^8.21.0",
+    "kysely": "^0.29.2",
+    "kysely-postgres-js": "^3.0.0",
+    "jose": "^6.2.3",
+    "@node-rs/argon2": "^2.0.2",
+    "@opentelemetry/sdk-node": "^0.219.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
+    "testcontainers": "^12.0.3",
+    "@testcontainers/postgresql": "^12.0.3"
   },
   "devDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20260527.2"

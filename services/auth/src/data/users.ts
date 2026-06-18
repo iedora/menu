@@ -1,0 +1,51 @@
+import { type Kysely, type Selectable, sql } from "kysely";
+
+import type { AuthDB } from "../schema";
+
+export type User = Selectable<AuthDB["users"]>;
+
+export function findUserByEmail(db: Kysely<AuthDB>, email: string): Promise<User | undefined> {
+  return db.selectFrom("users").selectAll().where("email", "=", email).executeTakeFirst();
+}
+
+export function findUserById(db: Kysely<AuthDB>, id: string): Promise<User | undefined> {
+  return db.selectFrom("users").selectAll().where("id", "=", id).executeTakeFirst();
+}
+
+export function createUser(
+  db: Kysely<AuthDB>,
+  input: { email: string; passwordHash: string; name?: string | null },
+): Promise<User> {
+  return db
+    .insertInto("users")
+    .values({ email: input.email, password_hash: input.passwordHash, name: input.name ?? null })
+    .returningAll()
+    .executeTakeFirstOrThrow();
+}
+
+export async function updatePasswordHash(db: Kysely<AuthDB>, id: string, hash: string): Promise<void> {
+  await db
+    .updateTable("users")
+    .set({ password_hash: hash, updated_at: sql`now()` })
+    .where("id", "=", id)
+    .execute();
+}
+
+export function listMemberships(
+  db: Kysely<AuthDB>,
+  userId: string,
+): Promise<{ tenant_id: string; role: string }[]> {
+  return db
+    .selectFrom("memberships")
+    .select(["tenant_id", "role"])
+    .where("user_id", "=", userId)
+    .orderBy("created_at")
+    .execute();
+}
+
+/** True if the user is currently banned (port of domain.User.IsBanned). */
+export function isBanned(u: User, now: Date): boolean {
+  if (!u.banned) return false;
+  if (u.ban_expires_at && new Date(u.ban_expires_at) < now) return false; // expired ban
+  return true;
+}
