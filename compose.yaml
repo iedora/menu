@@ -113,6 +113,17 @@ services:
       DEPLOYMENT_ENV: development
       MENU_PORT: "8084"
       MENU_DATABASE_URL: postgres://iedora:iedora@postgres:5432/menu?sslmode=disable
+      AUDIT_DATABASE_URL: postgres://iedora:iedora@postgres:5432/audit?sslmode=disable
+      # Verifies dashboard USER tokens (public half of auth's signing key — the
+      # DEV keypair shared across the stack so tokens cross-verify during migration).
+      API_JWT_PUBLIC_KEY: M+/u/gPyq9NyuwfMjS82Y7lOJeyvGq6jpeRxMqr1Ge4=
+      API_JWT_ISSUER: https://api.iedora.com
+      API_JWT_AUDIENCE: iedora-api
+      # Plan gate: mint a service token via auth, read the subscription from billing.
+      AUTH_BASE_URL: http://auth:8080
+      BILLING_BASE_URL: http://billing:8083
+      SERVICE_CLIENT_ID: menu
+      SERVICE_CLIENT_SECRET: dev-secret
     # Host 8184 (container 8084) to coexist with the legacy Go menu on 8084.
     ports:
       - "8184:8084"

@@ -8,7 +8,7 @@ import type { Restaurants } from "../db.generated";
 // Restaurant reads shared by the public path and (Stage B) the scoping
 // middleware. Mutations live in data/restaurants.write.ts (Stage B).
 
-const RESTAURANT_COLS = [
+export const RESTAURANT_COLS = [
   "id",
   "tenant_id",
   "name",

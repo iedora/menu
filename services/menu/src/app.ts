@@ -1,15 +1,32 @@
-import { createServiceApp } from "@iedora/server-kit";
+import { createServiceApp, userAuth } from "@iedora/server-kit";
+import { Hono } from "hono";
 
 import type { MenuDeps } from "./deps";
 import { handleError } from "./errors";
+import { builderRoutes } from "./features/builder/builder.routes";
+import { dashboardRoutes } from "./features/dashboard/dashboard.routes";
 import { publicRoutes } from "./features/public/public.routes";
+import { restaurantRoutes } from "./features/restaurant/restaurant.routes";
+import { type MenuEnv, requireTenant, scoped } from "./middleware";
 
-// Composition root: the public surface under /public + /up. The authenticated
-// /api and /staff surfaces arrive in Stage B/C. onError is overridden with the
-// menu handler so a malformed-uuid path param surfaces as 404 (like missing),
-// matching the Go respond() chokepoint.
+// Composition root: the unauthenticated /public surface + the authenticated /api
+// dashboard surface (the cross-tenant /staff surface + uploads land in Stage C).
+// onError is the menu handler so a malformed-uuid path param surfaces as 404.
 export function buildApp(deps: MenuDeps) {
-  const app = createServiceApp()
+  // Scoped subtree: everything under /restaurants/{slug}. The scoped middleware
+  // resolves the restaurant + enforces tenancy once for the whole subtree.
+  const scopedApp = new Hono<MenuEnv>()
+    .use(scoped(deps))
+    .route("/", restaurantRoutes(deps))
+    .route("/", builderRoutes(deps));
+
+  const api = new Hono<MenuEnv>()
+    .use(userAuth(deps.userVerifier))
+    .use(requireTenant)
+    .route("/", dashboardRoutes(deps))
+    .route("/restaurants/:slug", scopedApp);
+
+  const app = createServiceApp<MenuEnv>()
     .get("/up", async (c) => {
       try {
         await deps.db.ping();
@@ -18,7 +35,8 @@ export function buildApp(deps: MenuDeps) {
         return c.json({ ok: false }, 503);
       }
     })
-    .route("/public", publicRoutes(deps));
+    .route("/public", publicRoutes(deps))
+    .route("/api", api);
 
   app.onError(handleError);
   return app;
