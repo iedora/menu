@@ -1,8 +1,15 @@
-// Dev surface index: in production each host rewrites to its own surface — this only renders on bare http://localhost:3000/.
+// Dev surface index. In production every known host rewrites to its own surface
+// (middleware in proxy.ts), so this page is only reached by a host that matches
+// NO surface — e.g. a stray `*.iedora.com` subdomain via the wildcard tunnel, or
+// bare localhost in dev. Serving the surface map to such a request leaks our
+// routing topology, so outside dev we 404 instead of rendering the index.
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { surfaces } from '../generated/surfaces'
 
 export default function DevSurfaceIndex() {
+  if (process.env.NODE_ENV === 'production') notFound()
+
   const entries = surfaces.map((s) => ({
     name: s.name,
     href: s.rewritePath || '/',

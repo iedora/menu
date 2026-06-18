@@ -1,8 +1,9 @@
 import { hashPassword } from "@iedora/server-kit";
 import { HTTPException } from "hono/http-exception";
 
+import { grantedRole } from "../../config";
 import { insertSession } from "../../data/sessions";
-import { createUser } from "../../data/users";
+import { createUser, setRole } from "../../data/users";
 import type { AuthDeps } from "../../deps";
 import { isUniqueViolation } from "../../errors";
 import { buildSession, mintTokens, type RequestMeta, type Tokens } from "../../session";
@@ -36,6 +37,22 @@ export async function register(
       userAgent: meta.userAgent ?? undefined,
       ipHash: meta.ipHash ?? undefined,
     });
+    // Role-grant hook: a registration matching ROLE_GRANTS lands with that role
+    // straight away (same resolver + audit event the login hook uses).
+    const role = grantedRole(deps.cfg, created.email);
+    if (role && created.role !== role) {
+      await setRole(deps.db.db, created.id, role);
+      await deps.auditor.recordSync({
+        action: "auth.user.role_granted",
+        actor: { type: "user", id: created.id },
+        targetType: "user",
+        targetId: created.id,
+        userAgent: meta.userAgent ?? undefined,
+        ipHash: meta.ipHash ?? undefined,
+        meta: { role, reason: "role_grant" },
+      });
+      created.role = role;
+    }
     return created;
   });
 

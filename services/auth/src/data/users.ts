@@ -23,6 +23,15 @@ export function createUser(
     .executeTakeFirstOrThrow();
 }
 
+/** Sets a user's global role (e.g. "admin"). Used by the admin-email hook. */
+export async function setRole(db: Kysely<AuthDB>, id: string, role: string): Promise<void> {
+  await db
+    .updateTable("users")
+    .set({ role, updated_at: sql`now()` })
+    .where("id", "=", id)
+    .execute();
+}
+
 export async function updatePasswordHash(db: Kysely<AuthDB>, id: string, hash: string): Promise<void> {
   await db
     .updateTable("users")

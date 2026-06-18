@@ -1,8 +1,9 @@
 import { hashPassword, verifyPassword } from "@iedora/server-kit";
 import { HTTPException } from "hono/http-exception";
 
+import { grantedRole } from "../../config";
 import { insertSession } from "../../data/sessions";
-import { findUserByEmail, isBanned, listMemberships } from "../../data/users";
+import { findUserByEmail, isBanned, listMemberships, setRole } from "../../data/users";
 import type { AuthDeps } from "../../deps";
 import { unauthorized } from "../../errors";
 import { buildSession, mintTokens, type RequestMeta, type Tokens } from "../../session";
@@ -61,8 +62,27 @@ export async function login(
   const tenantId = memberships[0]?.tenant_id ?? null;
   const { session, token } = buildSession(user.id, tenantId, deps.cfg, meta);
 
+  // Role-grant hook: ROLE_GRANTS may assign this identity a role on login
+  // (idempotent — only when it differs from the current role). The mutated
+  // `user` then flows into mintTokens so the access token carries it at once.
+  const role = grantedRole(deps.cfg, user.email);
+  const promote = role != null && user.role !== role;
+
   await deps.db.runInTx(async () => {
     await insertSession(deps.db.db, session);
+    if (promote) {
+      await setRole(deps.db.db, user.id, role);
+      await deps.auditor.recordSync({
+        action: "auth.user.role_granted",
+        actor: { type: "user", id: user.id },
+        tenantId: tenantId ?? undefined,
+        targetType: "user",
+        targetId: user.id,
+        userAgent: ua,
+        ipHash: ip,
+        meta: { role, reason: "role_grant" },
+      });
+    }
     await deps.auditor.recordSync({
       action: "auth.session.login",
       actor: { type: "user", id: user.id },
@@ -73,6 +93,7 @@ export async function login(
       ipHash: ip,
     });
   });
+  if (promote) user.role = role;
 
   return mintTokens(deps, user, session.familyId, tenantId, token, session.expiresAt);
 }

@@ -48,6 +48,7 @@ beforeAll(async () => {
     serviceAudience: "iedora-internal",
     serviceTokenTtl: "10m",
     serviceTokenTtlMs: 10 * 6e4,
+    roleGrants: [{ role: "admin", match: ["admin@iedora.com"] }],
   };
   const keys = parseEd25519Seed(SEED);
   app = buildApp({
@@ -167,6 +168,51 @@ test("logout-all revokes every device session", async () => {
   const res = await app.request("/auth/logout-all", { method: "POST", headers: { authorization: `Bearer ${access}` } });
   expect(res.status).toBe(200);
   expect((await app.request("/auth/refresh", { method: "POST", headers: { cookie: `iedora_refresh=${cookie}` } })).status).toBe(401);
+});
+
+/** Decodes a JWT's payload (no verification) to read its claims. */
+function claims(jwt: string): { roles?: string[] } {
+  const payload = jwt.split(".")[1]!;
+  return JSON.parse(Buffer.from(payload, "base64url").toString());
+}
+
+test("role-grant hook: a ROLE_GRANTS address gets its role on register", async () => {
+  const reg = await app.request(
+    "/auth/register",
+    json({ email: "admin@iedora.com", password: "correct horse battery staple", name: "Boss" }),
+  );
+  expect(reg.status).toBe(200);
+  const access = ((await reg.json()) as { accessToken: string }).accessToken;
+  expect(claims(access).roles).toContain("admin");
+});
+
+test("role-grant hook writes an auth.user.role_granted audit event", async () => {
+  await app.request(
+    "/auth/register",
+    json({ email: "audited-admin@iedora.com", password: "correct horse battery staple", name: "Aud" }),
+  );
+  // Audit events queue in this DB's outbox (the relay isn't run in tests). Each
+  // payload is a JSON envelope; find the role_granted event we just wrote.
+  const rows = await db.db.selectFrom("outbox").select(["payload"]).execute();
+  const events = rows.map(
+    (r) => JSON.parse(Buffer.from(r.payload).toString("utf8")) as { action: string; meta?: { role?: string } },
+  );
+  const granted = events.find((e) => e.action === "auth.user.role_granted" && e.meta?.role === "admin");
+  expect(granted).toBeTruthy();
+});
+
+test("role-grant hook: a non-matching address is NOT promoted, and the role persists across login", async () => {
+  // A plain user stays role-less.
+  const plainReg = await app.request(
+    "/auth/register",
+    json({ email: "plain@iedora.com", password: "correct horse battery staple", name: "Plain" }),
+  );
+  expect(claims(((await plainReg.json()) as { accessToken: string }).accessToken).roles ?? []).not.toContain("admin");
+
+  // The admin (registered above) keeps the role when logging in fresh.
+  const login = await app.request("/auth/login", json({ email: "admin@iedora.com", password: "correct horse battery staple" }));
+  expect(login.status).toBe(200);
+  expect(claims(((await login.json()) as { accessToken: string }).accessToken).roles).toContain("admin");
 });
 
 test("JWKS serves the EdDSA public key", async () => {

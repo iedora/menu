@@ -28,6 +28,59 @@ export interface AuthConfig {
   serviceAudience: string;
   serviceTokenTtl: string;
   serviceTokenTtlMs: number;
+  // Declarative identity→role assignment applied on register/login. Adding a
+  // role or a grantee is config, never code. See parseRoleGrants for the format.
+  roleGrants: RoleGrant[];
+}
+
+/**
+ * One rule: any identity in `match` is assigned `role` on register/login.
+ * A match entry is either an exact email ("alice@x.com") or a domain
+ * ("@iedora.com", matching every address at that domain).
+ */
+export interface RoleGrant {
+  role: string;
+  match: string[]; // normalized lowercase: exact emails or "@domain" suffixes
+}
+
+/**
+ * The role to assign `email`, or undefined if no grant matches. First matching
+ * grant wins, so order rules most- to least-privileged in ROLE_GRANTS.
+ */
+export function grantedRole(cfg: AuthConfig, email: string): string | undefined {
+  const e = email.trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  const domain = at >= 0 ? e.slice(at) : ""; // keeps the leading "@"
+  for (const g of cfg.roleGrants) {
+    if (g.match.some((m) => (m.startsWith("@") ? m === domain : m === e))) return g.role;
+  }
+  return undefined;
+}
+
+/**
+ * Parses ROLE_GRANTS into rules. Grants are `;`-separated; each is
+ * `role=identity,identity,…` where an identity is an exact email or a
+ * `@domain`. Example:
+ *   ROLE_GRANTS="admin=alice@x.com,@iedora.com; support=help@x.com"
+ */
+function parseRoleGrants(raw: string): RoleGrant[] {
+  const grants: RoleGrant[] = [];
+  for (const clause of raw.split(";")) {
+    const eq = clause.indexOf("=");
+    if (eq < 0) continue;
+    const role = clause.slice(0, eq).trim();
+    const match = [
+      ...new Set(
+        clause
+          .slice(eq + 1)
+          .split(",")
+          .map((m) => m.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    if (role && match.length) grants.push({ role, match });
+  }
+  return grants;
 }
 
 // Mirrors the Go auth Config (internal/apps/auth/config.go). All vars match the
@@ -52,5 +105,6 @@ export function loadConfig(): AuthConfig {
     serviceAudience: env("SERVICE_AUDIENCE", "iedora-internal"),
     serviceTokenTtl: env("SERVICE_TOKEN_TTL", "10m"),
     serviceTokenTtlMs: durationMs(env("SERVICE_TOKEN_TTL", "10m"), 10 * 6e4),
+    roleGrants: parseRoleGrants(env("ROLE_GRANTS", "")),
   };
 }
