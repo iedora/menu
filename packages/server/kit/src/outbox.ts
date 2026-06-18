@@ -181,10 +181,11 @@ function parseEnvelope(payload: Uint8Array): AuditEnvelope {
 
 // A deterministic data/integrity error recurs on every retry (dead-letter it);
 // a connection/resource/operator error is transient (retry, don't count it).
+// Bun's PostgresError carries the SQLSTATE in `errno`.
 function isPermanent(err: unknown): boolean {
-  const code = (err as { code?: unknown })?.code;
-  if (typeof code === "string") {
-    const cls = code.slice(0, 2);
+  const sqlState = (err as { errno?: unknown })?.errno;
+  if (typeof sqlState === "string") {
+    const cls = sqlState.slice(0, 2);
     return !(cls === "08" || cls === "53" || cls === "57" || cls === "58");
   }
   return false;

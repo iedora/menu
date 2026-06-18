@@ -1,0 +1,140 @@
+import { createHash, randomUUID } from "node:crypto";
+
+import { newRefreshToken } from "@iedora/server-kit";
+import type { Context } from "hono";
+import { deleteCookie, setCookie } from "hono/cookie";
+
+import type { AuthConfig } from "./config";
+import type { NewSession, Session } from "./data/sessions";
+import type { User } from "./data/users";
+import type { AuthDeps } from "./deps";
+
+export interface RequestMeta {
+  userAgent: string | null;
+  ipHash: Buffer | null;
+}
+
+/** Client context recorded with sessions + audit events (IP is hashed, never raw). */
+export function metaFrom(c: Context): RequestMeta {
+  const ua = c.req.header("user-agent") ?? null;
+  const xff = c.req.header("x-forwarded-for");
+  const ip = xff ? (xff.split(",")[0]?.trim() ?? "") : "";
+  return { userAgent: ua, ipHash: ip ? createHash("sha256").update(ip).digest() : null };
+}
+
+export interface Tokens {
+  accessToken: string;
+  accessExpiresAt: Date;
+  refreshToken: string;
+  refreshExpiresAt: Date;
+  userId: string;
+  tenantId: string;
+}
+
+/** A fresh session family + its opaque refresh token (not yet persisted). */
+export function buildSession(
+  userId: string,
+  tenantId: string | null,
+  cfg: AuthConfig,
+  meta: RequestMeta,
+): { session: NewSession; token: string } {
+  const now = new Date();
+  const { token, hash } = newRefreshToken();
+  return {
+    token,
+    session: {
+      familyId: randomUUID(),
+      userId,
+      tenantId,
+      tokenHash: hash,
+      issuedAt: now,
+      expiresAt: new Date(now.getTime() + cfg.refreshTtlMs),
+      absoluteExpiresAt: new Date(now.getTime() + cfg.refreshAbsoluteTtlMs),
+      userAgent: meta.userAgent,
+      ipHash: meta.ipHash,
+    },
+  };
+}
+
+/** The successor session in a rotation (same family, sliding expiry capped by absolute). */
+export function buildNextSession(
+  cur: Session,
+  cfg: AuthConfig,
+  meta: RequestMeta,
+): { session: NewSession; token: string } {
+  const now = new Date();
+  const { token, hash } = newRefreshToken();
+  const abs = new Date(cur.absolute_expires_at);
+  let exp = new Date(now.getTime() + cfg.refreshTtlMs);
+  if (exp > abs) exp = abs;
+  return {
+    token,
+    session: {
+      familyId: cur.family_id,
+      userId: cur.user_id,
+      tenantId: cur.tenant_id,
+      tokenHash: hash,
+      issuedAt: now,
+      expiresAt: exp,
+      absoluteExpiresAt: abs,
+      userAgent: meta.userAgent,
+      ipHash: meta.ipHash,
+    },
+  };
+}
+
+/** Mints the access JWT for a persisted session + assembles the Tokens result. */
+export async function mintTokens(
+  deps: AuthDeps,
+  user: User,
+  familyId: string,
+  tenantId: string | null,
+  refreshToken: string,
+  refreshExpiresAt: Date,
+): Promise<Tokens> {
+  const accessToken = await deps.issuer.issueAccess({
+    userId: user.id,
+    email: user.email,
+    tenantId: tenantId ?? undefined,
+    sessionId: familyId,
+    roles: user.role ? [user.role] : [],
+  });
+  return {
+    accessToken,
+    accessExpiresAt: new Date(Date.now() + deps.cfg.accessTtlMs),
+    refreshToken,
+    refreshExpiresAt,
+    userId: user.id,
+    tenantId: tenantId ?? "",
+  };
+}
+
+/** The JSON body returned by token-minting endpoints (matches @iedora/contracts tokenResponse). */
+export function tokenJson(t: Tokens): {
+  accessToken: string;
+  expiresAt: string;
+  userId: string;
+  tenantId?: string;
+} {
+  return {
+    accessToken: t.accessToken,
+    expiresAt: t.accessExpiresAt.toISOString(),
+    userId: t.userId,
+    ...(t.tenantId ? { tenantId: t.tenantId } : {}),
+  };
+}
+
+export function setRefreshCookie(c: Context, cfg: AuthConfig, token: string, expires: Date): void {
+  setCookie(c, cfg.refreshCookieName, token, {
+    path: "/auth",
+    httpOnly: true,
+    secure: cfg.cookieSecure,
+    sameSite: "Lax",
+    domain: cfg.cookieDomain || undefined,
+    expires,
+  });
+}
+
+export function clearRefreshCookie(c: Context, cfg: AuthConfig): void {
+  deleteCookie(c, cfg.refreshCookieName, { path: "/auth", domain: cfg.cookieDomain || undefined });
+}

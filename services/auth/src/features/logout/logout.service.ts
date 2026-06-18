@@ -1,0 +1,26 @@
+import { hashRefreshToken } from "@iedora/server-kit";
+
+import { findByTokenHash, revokeFamily } from "../../data/sessions";
+import type { AuthDeps } from "../../deps";
+import type { RequestMeta } from "../../session";
+
+// Logout revokes the family the presented refresh token belongs to (this
+// device). Idempotent — an unknown token is already "logged out". Ports
+// service.Logout.
+export async function logout(deps: AuthDeps, refreshToken: string, meta: RequestMeta): Promise<void> {
+  const cur = await findByTokenHash(deps.db.db, hashRefreshToken(refreshToken));
+  if (!cur) return;
+  await deps.db.runInTx(async () => {
+    await revokeFamily(deps.db.db, cur.family_id);
+    await deps.auditor.recordSync({
+      action: "auth.session.logout",
+      actor: { type: "user", id: cur.user_id },
+      tenantId: cur.tenant_id ?? undefined,
+      targetType: "user",
+      targetId: cur.user_id,
+      userAgent: meta.userAgent ?? undefined,
+      ipHash: meta.ipHash ?? undefined,
+      meta: { session_id: cur.id },
+    });
+  });
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@iedora/service-auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Authentication service (Hono/Bun): registration, login, refresh-token rotation with reuse detection, logout, tenants, the EdDSA JWKS, and the client-credentials token endpoint. Vertical slices over @iedora/server-kit.",
+  "exports": {
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "migrate": "bun run src/migrate.ts",
+    "db:codegen": "kysely-codegen --dialect postgres --url ${AUTH_DATABASE_URL:-postgres://iedora:iedora@localhost:55433/auth} --exclude-pattern '(schema_migrations)' --out-file src/db.generated.ts",
+    "typecheck": "tsgo --noEmit",
+    "lint": "eslint src --cache --cache-location node_modules/.cache/.eslintcache",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@iedora/contracts": "workspace:*",
+    "@iedora/server-kit": "workspace:*",
+    "@hono/zod-validator": "catalog:",
+    "hono": "catalog:",
+    "kysely": "catalog:"
+  },
+  "devDependencies": {
+    "@iedora/eslint-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "eslint": "catalog:",
+    "jose": "catalog:",
+    "kysely-codegen": "catalog:",
+    "pg": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
+  }
+}

@@ -232,6 +232,27 @@
         "typescript-eslint": "catalog:",
       },
     },
+    "services/auth": {
+      "name": "@iedora/service-auth",
+      "version": "0.1.0",
+      "dependencies": {
+        "@hono/zod-validator": "catalog:",
+        "@iedora/contracts": "workspace:*",
+        "@iedora/server-kit": "workspace:*",
+        "hono": "catalog:",
+        "kysely": "catalog:",
+      },
+      "devDependencies": {
+        "@iedora/eslint-config": "workspace:*",
+        "@types/bun": "catalog:",
+        "eslint": "catalog:",
+        "jose": "catalog:",
+        "kysely-codegen": "catalog:",
+        "pg": "catalog:",
+        "typescript": "catalog:",
+        "typescript-eslint": "catalog:",
+      },
+    },
   },
   "trustedDependencies": [
     "sharp",
@@ -463,6 +484,8 @@
     "@iedora/server-kit": ["@iedora/server-kit@workspace:packages/server/kit"],
 
     "@iedora/service-audit": ["@iedora/service-audit@workspace:services/audit"],
+
+    "@iedora/service-auth": ["@iedora/service-auth@workspace:services/auth"],
 
     "@iedora/web": ["@iedora/web@workspace:apps/web"],
 
