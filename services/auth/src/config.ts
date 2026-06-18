@@ -31,6 +31,12 @@ export interface AuthConfig {
   // Declarative identity→role assignment applied on register/login. Adding a
   // role or a grantee is config, never code. See parseRoleGrants for the format.
   roleGrants: RoleGrant[];
+  // Password-reset hook.
+  resetTokenTtlMs: number; // how long an emailed reset token stays valid
+  resetThrottleMs: number; // min gap between reset emails per account (anti-flood)
+  // The reset link's base URL is built from THIS config value, never the request
+  // Host header — that defeats password-reset poisoning (host-header injection).
+  resetUrlBase: string;
 }
 
 /**
@@ -106,5 +112,8 @@ export function loadConfig(): AuthConfig {
     serviceTokenTtl: env("SERVICE_TOKEN_TTL", "10m"),
     serviceTokenTtlMs: durationMs(env("SERVICE_TOKEN_TTL", "10m"), 10 * 6e4),
     roleGrants: parseRoleGrants(env("ROLE_GRANTS", "")),
+    resetTokenTtlMs: durationMs(env("API_RESET_TOKEN_TTL", "30m"), 30 * 6e4),
+    resetThrottleMs: durationMs(env("API_RESET_THROTTLE", "60s"), 6e4),
+    resetUrlBase: env("RESET_URL_BASE", "https://menu.iedora.com/reset-password"),
   };
 }

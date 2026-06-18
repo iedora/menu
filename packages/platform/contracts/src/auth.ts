@@ -25,6 +25,22 @@ export const registerRequest = z.object({
 });
 export type RegisterRequest = z.infer<typeof registerRequest>;
 
+// Forgot/reset password. The request only needs an email; the server always
+// responds identically whether or not the account exists (no enumeration).
+export const forgotPasswordRequest = z.object({
+  email: z.string().email(),
+});
+export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequest>;
+
+// Reset confirmation: the opaque token from the emailed link + the new password
+// (same policy as registration). The token is the only secret that authorizes
+// the change.
+export const resetPasswordRequest = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8),
+});
+export type ResetPasswordRequest = z.infer<typeof resetPasswordRequest>;
+
 export const createTenantRequest = z.object({ name: z.string().min(1) });
 export type CreateTenantRequest = z.infer<typeof createTenantRequest>;
 

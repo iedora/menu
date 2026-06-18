@@ -21,6 +21,23 @@ let scratch: ScratchDatabase;
 let db: Database<any>;
 let app: ReturnType<typeof buildApp>;
 
+// Capturing mailer: lets the reset tests read the link that would have been sent.
+const sentResets: { to: string; url: string }[] = [];
+const sentChanged: string[] = [];
+const testMailer = {
+  async sendPasswordReset(to: string, url: string) {
+    sentResets.push({ to, url });
+  },
+  async sendPasswordChanged(to: string) {
+    sentChanged.push(to);
+  },
+};
+/** Extracts the `token` query param from the most recent reset link. */
+function lastResetToken(): string {
+  const url = sentResets.at(-1)!.url;
+  return new URL(url).searchParams.get("token")!;
+}
+
 beforeAll(async () => {
   scratch = await createScratchDatabase({
     prefix: "auth_test",
@@ -49,6 +66,9 @@ beforeAll(async () => {
     serviceTokenTtl: "10m",
     serviceTokenTtlMs: 10 * 6e4,
     roleGrants: [{ role: "admin", match: ["admin@iedora.com"] }],
+    resetTokenTtlMs: 30 * 6e4,
+    resetThrottleMs: 0, // no throttle in tests so back-to-back requests issue tokens
+    resetUrlBase: "https://menu.iedora.com/reset-password",
   };
   const keys = parseEd25519Seed(SEED);
   app = buildApp({
@@ -58,6 +78,7 @@ beforeAll(async () => {
     serviceIssuer: new ServiceTokenIssuer({ privateKey: keys.privateKey, kid: "k1", issuer: cfg.jwtIssuer, audience: cfg.serviceAudience, ttl: cfg.serviceTokenTtl }),
     serviceClients: parseClients(cfg.serviceClients),
     auditor: new OutboxWriter(db, "auth"),
+    resetMailer: testMailer,
     cfg,
   });
 });
@@ -213,6 +234,72 @@ test("role-grant hook: a non-matching address is NOT promoted, and the role pers
   const login = await app.request("/auth/login", json({ email: "admin@iedora.com", password: "correct horse battery staple" }));
   expect(login.status).toBe(200);
   expect(claims(((await login.json()) as { accessToken: string }).accessToken).roles).toContain("admin");
+});
+
+test("forgot-password returns an identical 200 whether or not the account exists (no enumeration)", async () => {
+  const known = await app.request("/auth/forgot-password", json({ email: creds.email }));
+  const unknown = await app.request("/auth/forgot-password", json({ email: "nobody@nowhere.test" }));
+  expect(known.status).toBe(200);
+  expect(unknown.status).toBe(200);
+  expect(await known.text()).toBe(await unknown.text());
+});
+
+test("forgot-password never returns the token in the HTTP response", async () => {
+  const res = await app.request("/auth/forgot-password", json({ email: creds.email }));
+  const body = await res.text();
+  expect(body).not.toContain("token");
+  // a real link was produced for the mailer, but only out-of-band
+  expect(sentResets.at(-1)!.to).toBe(creds.email);
+  expect(sentResets.at(-1)!.url).toContain("menu.iedora.com/reset-password");
+});
+
+test("reset-password with a valid token changes the password, revokes sessions, and does NOT auto-login", async () => {
+  // Open a live session, then run a full reset.
+  const before = await app.request("/auth/login", json({ email: creds.email, password: creds.password }));
+  const oldRefresh = refreshCookie(before)!;
+
+  await app.request("/auth/forgot-password", json({ email: creds.email }));
+  const token = lastResetToken();
+  const newPassword = "a brand new correct horse";
+  const reset = await app.request("/auth/reset-password", json({ token, password: newPassword }));
+
+  expect(reset.status).toBe(200);
+  // No auto-login: no access token in the body, no refresh cookie set.
+  const resetBody = (await reset.json()) as { accessToken?: string };
+  expect(resetBody.accessToken).toBeUndefined();
+  expect(refreshCookie(reset)).toBeUndefined();
+  // Referer leak guard.
+  expect(reset.headers.get("referrer-policy")).toBe("no-referrer");
+  // The pre-existing session was revoked (logged out everywhere).
+  expect((await app.request("/auth/refresh", withCookie(oldRefresh))).status).toBe(401);
+  // Old password no longer works; the new one does.
+  expect((await app.request("/auth/login", json({ email: creds.email, password: creds.password }))).status).toBe(401);
+  expect((await app.request("/auth/login", json({ email: creds.email, password: newPassword }))).status).toBe(200);
+  // A "your password changed" notice was queued.
+  expect(sentChanged).toContain(creds.email);
+  // keep creds usable for later tests
+  creds.password = newPassword;
+});
+
+test("a reset token is single-use", async () => {
+  await app.request("/auth/forgot-password", json({ email: creds.email }));
+  const token = lastResetToken();
+  expect((await app.request("/auth/reset-password", json({ token, password: "second reset password ok" }))).status).toBe(200);
+  creds.password = "second reset password ok";
+  // Replaying the same token now fails.
+  expect((await app.request("/auth/reset-password", json({ token, password: "third attempt password" }))).status).toBe(400);
+});
+
+test("an unknown/garbage reset token is rejected with 400", async () => {
+  expect((await app.request("/auth/reset-password", json({ token: "not-a-real-token", password: "whatever password 1" }))).status).toBe(400);
+});
+
+test("an expired reset token is rejected", async () => {
+  await app.request("/auth/forgot-password", json({ email: creds.email }));
+  const token = lastResetToken();
+  // Force the token to be expired in the DB.
+  await db.db.updateTable("password_reset_tokens").set({ expires_at: new Date(Date.now() - 1000) }).execute();
+  expect((await app.request("/auth/reset-password", json({ token, password: "after expiry password" }))).status).toBe(400);
 });
 
 test("JWKS serves the EdDSA public key", async () => {

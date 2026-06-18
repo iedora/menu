@@ -7,6 +7,7 @@ import type {
 } from "@iedora/server-kit";
 
 import type { AuthConfig } from "./config";
+import type { ResetMailer } from "./mailer";
 import type { AuthDB } from "./schema";
 
 // Dependencies wired once at boot and handed to each auth slice. Password
@@ -18,5 +19,6 @@ export interface AuthDeps {
   serviceIssuer: ServiceTokenIssuer; // client-credentials → service tokens
   serviceClients: Map<string, string>; // clientId → secret
   auditor: Auditor; // OutboxWriter — records into the auth DB's outbox
+  resetMailer: ResetMailer; // delivers password-reset + change-notice emails
   cfg: AuthConfig;
 }

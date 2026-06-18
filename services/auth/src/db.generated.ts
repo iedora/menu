@@ -30,6 +30,15 @@ export interface Outbox {
   traceparent: string | null;
 }
 
+export interface PasswordResetTokens {
+  claimed_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  token_hash: Buffer;
+  user_id: string;
+}
+
 export interface Sessions {
   absolute_expires_at: Timestamp;
   expires_at: Timestamp;
@@ -69,6 +78,7 @@ export interface Users {
 export interface DB {
   memberships: Memberships;
   outbox: Outbox;
+  password_reset_tokens: PasswordResetTokens;
   sessions: Sessions;
   tenants: Tenants;
   users: Users;
