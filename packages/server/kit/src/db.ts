@@ -23,12 +23,20 @@ const txCtx = new AsyncLocalStorage<Kysely<any>>();
 export class Database<DB> {
   readonly root: Kysely<DB>;
 
-  // poolMax caps the underlying Bun SQL connection pool. Bun's default is large;
-  // on a single small VM many service pools would exhaust Postgres's
-  // max_connections, so default to a modest 10 (override per service).
+  // Bun SQL defaults to max:10, but (a) historically didn't always enforce it
+  // and could leak connections (oven-sh/bun#23215), and (b) on the single small
+  // VM several service pools must stay well under Postgres's max_connections.
+  // So we pin a modest pool and recycle: idleTimeout closes idle connections,
+  // maxLifetime caps connection age — both bound the live-connection count.
   constructor(url: string, opts: { poolMax?: number } = {}) {
     this.root = new Kysely<DB>({
-      dialect: new PostgresJSDialect({ postgres: new SQL(url, { max: opts.poolMax ?? 10 }) }),
+      dialect: new PostgresJSDialect({
+        postgres: new SQL(url, {
+          max: opts.poolMax ?? 10,
+          idleTimeout: 30, // seconds
+          maxLifetime: 600, // seconds
+        }),
+      }),
     });
   }
 

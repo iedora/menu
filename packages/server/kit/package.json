@@ -16,7 +16,9 @@
     "./password": "./src/password.ts",
     "./tokens": "./src/tokens.ts",
     "./migrate": "./src/migrate.ts",
-    "./serviceauth": "./src/serviceauth.ts"
+    "./serviceauth": "./src/serviceauth.ts",
+    "./userauth": "./src/userauth.ts",
+    "./testkit": "./src/testkit.ts"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",

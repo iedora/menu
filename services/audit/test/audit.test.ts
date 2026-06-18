@@ -1,4 +1,5 @@
-import { Database, newServiceVerifier, runMigrations } from "@iedora/server-kit";
+import { Database, newServiceVerifier } from "@iedora/server-kit";
+import { type ScratchDatabase, createScratchDatabase } from "@iedora/server-kit/testkit";
 import { SQL } from "bun";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { generateKeyPair, SignJWT } from "jose";
@@ -6,33 +7,20 @@ import { generateKeyPair, SignJWT } from "jose";
 import { buildApp } from "../src/app";
 import type { AuditDB } from "../src/schema";
 
-// Tests run on the Bun runtime (the services use Bun's native SQL), so instead
-// of testcontainers (whose Node docker-stream client hangs under Bun) we
-// provision a throwaway database on a real Postgres. Defaults to the OrbStack
-// dev Postgres (`bun run api:up`); CI sets TEST_DATABASE_URL to its pg service.
-const ADMIN_URL = process.env.TEST_DATABASE_URL ?? "postgres://iedora:iedora@localhost:55433/postgres";
 const ISS = "https://api.iedora.com";
 const AUD = "iedora-internal";
 
-const scratch = `audit_test_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
-
-function urlFor(db: string): string {
-  const u = new URL(ADMIN_URL);
-  u.pathname = `/${db}`;
-  return u.toString();
-}
-
+let scratch: ScratchDatabase;
 let database: Database<AuditDB>;
 let app: ReturnType<typeof buildApp>;
 let token: string;
 
 beforeAll(async () => {
-  const admin = new SQL(ADMIN_URL);
-  await admin.unsafe(`CREATE DATABASE "${scratch}"`);
-  await admin.end();
-
-  const url = urlFor(scratch);
-  await runMigrations({ url, dir: `${import.meta.dir}/../migrations` });
+  scratch = await createScratchDatabase({
+    prefix: "audit_test",
+    migrationsDir: `${import.meta.dir}/../migrations`,
+  });
+  const url = scratch.url;
 
   // Ephemeral EdDSA keypair: verifier from the public key, token from the private.
   const { publicKey, privateKey } = await generateKeyPair("EdDSA");
@@ -65,13 +53,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await database?.close();
-  const admin = new SQL(ADMIN_URL);
-  // Drop connections to the scratch DB, then drop it.
-  await admin
-    .unsafe(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1`, [scratch])
-    .catch(() => {});
-  await admin.unsafe(`DROP DATABASE IF EXISTS "${scratch}"`).catch(() => {});
-  await admin.end();
+  await scratch?.drop();
 });
 
 // A function, not a const: `token` is only set in beforeAll, after module load.

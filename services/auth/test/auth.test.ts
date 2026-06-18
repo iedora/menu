@@ -6,35 +6,27 @@ import {
   newUserVerifier,
   parseClients,
   parseEd25519Seed,
-  runMigrations,
 } from "@iedora/server-kit";
-import { SQL } from "bun";
+import { type ScratchDatabase, createScratchDatabase } from "@iedora/server-kit/testkit";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 
 import { buildApp } from "../src/app";
 import type { AuthConfig } from "../src/config";
 import type { AuthDB } from "../src/schema";
 
-const ADMIN_URL = process.env.TEST_DATABASE_URL ?? "postgres://iedora:iedora@localhost:55433/postgres";
 const SEED = "4qiWAUBUtlk6abEM+o0urqz3tGcSVjg8f/NyRa5wWeI=";
-const scratch = `auth_test_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 
-function urlFor(db: string): string {
-  const u = new URL(ADMIN_URL);
-  u.pathname = `/${db}`;
-  return u.toString();
-}
-
+let scratch: ScratchDatabase;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: Database<any>;
 let app: ReturnType<typeof buildApp>;
 
 beforeAll(async () => {
-  const admin = new SQL(ADMIN_URL);
-  await admin.unsafe(`CREATE DATABASE "${scratch}"`);
-  await admin.end();
-  const url = urlFor(scratch);
-  await runMigrations({ url, dir: `${import.meta.dir}/../migrations` });
+  scratch = await createScratchDatabase({
+    prefix: "auth_test",
+    migrationsDir: `${import.meta.dir}/../migrations`,
+  });
+  const url = scratch.url;
 
   db = new Database<AuthDB>(url);
   const cfg: AuthConfig = {
@@ -71,10 +63,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db?.close();
-  const admin = new SQL(ADMIN_URL);
-  await admin.unsafe(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1`, [scratch]).catch(() => {});
-  await admin.unsafe(`DROP DATABASE IF EXISTS "${scratch}"`).catch(() => {});
-  await admin.end();
+  await scratch?.drop();
 });
 
 /** Extracts the iedora_refresh cookie value from a response's Set-Cookie. */

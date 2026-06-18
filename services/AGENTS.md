@@ -58,6 +58,22 @@ Rules:
 
 ## Testing
 
-Services run on `bun test` (they need Bun's `SQL`; testcontainers-node hangs
-under Bun). Tests provision a throwaway database on a real Postgres —
-`TEST_DATABASE_URL`, defaulting to the OrbStack dev Postgres (`bun run api:up`).
+Services run on `bun test` (they need Bun's native `SQL`). Use the shared
+harness: `import { createScratchDatabase } from "@iedora/server-kit/testkit"` —
+it creates a uniquely-named DB on `TEST_DATABASE_URL` (default: the OrbStack dev
+Postgres, `bun run api:up`), runs `migrationsDir`, and returns `{ url, drop }`.
+
+We deliberately do **not** use testcontainers: under Bun it hangs — Bun starts
+the container faster than testcontainers-node attaches its wait strategy, so the
+log stream has already closed and `start()` never resolves
+(testcontainers/testcontainers-node#974; reproduces with every wait strategy, no
+released fix). The scratch-DB harness is the Bun-native replacement. In CI, point
+`TEST_DATABASE_URL` at a Postgres service.
+
+## Connection pools
+
+`Database` pins the Bun SQL pool (`poolMax`, default 10) + `idleTimeout`/`maxLifetime`
+so connections recycle. Bun's default is 10 but historically didn't always
+enforce `max` / leaked (oven-sh/bun#23215); on the single prod VM several service
+pools must stay well under Postgres `max_connections`. Pass a smaller `poolMax`
+for low-traffic pools (e.g. a producer's audit-relay pool).
