@@ -40,15 +40,17 @@ WORKDIR /workspace
 # extends "../../tsconfig.base.json" and its absence breaks the build.
 # COPY --link makes each layer independently cacheable.
 COPY --link package.json bun.lock tsconfig.base.json ./
-# Every workspace referenced by apps/web's `workspace:*` deps must be present so
-# `bun install` can resolve them:
-#   - packages/* → @iedora/{api-client,design-system,observability,brand,eslint-config}
+# ALL workspaces in the root package.json must be present so `bun install
+# --frozen-lockfile` resolves the same graph the lockfile describes:
+#   - packages/* → @iedora/{api-client,contracts,server-kit,design-system,…}
 #   - products/* → @iedora/product-menu
-# Without products/, bun fails with "Workspace dependency @iedora/product-menu
-# not found". These trees hold real .ts/.tsx source (workspace exports point at
-# source), so they are needed for the build too.
+#   - services/* → the Bun backend services (@iedora/service-*). The frontend
+#     doesn't import them, but the SINGLE shared bun.lock lists them, so a frozen
+#     install mismatches unless their manifests are in the build context.
+# These trees hold real .ts/.tsx source (workspace exports point at source).
 COPY --link packages packages
 COPY --link products products
+COPY --link services services
 COPY --link apps/web/package.json apps/web/package.json
 
 # BuildKit cache mount keeps Bun's global cache warm across rebuilds; the cache
