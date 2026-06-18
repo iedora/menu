@@ -5,6 +5,7 @@ import type { AuthDeps } from "./deps";
 import { jwksRoutes } from "./features/jwks/jwks.routes";
 import { loginRoutes } from "./features/login/login.routes";
 import { logoutRoutes } from "./features/logout/logout.routes";
+import { passwordResetRoutes } from "./features/password-reset/password-reset.routes";
 import { refreshRoutes } from "./features/refresh/refresh.routes";
 import { registerRoutes } from "./features/register/register.routes";
 import { tenantsRoutes } from "./features/tenants/tenants.routes";
@@ -19,6 +20,7 @@ export function buildApp(deps: AuthDeps) {
     .route("/", loginRoutes(deps))
     .route("/", refreshRoutes(deps))
     .route("/", logoutRoutes(deps))
+    .route("/", passwordResetRoutes(deps))
     .route("/", tenantsRoutes(deps))
     .route("/", whoamiRoutes(deps))
     .route("/", tokenRoutes(deps))

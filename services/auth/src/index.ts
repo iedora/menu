@@ -5,6 +5,7 @@ import {
   OutboxWriter,
   ServiceTokenIssuer,
   expandFileSecrets,
+  isProd,
   newUserVerifier,
   parseClients,
   parseEd25519Seed,
@@ -13,6 +14,7 @@ import {
 
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
+import { loggingResetMailer, noopResetMailer } from "./mailer";
 import type { AuthDB } from "./schema";
 
 expandFileSecrets();
@@ -38,12 +40,15 @@ const serviceIssuer = new ServiceTokenIssuer({
   ttl: cfg.serviceTokenTtl,
 });
 const auditor = new OutboxWriter(db, "auth");
+// No email transport is wired yet: prod drops the message (the reset is still
+// recorded as an audit event), dev logs the link so the flow is testable.
+const resetMailer = isProd() ? noopResetMailer : loggingResetMailer;
 
 // Drain this service's audit outbox into the audit DB in the background.
 const relay = new OutboxRelay(db, auditDb.root);
 relay.start();
 
-serve(buildApp({ db, issuer, userVerifier, serviceIssuer, serviceClients: parseClients(cfg.serviceClients), auditor, cfg }), {
+serve(buildApp({ db, issuer, userVerifier, serviceIssuer, serviceClients: parseClients(cfg.serviceClients), auditor, resetMailer, cfg }), {
   name: "iedora-auth",
   port: cfg.port,
   onShutdown: async () => {
