@@ -62,7 +62,7 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Sticky top bar ──────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--paper)_90%,transparent)] backdrop-blur">
-        <div className="mx-auto flex h-15 max-w-xl items-center px-5 py-3">
+        <div className="mx-auto flex h-15 max-w-xl items-center px-5 py-3 lg:max-w-5xl">
           <Link href="/menu" className="flex items-center gap-2 no-underline">
             <span className="grid size-8 place-items-center rounded-lg bg-primary text-white"><UtensilsCrossed size={17} strokeWidth={2.2} /></span>
             <span className="font-[family-name:var(--display)] text-[20px] font-extrabold tracking-[-0.02em] text-foreground">iedora</span>
@@ -74,46 +74,50 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-5">
+      <main className="mx-auto max-w-xl px-5 lg:max-w-5xl">
         {/* ── Hero ──────────────────────────────────────────── */}
-        <section className="flex flex-col items-center gap-5 py-9 text-center">
-          <Accent underline>{t("hero.accent")}</Accent>
-          <h1 className="text-[34px] font-extrabold leading-[1.08] tracking-[-0.01em] sm:text-[44px]">{t("hero.headline")}</h1>
-          <p className="max-w-md text-[16px] leading-[1.5] text-muted-foreground">{t("hero.subhead")}</p>
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:justify-center">
-            <Button as="a" href={SIGN_UP_HREF} variant="primary" size="lg" className="!w-full sm:!w-auto !justify-center">{t("hero.ctaPrimary")}</Button>
-            <Button as="a" href="#how" variant="secondary" size="lg" className="!w-full sm:!w-auto !justify-center">
-              <span className="inline-flex items-center gap-2"><Play size={16} fill="currentColor" strokeWidth={0} /> {t("hero.ctaSecondary")}</span>
-            </Button>
-          </div>
-          {/* Menu-card mockup */}
-          <div className="mt-2 w-full max-w-sm -rotate-2">
-            <div className="rounded-[24px] border border-border bg-card p-6 text-left shadow-[0_30px_70px_-28px_var(--ink-22)]">
-              <p className="font-[family-name:var(--display)] text-[22px] font-extrabold text-foreground">{t("hero.card.name")}</p>
-              <p className="mb-4 text-[13px] italic text-primary">{t("hero.card.note")}</p>
-              <ul className="flex flex-col gap-3">
-                {dishes.map((d) => (
-                  <li key={d.name} className="flex items-baseline text-[15px]">
-                    <span className="font-medium text-foreground">{d.name}</span>
-                    <Leader />
-                    <span className="font-semibold text-foreground">{d.price}</span>
-                  </li>
-                ))}
-              </ul>
-              <span className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-[var(--cinnabar-soft)] px-3 py-1.5 text-[12.5px] font-semibold text-primary">
-                <QrCode size={14} strokeWidth={2.2} /> {t("hero.card.scan")}
-              </span>
+        <section className="py-9 lg:py-16">
+          <div className="flex flex-col items-center gap-5 text-center lg:grid lg:grid-cols-2 lg:items-center lg:gap-14 lg:text-left">
+            <div className="flex flex-col items-center gap-5 lg:items-start">
+              <Accent underline>{t("hero.accent")}</Accent>
+              <h1 className="text-[34px] font-extrabold leading-[1.08] tracking-[-0.01em] sm:text-[44px] lg:text-[54px]">{t("hero.headline")}</h1>
+              <p className="max-w-md text-[16px] leading-[1.5] text-muted-foreground lg:text-[18px]">{t("hero.subhead")}</p>
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:justify-center lg:justify-start">
+                <Button as="a" href={SIGN_UP_HREF} variant="primary" size="lg" className="!w-full sm:!w-auto !justify-center">{t("hero.ctaPrimary")}</Button>
+                <Button as="a" href="#how" variant="secondary" size="lg" className="!w-full sm:!w-auto !justify-center">
+                  <span className="inline-flex items-center gap-2"><Play size={16} fill="currentColor" strokeWidth={0} /> {t("hero.ctaSecondary")}</span>
+                </Button>
+              </div>
+              {/* Works with — real brand-coloured chips */}
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] lg:justify-start">
+                <span className="italic text-muted-foreground">{t("hero.worksWithLabel")}</span>
+                <a href="https://www.thefork.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-semibold text-foreground no-underline transition-colors hover:border-[color-mix(in_srgb,var(--cinnabar)_45%,transparent)]">
+                  <span className="grid size-4 place-items-center rounded bg-[#1fa76a] text-white"><Utensils size={10} strokeWidth={2.6} /></span> The Fork
+                </a>
+                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-semibold text-foreground no-underline transition-colors hover:border-[color-mix(in_srgb,var(--cinnabar)_45%,transparent)]">
+                  <MapPin size={15} strokeWidth={1.5} className="text-[#EA4335]" fill="#EA4335" stroke="#ffffff" /> Google Maps
+                </a>
+              </div>
             </div>
-          </div>
-          {/* Works with — real brand-coloured chips */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-[13px]">
-            <span className="italic text-muted-foreground">{t("hero.worksWithLabel")}</span>
-            <a href="https://www.thefork.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-semibold text-foreground no-underline transition-colors hover:border-[color-mix(in_srgb,var(--cinnabar)_45%,transparent)]">
-              <span className="grid size-4 place-items-center rounded bg-[#1fa76a] text-white"><Utensils size={10} strokeWidth={2.6} /></span> The Fork
-            </a>
-            <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-semibold text-foreground no-underline transition-colors hover:border-[color-mix(in_srgb,var(--cinnabar)_45%,transparent)]">
-              <MapPin size={15} strokeWidth={1.5} className="text-[#EA4335]" fill="#EA4335" stroke="#ffffff" /> Google Maps
-            </a>
+            {/* Menu-card mockup */}
+            <div className="mt-2 w-full max-w-sm -rotate-2 lg:mt-0 lg:max-w-md lg:justify-self-end">
+              <div className="rounded-[24px] border border-border bg-card p-6 text-left shadow-[0_30px_70px_-28px_var(--ink-22)]">
+                <p className="font-[family-name:var(--display)] text-[22px] font-extrabold text-foreground">{t("hero.card.name")}</p>
+                <p className="mb-4 text-[13px] italic text-primary">{t("hero.card.note")}</p>
+                <ul className="flex flex-col gap-3">
+                  {dishes.map((d) => (
+                    <li key={d.name} className="flex items-baseline text-[15px]">
+                      <span className="font-medium text-foreground">{d.name}</span>
+                      <Leader />
+                      <span className="font-semibold text-foreground">{d.price}</span>
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-[var(--cinnabar-soft)] px-3 py-1.5 text-[12.5px] font-semibold text-primary">
+                  <QrCode size={14} strokeWidth={2.2} /> {t("hero.card.scan")}
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -121,7 +125,7 @@ export default async function LandingPage() {
         <section id="features" className="py-9">
           <Accent>{t("features.accent")}</Accent>
           <h2 className="mt-2 text-[26px] font-extrabold leading-[1.12] sm:text-[32px]">{t("features.title")}</h2>
-          <ul className="mt-6 flex flex-col gap-4">
+          <ul className="mt-6 flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-x-14 lg:gap-y-5">
             {features.map((name, i) => (
               <li key={name} className="flex items-center gap-3.5">
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--cinnabar-soft)] text-[13px] font-bold text-primary">{i + 1}</span>
@@ -136,10 +140,10 @@ export default async function LandingPage() {
 
       {/* ── Three courses (muted band) ──────────────────────── */}
       <section id="how" className="bg-muted py-10">
-        <div className="mx-auto max-w-xl px-5">
+        <div className="mx-auto max-w-xl px-5 lg:max-w-5xl">
           <Accent>{t("how.accent")}</Accent>
           <h2 className="mt-2 text-[26px] font-extrabold leading-[1.12] sm:text-[32px]">{t("how.title")}</h2>
-          <ol className="mt-6 flex flex-col gap-5">
+          <ol className="mt-6 flex flex-col gap-5 md:grid md:grid-cols-3 md:gap-7">
             {steps.map((s, i) => (
               <li key={s.title} className="flex items-center gap-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary font-[family-name:var(--display)] text-[18px] font-bold text-white">{i + 1}</span>
@@ -153,7 +157,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-xl px-5">
+      <main className="mx-auto max-w-xl px-5 lg:max-w-5xl">
         {/* ── Specials board (chalkboard) ───────────────────── */}
         <section className="py-9">
           <div className="rounded-[24px] bg-[var(--ink)] p-7 text-[var(--paper)]">
@@ -174,7 +178,7 @@ export default async function LandingPage() {
         <section id="pricing" className="py-9">
           <Accent>{t("pricing.accent")}</Accent>
           <h2 className="mt-2 text-[26px] font-extrabold leading-[1.12] sm:text-[32px]">{t("pricing.title")}</h2>
-          <div className="mt-7 grid grid-cols-2 gap-3.5">
+          <div className="mt-7 grid grid-cols-2 gap-3.5 lg:mx-auto lg:max-w-2xl lg:gap-5">
             <PlanCard plan={onus} href={SIGN_UP_HREF} />
             <PlanCard plan={kasa} href={SIGN_UP_HREF} highlighted />
           </div>
@@ -182,7 +186,7 @@ export default async function LandingPage() {
 
         {/* ── Testimonial (comment card) ────────────────────── */}
         <section className="py-9">
-          <div className="rotate-1 rounded-[24px] border border-border bg-card p-6 shadow-[0_24px_60px_-28px_var(--ink-22)]">
+          <div className="rotate-1 rounded-[24px] border border-border bg-card p-6 shadow-[0_24px_60px_-28px_var(--ink-22)] lg:mx-auto lg:max-w-2xl">
             <div className="mb-3 flex gap-1 text-primary">
               {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={17} fill="currentColor" strokeWidth={0} />)}
             </div>
@@ -214,7 +218,7 @@ export default async function LandingPage() {
 
       {/* ── Footer ──────────────────────────────────────────── */}
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-xl flex-col gap-6 px-5 py-10">
+        <div className="mx-auto flex max-w-xl flex-col gap-6 px-5 py-10 lg:max-w-5xl">
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2">
               <span className="grid size-8 place-items-center rounded-lg bg-primary text-white"><UtensilsCrossed size={17} strokeWidth={2.2} /></span>
