@@ -70,7 +70,7 @@
     "menu": {
       "title": "Now, your menu",
       "subtitle": "Start with a sample menu you can edit, or add your dishes yourself.",
-      "sample": "Start with a sample menu",
+      "sample": "Use a sample menu",
       "sampleHint": "We add a few dishes you can change anytime.",
       "manual": "I'll add my dishes",
       "manualHint": "Start from a blank menu."

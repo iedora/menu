@@ -130,14 +130,14 @@ export function MenuOnboardingPage({
           {tMenu('subtitle')}
         </p>
 
-        <div className="mt-8 flex flex-col gap-3.5">
-          {/* Sample menu — recommended */}
+        <div className="mt-10 flex flex-col gap-3.5">
+          {/* Sample menu — recommended (same size as the blank option) */}
           <button
             type="button"
             onClick={seed}
             disabled={pending}
             data-test-id="menu-onboarding-seed"
-            className="flex items-center gap-4 rounded-[18px] border-2 border-primary bg-[var(--cinnabar-soft)] p-5 text-left transition-opacity disabled:opacity-60"
+            className="flex items-center gap-4 rounded-[18px] border border-border bg-card p-5 text-left transition-colors hover:border-[color-mix(in_srgb,var(--cinnabar)_40%,transparent)] disabled:opacity-60"
           >
             <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-white">
               <Sparkles size={20} strokeWidth={2} />
