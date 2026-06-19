@@ -68,12 +68,12 @@
       "menu": "Montar menu"
     },
     "menu": {
-      "eyebrow": "segundo prato",
-      "title": "Monta o teu menu",
-      "subtitle": "Começa com um menu de exemplo — pratos, secções e preços que podes editar à vontade.",
-      "subtitleAside": "Tudo pode ser renomeado, alterado ou removido depois.",
-      "skip": "Saltar — adiciono pratos manualmente",
-      "skipHint": "Podes montar o menu secção a secção na página do restaurante."
+      "title": "Agora, o seu menu",
+      "subtitle": "Comece com um menu de exemplo que pode editar, ou adicione os seus pratos.",
+      "sample": "Começar com um menu de exemplo",
+      "sampleHint": "Adicionamos alguns pratos que pode alterar quando quiser.",
+      "manual": "Vou adicionar os meus pratos",
+      "manualHint": "Comece com um menu vazio."
     }
   },
   "Dashboard": {

@@ -68,12 +68,12 @@
       "menu": "Build menu"
     },
     "menu": {
-      "eyebrow": "second course",
-      "title": "Build your menu",
-      "subtitle": "Start with a ready-made sample menu — dishes, sections and prices you can edit freely.",
-      "subtitleAside": "Everything can be renamed, repriced or removed later.",
-      "skip": "Skip — I'll add dishes manually",
-      "skipHint": "You can build the menu section by section from the restaurant page."
+      "title": "Now, your menu",
+      "subtitle": "Start with a sample menu you can edit, or add your dishes yourself.",
+      "sample": "Start with a sample menu",
+      "sampleHint": "We add a few dishes you can change anytime.",
+      "manual": "I'll add my dishes",
+      "manualHint": "Start from a blank menu."
     }
   },
   "Dashboard": {
