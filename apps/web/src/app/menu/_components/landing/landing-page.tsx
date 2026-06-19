@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import {
   BarChart3,
   Check,
@@ -13,11 +14,13 @@ import {
 } from "lucide-react";
 import { Button } from "@iedora/design-system";
 import { signInUrl, signUpUrl } from "@iedora/product-menu/shared/auth-urls";
+import { LangSwitch } from "./lang-switch";
 
 /**
  * iedora menu marketing landing — a faithful build of the Pencil landing
  * (`iedora.pen` → component `dZ0S8`). Source of truth is Pencil; this file
- * mirrors it section for section. Copy is EN for now (i18n to follow).
+ * mirrors it section for section. Copy comes from the `Landing` i18n
+ * namespace (EN + PT); the EN/PT switch sets the NEXT_LOCALE cookie.
  */
 
 const SIGN_IN_HREF = signInUrl();
@@ -30,61 +33,13 @@ const SHOWCASE_IMAGE =
 const AVATAR_IMAGE =
   "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3ODE4MjM2MzZ8&ixlib=rb-4.1.0&q=80&w=1080";
 
-const NAV_LINKS = [
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Stories", href: "#stories" },
-];
+// Icons stay in code; their order matches the Pencil features grid and the
+// `Landing.features.items` array (row 1, then row 2).
+const FEATURE_ICONS = [QrCode, ImageIcon, Languages, Pencil, BarChart3, ConciergeBell];
 
-// Canvas order from the Pencil features grid (row 1, then row 2).
-const FEATURES = [
-  { Icon: QrCode, title: "Scan and open", body: "Guests scan a code or tap a link and your menu opens right away. They never have to install an app." },
-  { Icon: ImageIcon, title: "A photo on every dish", body: "Add a photo, a short description, and the price to each dish." },
-  { Icon: Languages, title: "More languages", body: "Show your menu in other languages, so more of your guests can read it." },
-  { Icon: Pencil, title: "Change it in seconds", body: "Update a price or mark a dish as sold out from your phone. The change shows up straight away." },
-  { Icon: BarChart3, title: "See what's popular", body: "See which dishes people look at most, and move your favourites to the top." },
-  { Icon: ConciergeBell, title: "Order and pay", body: "Let guests order and pay from the table. The order goes straight to your kitchen." },
-];
-
-const STEPS = [
-  { n: "1", title: "Add your menu", body: "Add your dishes, photos, and prices. Or send us your current menu and we'll set it up with you." },
-  { n: "2", title: "Put up your code", body: "We give you a QR code and a short web link. Put them on your tables, your door, or your receipts." },
-  { n: "3", title: "Go live", body: "Guests start scanning straight away. Change a price or add a special whenever you like, and everyone sees it at once." },
-];
-
-const SHOWCASE_BULLETS = [
-  "You never pay to reprint",
-  "Update prices and specials live",
-  "Menus in multiple languages, ready to go",
-  "Works on any phone, no app needed",
-];
-
-const PRICING = {
-  free: {
-    tier: "Free",
-    price: "€0",
-    sub: "forever",
-    desc: "For getting started",
-    feats: ["1,000 views per month", "One restaurant"],
-    cta: "Get started",
-  },
-  pro: {
-    tier: "Pro",
-    price: "€12",
-    sub: "/year",
-    desc: "€1 a month, billed yearly",
-    feats: ["Unlimited views", "Unlimited restaurants", "Analytics included"],
-    cta: "Get Pro",
-    badge: "Best value",
-  },
-};
-
-const FOOTER = [
-  { heading: "Product", links: ["Features", "Pricing", "Order & pay", "Analytics"] },
-  { heading: "Company", links: ["About", "Stories", "Careers", "Contact"] },
-  { heading: "Resources", links: ["Help center", "Guides", "Status", "Developer API"] },
-];
+type CardCopy = { title: string; body: string };
+type PlanCopy = { tier: string; desc: string; price: string; per: string; cta: string; badge?: string; feats: string[] };
+type FooterCol = { heading: string; links: string[] };
 
 /** Brand glyphs (lucide dropped its brand icons), 20px, currentColor. */
 const SOCIALS: { name: string; path: React.ReactNode }[] = [
@@ -130,17 +85,22 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** EN / PT segmented pill — mirrors the Pencil Lang Switch (visual only for now). */
-function LangSwitch() {
-  return (
-    <div className="hidden items-center gap-0.5 rounded-full bg-[var(--paper-2)] p-[3px] sm:inline-flex">
-      <span className="rounded-full bg-primary px-2.5 py-1 text-[13px] font-bold text-white">EN</span>
-      <span className="rounded-full px-2.5 py-1 text-[13px] font-bold text-muted-foreground">PT</span>
-    </div>
-  );
-}
+export default async function LandingPage() {
+  const t = await getTranslations("Landing");
 
-export default function LandingPage() {
+  const navLinks = [
+    { label: t("nav.features"), href: "#features" },
+    { label: t("nav.how"), href: "#how" },
+    { label: t("nav.pricing"), href: "#pricing" },
+    { label: t("nav.stories"), href: "#stories" },
+  ];
+  const features = t.raw("features.items") as CardCopy[];
+  const steps = t.raw("how.steps") as CardCopy[];
+  const bullets = t.raw("showcase.bullets") as string[];
+  const free = t.raw("pricing.free") as PlanCopy;
+  const pro = t.raw("pricing.pro") as PlanCopy;
+  const footerCols = t.raw("footer.columns") as FooterCol[];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Nav ─────────────────────────────────────────────── */}
@@ -151,7 +111,7 @@ export default function LandingPage() {
             <span className="font-[family-name:var(--display)] text-[21px] font-extrabold tracking-[-0.02em] text-foreground">iedora</span>
           </Link>
           <ul className="ml-auto hidden items-center gap-7 md:flex">
-            {NAV_LINKS.map((l) => (
+            {navLinks.map((l) => (
               <li key={l.href}>
                 <a href={l.href} className="text-[15px] font-medium text-muted-foreground no-underline transition-colors hover:text-foreground">{l.label}</a>
               </li>
@@ -159,8 +119,8 @@ export default function LandingPage() {
           </ul>
           <div className="ml-auto flex items-center gap-3 md:ml-6">
             <LangSwitch />
-            <Link href={SIGN_IN_HREF} className="text-[15px] font-semibold text-foreground no-underline hover:text-primary">Sign in</Link>
-            <Button as="a" href={SIGN_UP_HREF} variant="primary" size="sm">Get started</Button>
+            <Link href={SIGN_IN_HREF} className="text-[15px] font-semibold text-foreground no-underline hover:text-primary">{t("nav.signIn")}</Link>
+            <Button as="a" href={SIGN_UP_HREF} variant="primary" size="sm">{t("nav.getStarted")}</Button>
           </div>
         </nav>
       </header>
@@ -168,56 +128,49 @@ export default function LandingPage() {
       <main>
         {/* ── Hero ──────────────────────────────────────────── */}
         <section className="mx-auto flex max-w-6xl flex-col items-center gap-7 px-6 py-16 text-center md:py-20">
-          <Eyebrow>Digital menus for restaurants</Eyebrow>
-          <h1 className="max-w-4xl text-[40px] leading-[1.05] md:text-[60px]">Your menu online. Live in minutes.</h1>
-          <p className="max-w-2xl text-[18px] leading-[1.55] text-muted-foreground">
-            iedora turns your menu into a digital one your guests open by scanning a code.
-            Update it anytime, with nothing to print.
-          </p>
+          <Eyebrow>{t("hero.eyebrow")}</Eyebrow>
+          <h1 className="max-w-4xl text-[40px] leading-[1.05] md:text-[60px]">{t("hero.headline")}</h1>
+          <p className="max-w-2xl text-[18px] leading-[1.55] text-muted-foreground">{t("hero.subhead")}</p>
           <div className="flex flex-wrap items-center justify-center gap-3.5">
-            <Button as="a" href={SIGN_UP_HREF} variant="primary" size="lg">Get started free</Button>
+            <Button as="a" href={SIGN_UP_HREF} variant="primary" size="lg">{t("hero.ctaPrimary")}</Button>
             <Button as="a" href="#how" variant="secondary" size="lg">
-              <Play size={16} fill="currentColor" strokeWidth={0} /> Watch demo
+              <Play size={16} fill="currentColor" strokeWidth={0} /> {t("hero.ctaSecondary")}
             </Button>
           </div>
           <div className="relative mt-6 h-[320px] w-full overflow-hidden rounded-[28px] sm:h-[440px] md:h-[560px]">
-            <Image
-              src={HERO_IMAGE}
-              alt="Guests at a restaurant table viewing a digital menu"
-              fill
-              priority
-              sizes="(min-width: 1152px) 1104px, 100vw"
-              className="object-cover"
-            />
+            <Image src={HERO_IMAGE} alt={t("hero.headline")} fill priority sizes="(min-width: 1152px) 1104px, 100vw" className="object-cover" />
           </div>
         </section>
 
         {/* ── Features ──────────────────────────────────────── */}
         <section id="features" className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-          <SectionHead eyebrow="Everything in one place" title="Everything you need, made simple" sub="Your guests get a clean, simple experience and you stay in control." />
+          <SectionHead eyebrow={t("features.eyebrow")} title={t("features.title")} sub={t("features.sub")} />
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ Icon, title, body }) => (
-              <div key={title} className="flex flex-col gap-3 rounded-[18px] border border-border bg-card p-7">
-                <span className="grid size-11 place-items-center rounded-xl bg-[var(--cinnabar-soft)] text-primary">
-                  <Icon size={22} strokeWidth={2} />
-                </span>
-                <h3 className="text-[17px]">{title}</h3>
-                <p className="text-[14.5px] leading-[1.55] text-muted-foreground">{body}</p>
-              </div>
-            ))}
+            {features.map((f, i) => {
+              const Icon = FEATURE_ICONS[i] ?? QrCode;
+              return (
+                <div key={f.title} className="flex flex-col gap-3 rounded-[18px] border border-border bg-card p-7">
+                  <span className="grid size-11 place-items-center rounded-xl bg-[var(--cinnabar-soft)] text-primary">
+                    <Icon size={22} strokeWidth={2} />
+                  </span>
+                  <h3 className="text-[17px]">{f.title}</h3>
+                  <p className="text-[14.5px] leading-[1.55] text-muted-foreground">{f.body}</p>
+                </div>
+              );
+            })}
           </div>
         </section>
 
         {/* ── How it works ──────────────────────────────────── */}
         <section id="how" className="bg-muted py-16 md:py-24">
           <div className="mx-auto max-w-6xl px-6">
-            <SectionHead eyebrow="Up and running today" title="Live in three steps" />
+            <SectionHead eyebrow={t("how.eyebrow")} title={t("how.title")} />
             <div className="mt-12 grid gap-8 md:grid-cols-3">
-              {STEPS.map(({ n, title, body }) => (
-                <div key={n} className="flex flex-col gap-3 rounded-[18px] border border-border bg-card p-7">
-                  <span className="grid size-10 place-items-center rounded-full bg-primary font-[family-name:var(--display)] text-[16px] font-bold text-white">{n}</span>
-                  <h3 className="mt-1 text-[18px]">{title}</h3>
-                  <p className="text-[14.5px] leading-[1.55] text-muted-foreground">{body}</p>
+              {steps.map((s, i) => (
+                <div key={s.title} className="flex flex-col gap-3 rounded-[18px] border border-border bg-card p-7">
+                  <span className="grid size-10 place-items-center rounded-full bg-primary font-[family-name:var(--display)] text-[16px] font-bold text-white">{i + 1}</span>
+                  <h3 className="mt-1 text-[18px]">{s.title}</h3>
+                  <p className="text-[14.5px] leading-[1.55] text-muted-foreground">{s.body}</p>
                 </div>
               ))}
             </div>
@@ -227,39 +180,31 @@ export default function LandingPage() {
         {/* ── Showcase (image left, text right) ─────────────── */}
         <section id="stories" className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 md:grid-cols-2 md:gap-16 md:py-24">
           <div className="relative h-[320px] w-full overflow-hidden rounded-[28px] sm:h-[440px] md:h-[540px]">
-            <Image
-              src={SHOWCASE_IMAGE}
-              alt="A freshly plated dish at a restaurant"
-              fill
-              sizes="(min-width: 768px) 540px, 100vw"
-              className="object-cover"
-            />
+            <Image src={SHOWCASE_IMAGE} alt={t("showcase.title")} fill sizes="(min-width: 768px) 540px, 100vw" className="object-cover" />
           </div>
           <div className="flex flex-col items-start gap-5">
-            <Eyebrow>Built for busy restaurants</Eyebrow>
-            <h2 className="text-[34px] leading-[1.1] md:text-[40px]">Update it once. It changes everywhere.</h2>
-            <p className="text-[16px] leading-[1.6] text-muted-foreground">
-              {"Your menu lives in one place and updates the moment you change it. You don't reprint anything, your PDFs never go stale, and you don't wait on an agency to edit it."}
-            </p>
+            <Eyebrow>{t("showcase.eyebrow")}</Eyebrow>
+            <h2 className="text-[34px] leading-[1.1] md:text-[40px]">{t("showcase.title")}</h2>
+            <p className="text-[16px] leading-[1.6] text-muted-foreground">{t("showcase.body")}</p>
             <ul className="flex flex-col gap-3.5">
-              {SHOWCASE_BULLETS.map((b) => (
+              {bullets.map((b) => (
                 <li key={b} className="flex items-center gap-3 text-[15.5px]">
                   <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--green-soft)] text-[var(--green)]"><Check size={15} strokeWidth={2.5} /></span>
                   {b}
                 </li>
               ))}
             </ul>
-            <Button as="a" href={SIGN_UP_HREF} variant="primary">Start free trial</Button>
+            <Button as="a" href={SIGN_UP_HREF} variant="primary">{t("showcase.cta")}</Button>
           </div>
         </section>
 
         {/* ── Pricing ───────────────────────────────────────── */}
         <section id="pricing" className="bg-muted py-16 md:py-24">
           <div className="mx-auto max-w-6xl px-6">
-            <SectionHead eyebrow="Simple pricing" title="One simple price" sub="Start free, then go unlimited for €12 a year." />
+            <SectionHead eyebrow={t("pricing.eyebrow")} title={t("pricing.title")} sub={t("pricing.sub")} />
             <div className="mx-auto mt-12 grid max-w-3xl gap-6 md:grid-cols-2">
-              <PlanCard plan={PRICING.free} href={SIGN_UP_HREF} />
-              <PlanCard plan={PRICING.pro} href={SIGN_UP_HREF} highlighted />
+              <PlanCard plan={free} href={SIGN_UP_HREF} />
+              <PlanCard plan={pro} href={SIGN_UP_HREF} highlighted />
             </div>
           </div>
         </section>
@@ -270,13 +215,13 @@ export default function LandingPage() {
             {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={20} fill="currentColor" strokeWidth={0} />)}
           </div>
           <blockquote className="font-[family-name:var(--display)] text-[24px] font-semibold leading-[1.35] text-foreground md:text-[30px]">
-            {"\"We set up our whole menu in an afternoon. Updating specials used to mean reprinting everything. Now it takes ten seconds from my phone, and guests love the photos.\""}
+            {`"${t("testimonial.quote")}"`}
           </blockquote>
           <div className="mt-7 flex items-center justify-center gap-3.5">
-            <Image src={AVATAR_IMAGE} alt="Maria Alvarez" width={52} height={52} className="size-[52px] rounded-full object-cover" />
+            <Image src={AVATAR_IMAGE} alt={t("testimonial.name")} width={52} height={52} className="size-[52px] rounded-full object-cover" />
             <div className="text-left">
-              <p className="text-[16px] font-bold text-foreground">Maria Alvarez</p>
-              <p className="text-[14px] text-muted-foreground">Owner, Café Verde</p>
+              <p className="text-[16px] font-bold text-foreground">{t("testimonial.name")}</p>
+              <p className="text-[14px] text-muted-foreground">{t("testimonial.role")}</p>
             </div>
           </div>
         </section>
@@ -284,13 +229,11 @@ export default function LandingPage() {
         {/* ── CTA band ──────────────────────────────────────── */}
         <section className="px-6 pb-20">
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 rounded-[28px] bg-[var(--ink)] px-8 py-16 text-center text-[var(--paper)]">
-            <h2 className="text-[32px] leading-[1.1] text-[var(--paper)] md:text-[44px]">Ready to put your menu online?</h2>
-            <p className="max-w-xl text-[16px] leading-[1.6] text-[var(--paper)]/75">
-              {"Join 1,200+ restaurants already using iedora. It's free to start, and you don't need a card."}
-            </p>
+            <h2 className="text-[32px] leading-[1.1] text-[var(--paper)] md:text-[44px]">{t("cta.title")}</h2>
+            <p className="max-w-xl text-[16px] leading-[1.6] text-[var(--paper)]/75">{t("cta.subhead")}</p>
             <div className="flex flex-wrap items-center justify-center gap-3.5">
-              <Button as="a" href={SIGN_UP_HREF} variant="primary" size="lg">Get started free</Button>
-              <Button as="a" href={SIGN_IN_HREF} variant="ghost" size="lg" className="!text-[var(--paper)] !border-[color-mix(in_srgb,var(--paper)_30%,transparent)]">Book a demo</Button>
+              <Button as="a" href={SIGN_UP_HREF} variant="primary" size="lg">{t("cta.primary")}</Button>
+              <Button as="a" href={SIGN_IN_HREF} variant="ghost" size="lg" className="!text-[var(--paper)] !border-[color-mix(in_srgb,var(--paper)_30%,transparent)]">{t("cta.secondary")}</Button>
             </div>
           </div>
         </section>
@@ -304,11 +247,9 @@ export default function LandingPage() {
               <span className="grid size-7 place-items-center rounded-lg bg-primary font-[family-name:var(--display)] text-[15px] font-extrabold text-white">i</span>
               <span className="font-[family-name:var(--display)] text-[18px] font-extrabold text-foreground">iedora</span>
             </div>
-            <p className="max-w-xs text-[14px] leading-[1.55] text-muted-foreground">
-              Simple online menus for restaurants.
-            </p>
+            <p className="max-w-xs text-[14px] leading-[1.55] text-muted-foreground">{t("footer.tagline")}</p>
           </div>
-          {FOOTER.map((col) => (
+          {footerCols.map((col) => (
             <div key={col.heading} className="flex flex-col gap-3">
               <p className="font-[family-name:var(--display)] text-[13px] font-bold tracking-[0.04em] text-foreground">{col.heading}</p>
               {col.links.map((l) => (
@@ -319,7 +260,7 @@ export default function LandingPage() {
         </div>
         <div className="border-t border-border">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-            <p className="text-[13px] text-muted-foreground">© 2026 iedora. All rights reserved.</p>
+            <p className="text-[13px] text-muted-foreground">{t("footer.copyright")}</p>
             <div className="flex items-center gap-4 text-muted-foreground">
               {SOCIALS.map((s) => (
                 <a key={s.name} href="#" aria-label={s.name} className="transition-colors hover:text-foreground">
@@ -349,7 +290,7 @@ function PlanCard({
   href,
   highlighted = false,
 }: {
-  plan: { tier: string; price: string; sub: string; desc: string; feats: string[]; cta: string; badge?: string };
+  plan: PlanCopy;
   href: string;
   highlighted?: boolean;
 }) {
@@ -364,7 +305,7 @@ function PlanCard({
       </div>
       <p className="flex items-baseline gap-1">
         <span className="font-[family-name:var(--display)] text-[44px] font-extrabold tracking-[-0.02em] text-foreground">{plan.price}</span>
-        <span className="text-[15px] text-muted-foreground">{plan.sub}</span>
+        <span className="text-[15px] text-muted-foreground">{plan.per}</span>
       </p>
       <Button as="a" href={href} variant={highlighted ? "primary" : "secondary"} className="!w-full !justify-center">{plan.cta}</Button>
       <ul className="flex flex-col gap-2.5">

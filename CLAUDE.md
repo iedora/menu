@@ -60,8 +60,8 @@ The app is mid-migration **from** an editorial look (paper/ink/cinnabar, Playfai
 ## Redesign status (keep current)
 
 - ✅ **Stage 1 (root re-skin):** tokens + fonts + radius + core `.ds-*` overrides → the whole `.ds-*` system renders in the warm-light coral/rounded look. Files: `design-system/src/tokens.css`, `apps/web/src/app/layout.tsx`, `apps/web/src/app/globals.css`, `design-system/src/styles.css`.
-- ✅ **Landing** (`apps/web/src/app/menu/_components/landing/landing-page.tsx`) rebuilt to the Pencil marketing design (Hero → Features → How-it-works → Showcase → Pricing → Testimonial → CTA → Footer). EN copy (i18n via `next-intl` pending).
-- ⏳ **Pending Stage 2:** i18n on the landing; admin "control all restaurants + create/bind/print QR"; **50+-friendly onboarding** (no jargon, big targets, plain words — AI/JSON import is **admin-only**, never owner-facing); the **"Need help? Call us"** Support Line; per-screen polish (selects/segmented). Design each in Pencil first.
+- ✅ **Landing** (`apps/web/src/app/menu/_components/landing/landing-page.tsx`) rebuilt to the Pencil marketing design (Hero → Features → How-it-works → Showcase → Pricing → Testimonial → CTA → Footer), as an async server component. **Fully i18n'd** under the `Landing` namespace (EN + pt-PT in `products/menu/src/i18n/messages/{en,pt}.json`); the nav EN/PT switch (`landing/lang-switch.tsx`) reuses `setUserLocale` to set the `NEXT_LOCALE` cookie. Hero/showcase/avatar use `next/image` (Unsplash `remotePatterns` in `next.config.ts`).
+- ⏳ **Pending Stage 2:** admin "control all restaurants + create/bind/print QR"; **50+-friendly onboarding** (no jargon, big targets, plain words — AI/JSON import is **admin-only**, never owner-facing); the **"Need help? Call us"** Support Line; self-host the landing photos; per-screen polish (selects/segmented). Design each in Pencil first.
 
 ### Two audiences, opposite UIs (design accordingly)
 - **Admin (staff)** — power tools: tables, bulk actions, AI/JSON menu import, density.

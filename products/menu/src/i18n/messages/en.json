@@ -560,5 +560,156 @@
       "delete": "Delete",
       "cancel": "Cancel"
     }
+  },
+  "Landing": {
+    "nav": {
+      "features": "Features",
+      "how": "How it works",
+      "pricing": "Pricing",
+      "stories": "Stories",
+      "signIn": "Sign in",
+      "getStarted": "Get started"
+    },
+    "hero": {
+      "eyebrow": "Digital menus for restaurants",
+      "headline": "Your menu online. Live in minutes.",
+      "subhead": "iedora turns your menu into a digital one your guests open by scanning a code. Update it anytime, with nothing to print.",
+      "ctaPrimary": "Get started free",
+      "ctaSecondary": "Watch demo"
+    },
+    "features": {
+      "eyebrow": "Everything in one place",
+      "title": "Everything you need, made simple",
+      "sub": "Your guests get a clean, simple experience and you stay in control.",
+      "items": [
+        {
+          "title": "Scan and open",
+          "body": "Guests scan a code or tap a link and your menu opens right away. They never have to install an app."
+        },
+        {
+          "title": "A photo on every dish",
+          "body": "Add a photo, a short description, and the price to each dish."
+        },
+        {
+          "title": "More languages",
+          "body": "Show your menu in other languages, so more of your guests can read it."
+        },
+        {
+          "title": "Change it in seconds",
+          "body": "Update a price or mark a dish as sold out from your phone. The change shows up straight away."
+        },
+        {
+          "title": "See what's popular",
+          "body": "See which dishes people look at most, and move your favourites to the top."
+        },
+        {
+          "title": "Order and pay",
+          "body": "Let guests order and pay from the table. The order goes straight to your kitchen."
+        }
+      ]
+    },
+    "how": {
+      "eyebrow": "Up and running today",
+      "title": "Live in three steps",
+      "steps": [
+        {
+          "title": "Add your menu",
+          "body": "Add your dishes, photos, and prices. Or send us your current menu and we'll set it up with you."
+        },
+        {
+          "title": "Put up your code",
+          "body": "We give you a QR code and a short web link. Put them on your tables, your door, or your receipts."
+        },
+        {
+          "title": "Go live",
+          "body": "Guests start scanning straight away. Change a price or add a special whenever you like, and everyone sees it at once."
+        }
+      ]
+    },
+    "showcase": {
+      "eyebrow": "Built for busy restaurants",
+      "title": "Update it once. It changes everywhere.",
+      "body": "Your menu lives in one place and updates the moment you change it. You don't reprint anything, your PDFs never go stale, and you don't wait on an agency to edit it.",
+      "bullets": [
+        "You never pay to reprint",
+        "Update prices and specials live",
+        "Menus in multiple languages, ready to go",
+        "Works on any phone, no app needed"
+      ],
+      "cta": "Start free trial"
+    },
+    "pricing": {
+      "eyebrow": "Simple pricing",
+      "title": "One simple price",
+      "sub": "Start free, then go unlimited for €12 a year.",
+      "free": {
+        "tier": "Free",
+        "desc": "For getting started",
+        "price": "€0",
+        "per": "forever",
+        "cta": "Get started",
+        "feats": [
+          "1,000 views per month",
+          "One restaurant"
+        ]
+      },
+      "pro": {
+        "tier": "Pro",
+        "desc": "€1 a month, billed yearly",
+        "price": "€12",
+        "per": "/year",
+        "badge": "Best value",
+        "cta": "Get Pro",
+        "feats": [
+          "Unlimited views",
+          "Unlimited restaurants",
+          "Analytics included"
+        ]
+      }
+    },
+    "testimonial": {
+      "quote": "We set up our whole menu in an afternoon. Updating specials used to mean reprinting everything. Now it takes ten seconds from my phone, and guests love the photos.",
+      "name": "Maria Alvarez",
+      "role": "Owner, Café Verde"
+    },
+    "cta": {
+      "title": "Ready to put your menu online?",
+      "subhead": "Join 1,200+ restaurants already using iedora. It's free to start, and you don't need a card.",
+      "primary": "Get started free",
+      "secondary": "Book a demo"
+    },
+    "footer": {
+      "tagline": "Simple online menus for restaurants.",
+      "columns": [
+        {
+          "heading": "Product",
+          "links": [
+            "Features",
+            "Pricing",
+            "Order & pay",
+            "Analytics"
+          ]
+        },
+        {
+          "heading": "Company",
+          "links": [
+            "About",
+            "Stories",
+            "Careers",
+            "Contact"
+          ]
+        },
+        {
+          "heading": "Resources",
+          "links": [
+            "Help center",
+            "Guides",
+            "Status",
+            "Developer API"
+          ]
+        }
+      ],
+      "copyright": "© 2026 iedora. All rights reserved."
+    }
   }
 }

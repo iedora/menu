@@ -10,6 +10,7 @@
     "./features/auth": "./src/features/auth/index.ts",
     "./features/auth/actions": "./src/features/auth/actions.ts",
     "./features/dashboard-home": "./src/features/dashboard-home/index.ts",
+    "./features/dashboard-home/actions": "./src/features/dashboard-home/actions.ts",
     "./features/dashboard-home/ui/analytics-cards": "./src/features/dashboard-home/ui/analytics-cards.tsx",
     "./features/dashboard-home/ui/logout-button": "./src/features/dashboard-home/ui/logout-button.tsx",
     "./features/dashboard-home/ui/user-locale-switcher": "./src/features/dashboard-home/ui/user-locale-switcher.tsx",
