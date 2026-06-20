@@ -34,22 +34,11 @@ export default async function AdminRestaurantsPage() {
 
   return (
     <DashboardPage
-      title="Restaurantes"
-      description="Cross-tenant. Todos os restaurantes da plataforma, com utilização dos últimos 30 dias."
+      title="Restaurants"
+      description={`${rows.length} across all tenants.`}
       data-test-id="admin-restaurants"
     >
-      <section
-        className="space-y-3"
-        aria-labelledby="admin-restaurants-list-heading"
-        data-test-id="admin-restaurants-list"
-      >
-        <h2
-          id="admin-restaurants-list-heading"
-          className="font-[family-name:var(--serif)] text-lg"
-        >
-          Todos os restaurantes
-        </h2>
-
+      <section aria-label="All restaurants" data-test-id="admin-restaurants-list">
         <RestaurantsTable rows={rows} />
       </section>
     </DashboardPage>

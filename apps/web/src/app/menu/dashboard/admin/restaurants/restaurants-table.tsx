@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useDeferredValue, useMemo, useState } from 'react'
+import { QrCode } from 'lucide-react'
 
 export type AdminRestaurantRow = {
   id: string
@@ -14,253 +15,152 @@ export type AdminRestaurantRow = {
   updatedAt: string // ISO
 }
 
-type SortKey = 'updatedAt' | 'name' | 'views30d'
-type SortDir = 'asc' | 'desc'
+type SortKey = 'updatedAt' | 'views30d' | 'name'
 
-const DATE_FMT = new Intl.DateTimeFormat('pt-PT', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-// Hoist Collator — `localeCompare` allocates one per call, this is
-// invoked ~N·log(N) times per sort.
 const PT_COLLATOR = new Intl.Collator('pt-PT')
-const compareStr = PT_COLLATOR.compare
 
-function formatStamp(iso: string): { date: string; time: string } {
-  const d = new Date(iso)
-  const parts = DATE_FMT.formatToParts(d)
-  const get = (t: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === t)?.value ?? ''
-  return {
-    date: `${get('year')}-${get('month')}-${get('day')}`,
-    time: `${get('hour')}:${get('minute')}`,
-  }
-}
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'updatedAt', label: 'Recent' },
+  { key: 'views30d', label: 'Most viewed' },
+  { key: 'name', label: 'A–Z' },
+]
 
+/** Warm-light cross-tenant restaurants list (Pencil "Admin · Restaurants"). */
 export function RestaurantsTable({ rows }: { rows: AdminRestaurantRow[] }) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('updatedAt')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
-  // Keep the input snappy while the table re-filters — deferred value
-  // ignores the latest keystroke if React is still working on the
-  // previous one.
   const deferredQuery = useDeferredValue(query)
 
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase()
-    const filteredRows = rows.filter((r) => {
-      if (!q) return true
-      return (
-        r.name.toLowerCase().includes(q) ||
-        r.slug.toLowerCase().includes(q) ||
-        r.tenantId.toLowerCase().includes(q)
-      )
-    })
-    const cmp = (a: AdminRestaurantRow, b: AdminRestaurantRow) => {
-      let v = 0
+    const list = rows.filter((r) =>
+      !q
+        ? true
+        : r.name.toLowerCase().includes(q) ||
+          r.slug.toLowerCase().includes(q) ||
+          r.tenantId.toLowerCase().includes(q),
+    )
+    return [...list].sort((a, b) => {
       switch (sortKey) {
-        case 'updatedAt':
-          v = a.updatedAt < b.updatedAt ? -1 : a.updatedAt > b.updatedAt ? 1 : 0
-          break
         case 'name':
-          v = compareStr(a.name, b.name)
-          break
+          return PT_COLLATOR.compare(a.name, b.name)
         case 'views30d':
-          v = a.views30d - b.views30d
-          break
+          return b.views30d - a.views30d
+        default:
+          return a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
       }
-      return sortDir === 'asc' ? v : -v
-    }
-    return [...filteredRows].sort(cmp)
-  }, [rows, deferredQuery, sortKey, sortDir])
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortKey(key)
-      setSortDir(key === 'name' ? 'asc' : 'desc')
-    }
-  }
+    })
+  }, [rows, deferredQuery, sortKey])
 
   const hasFilters = query.length > 0
 
   return (
-    <div className="space-y-3" data-test-id="admin-restaurants-table">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Procurar por nome, slug ou tenant…"
-            aria-label="Procurar restaurantes"
-            spellCheck={false}
-            className="w-full rounded border border-[var(--ink-14)] bg-transparent px-3 py-2.5 text-sm placeholder:text-[var(--ink-40)] focus:border-[var(--ink)] focus:outline-none"
-            data-test-id="admin-restaurants-search"
-          />
-        </div>
+    <div className="space-y-4" data-test-id="admin-restaurants-table">
+      {/* Search */}
+      <div className="flex items-center gap-2">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search restaurants…"
+          aria-label="Search restaurants"
+          spellCheck={false}
+          className="w-full rounded-[12px] border border-border bg-card px-4 py-2.5 text-[15px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--cinnabar)_22%,transparent)]"
+          data-test-id="admin-restaurants-search"
+        />
         {hasFilters ? (
           <button
             type="button"
             onClick={() => setQuery('')}
-            className="rounded border border-[var(--ink-14)] px-3 py-2.5 text-xs uppercase tracking-[0.18em] text-[var(--ink-55)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
+            className="shrink-0 rounded-[10px] border border-border px-3 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             data-test-id="admin-restaurants-clear-filters"
           >
-            Limpar
+            Clear
           </button>
         ) : null}
       </div>
 
-      <p
-        className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]"
-        data-test-id="admin-restaurants-count"
-      >
-        {filtered.length} de {rows.length}
-      </p>
-
-      <div className="overflow-x-auto rounded border border-[var(--ink-14)]">
-        <table className="w-full border-collapse text-sm">
-          <thead className="border-b border-[var(--ink-14)] bg-[var(--paper-2)]">
-            <tr>
-              <SortableTh
-                label="Restaurante"
-                active={sortKey === 'name'}
-                dir={sortDir}
-                onClick={() => toggleSort('name')}
-                testId="admin-restaurants-sort-name"
-              />
-              <th className="px-3 py-2 text-left text-[10.5px] font-[family-name:var(--mono)] font-normal uppercase tracking-[0.18em] text-[var(--ink-55)]">
-                Conteúdo
-              </th>
-              <SortableTh
-                label="Views 30d"
-                active={sortKey === 'views30d'}
-                dir={sortDir}
-                onClick={() => toggleSort('views30d')}
-                testId="admin-restaurants-sort-views"
-                align="right"
-              />
-              <SortableTh
-                label="Atualizado"
-                active={sortKey === 'updatedAt'}
-                dir={sortDir}
-                onClick={() => toggleSort('updatedAt')}
-                testId="admin-restaurants-sort-updated"
-                align="right"
-              />
-              <th className="px-3 py-2 text-right">
-                <span className="sr-only">Acções</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-3 py-8 text-center text-sm text-[var(--ink-55)]"
-                  data-test-id="admin-restaurants-empty"
-                >
-                  {hasFilters
-                    ? 'Nenhum restaurante corresponde aos filtros.'
-                    : 'Ainda não há restaurantes na plataforma.'}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r) => {
-                const stamp = formatStamp(r.updatedAt)
-                return (
-                  <tr
-                    key={r.id}
-                    className="group border-t border-[var(--ink-14)] first:border-t-0 hover:bg-[var(--paper-2)]"
-                    data-test-id={`admin-restaurants-row-${r.slug}`}
-                  >
-                    <td className="px-3 py-2.5 align-top">
-                      <div className="font-medium leading-tight">{r.name}</div>
-                      <div className="font-[family-name:var(--mono)] text-[11px] text-[var(--ink-55)]">
-                        /{r.slug}
-                      </div>
-                      <div
-                        className="max-w-[180px] truncate font-[family-name:var(--mono)] text-[10px] text-[var(--ink-40)]"
-                        title={r.tenantId}
-                      >
-                        {r.tenantId}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 align-top text-[13px] text-[var(--ink-70)] whitespace-nowrap">
-                      {r.menuCount} menu{r.menuCount === 1 ? '' : 's'} ·{' '}
-                      {r.dishCount} prato{r.dishCount === 1 ? '' : 's'}
-                    </td>
-                    <td className="px-3 py-2.5 text-right align-top font-[family-name:var(--mono)] text-[11.5px] text-[var(--ink-55)] whitespace-nowrap tabular-nums">
-                      {r.views30d}
-                    </td>
-                    <td className="px-3 py-2.5 text-right align-top font-[family-name:var(--mono)] text-[11.5px] text-[var(--ink-55)] whitespace-nowrap tabular-nums">
-                      <div>{stamp.date}</div>
-                      <div className="text-[var(--ink-40)]">{stamp.time}</div>
-                    </td>
-                    <td className="px-3 py-2.5 align-top text-right whitespace-nowrap">
-                      <Link
-                        href={`/menu/dashboard/r/${r.slug}`}
-                        className="rounded border border-[var(--ink-14)] px-2.5 py-1.5 text-[11px] uppercase tracking-[0.12em] hover:border-[var(--ink)]"
-                        data-test-id={`admin-restaurants-open-${r.slug}`}
-                      >
-                        Abrir
-                      </Link>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
+      {/* Sort + count */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1.5">
+          {SORTS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setSortKey(s.key)}
+              aria-pressed={sortKey === s.key}
+              className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+                sortKey === s.key
+                  ? 'border-primary bg-[var(--cinnabar-soft)] text-primary'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground'
+              }`}
+              data-test-id={`admin-restaurants-sort-${s.key}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[13px] text-muted-foreground" data-test-id="admin-restaurants-count">
+          {filtered.length} of {rows.length}
+        </p>
       </div>
-    </div>
-  )
-}
 
-function SortableTh({
-  label,
-  active,
-  dir,
-  onClick,
-  testId,
-  align = 'left',
-}: {
-  label: string
-  active: boolean
-  dir: SortDir
-  onClick: () => void
-  testId: string
-  align?: 'left' | 'right'
-}) {
-  // Tailwind JIT can't resolve dynamic class names like `text-${align}` —
-  // it scans source as strings. Map to full classes statically.
-  const alignClass = align === 'right' ? 'text-right' : 'text-left'
-  return (
-    <th
-      scope="col"
-      className={`px-3 py-2 text-[10.5px] font-[family-name:var(--mono)] font-normal uppercase tracking-[0.18em] ${alignClass}`}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className={`inline-flex items-center gap-1 ${
-          active ? 'text-[var(--cinnabar)]' : 'text-[var(--ink-55)] hover:text-[var(--ink)]'
-        }`}
-        data-test-id={testId}
-        aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      >
-        <span>{label}</span>
-        <span aria-hidden="true" className="text-[9px]">
-          {active ? (dir === 'asc' ? '▲' : '▼') : '·'}
-        </span>
-      </button>
-    </th>
+      {/* Cards */}
+      {filtered.length === 0 ? (
+        <p className="rounded-[18px] border border-border bg-card px-4 py-10 text-center text-[14px] text-muted-foreground" data-test-id="admin-restaurants-empty">
+          {hasFilters ? 'No restaurant matches your search.' : 'No restaurants on the platform yet.'}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {filtered.map((r) => {
+            const live = r.dishCount > 0
+            return (
+              <li
+                key={r.id}
+                className="rounded-[18px] border border-border bg-card p-4"
+                data-test-id={`admin-restaurants-row-${r.slug}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--cinnabar-soft)] text-[18px] font-bold text-primary">
+                    {r.name.charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate font-[family-name:var(--display)] text-[16px] font-bold text-foreground">{r.name}</h3>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          live ? 'bg-[var(--green-soft)] text-[var(--green)]' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {live ? 'Live' : 'Draft'}
+                      </span>
+                    </div>
+                    <p className="truncate text-[13px] text-muted-foreground">iedora.com/m/{r.slug}</p>
+                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                      {r.menuCount} menu{r.menuCount === 1 ? '' : 's'} · {r.dishCount} dish{r.dishCount === 1 ? '' : 'es'} ·{' '}
+                      {r.views30d.toLocaleString()} views
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Link
+                    href={`/dashboard/r/${r.slug}/qr`}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-border bg-card px-3 py-2 text-[13.5px] font-semibold text-foreground no-underline transition-colors hover:border-[color-mix(in_srgb,var(--cinnabar)_40%,transparent)]"
+                  >
+                    <QrCode size={15} strokeWidth={2.2} /> QR code
+                  </Link>
+                  <Link
+                    href={`/dashboard/r/${r.slug}`}
+                    className="inline-flex flex-1 items-center justify-center rounded-[10px] bg-primary px-3 py-2 text-[13.5px] font-semibold text-white no-underline transition-colors hover:bg-[var(--cinnabar-deep)]"
+                  >
+                    Manage
+                  </Link>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }
