@@ -37,9 +37,6 @@ export default async function ThemePage({
     <DashboardPage
       title={t('settings')}
       data-test-id="restaurant-theme"
-      crumbs={[
-        { label: r.name, href: `/dashboard/r/${slug}`, testId: 'restaurant' },
-      ]}
     >
       <ThemeEditor
         slug={slug}

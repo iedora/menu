@@ -1,60 +1,23 @@
 import * as React from 'react'
-import Link from 'next/link'
-import {
-  Breadcrumb,
-  BreadcrumbHere,
-  BreadcrumbLink,
-} from '@iedora/design-system'
 
 /**
  * Standard shell for every dashboard page.
  *
- * Why one shell:
- *   - Every page was hand-rolling its own heading + spacing rhythm,
- *     which drifted from screen to screen. One primitive, one rhythm.
- *   - The sidebar already tells the user where they are, so root and
- *     1-level pages render just an `<h1>`. Breadcrumbs only show up
- *     when there are intermediate hops worth surfacing (2+ levels).
- *   - `<BreadcrumbHere>` doubles as the page's `<h1>` (SEO + a11y) so
- *     the title slot writes one piece of text, not two.
- *
- * Shapes:
- *
- *   Flat page (Billing, Analytics, Home, …):
+ * One primitive, one rhythm: a single bold page title (the Pencil design
+ * has no editorial "Parent / Page" breadcrumb trail — the sidebar +
+ * bottom nav already carry location), an optional eyebrow / description /
+ * actions row, then the page sections.
  *
  *     <DashboardPage title="Billing" data-test-id="billing">
  *       …sections…
  *     </DashboardPage>
- *     ↓  Billing                          [actions]
- *
- *   Nested page with intermediate hops:
- *
- *     <DashboardPage
- *       title="Sessions (admin)"
- *       crumbs={[{ label: 'Admin', href: '/menu/dashboard/admin/qr-codes' }]}
- *       data-test-id="sessions-admin"
- *     >
- *     ↓  ADMIN / *Sessions (admin)*       [actions]
  *
  * Mobile-first: the header row collapses (actions wrap below at narrow
  * widths) and the children rhythm stays consistent.
  */
 
-export type DashboardCrumb = {
-  label: React.ReactNode
-  href: string
-  /** Used for the per-crumb data-test-id suffix. Falls back to index. */
-  testId?: string
-}
-
 export type DashboardPageProps = {
-  /**
-   * Intermediate breadcrumb items between the sidebar and the current
-   * page title. Defaults to `[]` — when empty the title renders as a
-   * plain `<h1>` (the sidebar's active link is enough context).
-   */
-  crumbs?: ReadonlyArray<DashboardCrumb>
-  /** Renders as <BreadcrumbHere> (h1). The page heading. */
+  /** The page heading, rendered as the bold <h1>. */
   title: React.ReactNode
   /** Optional mono-caps line above the heading row. */
   eyebrow?: React.ReactNode
@@ -80,7 +43,6 @@ export type DashboardPageProps = {
 }
 
 export function DashboardPage({
-  crumbs = [],
   title,
   eyebrow,
   description,
@@ -91,7 +53,6 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const ns = (suffix: string) => (testId ? `${testId}-${suffix}` : undefined)
   const showHeaderRow = Boolean(eyebrow || description || actions)
-  const hasTrail = crumbs.length > 0
 
   if (chrome === 'none') {
     // Bare mode: the page's own content owns the top of the viewport.
@@ -111,38 +72,11 @@ export function DashboardPage({
 
   return (
     <div className="space-y-6" data-test-id={testId}>
-      {/* Below `lg` the sidebar trigger floats in the top-right corner
-          over this region — reserve 56px of right padding so long titles
-          don't slide under the button. At `lg+` the rail takes over and
-          the trigger is hidden, so the padding drops away. */}
-      <div className="space-y-4 pr-14 lg:pr-0">
-        {hasTrail ? (
-          <Breadcrumb data-test-id={ns('breadcrumbs')}>
-            {crumbs.map((c, i) => (
-              <BreadcrumbLink
-                key={c.href}
-                asChild
-                data-test-id={ns(`breadcrumb-${c.testId ?? i}`)}
-              >
-                <Link href={c.href}>{c.label}</Link>
-              </BreadcrumbLink>
-            ))}
-            <BreadcrumbHere data-test-id={ns('breadcrumb-current')}>
-              {title}
-            </BreadcrumbHere>
-          </Breadcrumb>
-        ) : (
-          // Flat page: the sidebar's active link tells the user where
-          // they are, so a one-hop "Home / X" trail would be noise.
-          // Title renders as `<h1>` styled like `BreadcrumbHere` so the
-          // typography matches.
-          <h1
-            className="ds-breadcrumb__here"
-            data-test-id={ns('heading')}
-          >
-            {title}
-          </h1>
-        )}
+      <div className="space-y-4">
+        {/* A single bold page title — no breadcrumb trail (Pencil). */}
+        <h1 className="ds-breadcrumb__here" data-test-id={ns('heading')}>
+          {title}
+        </h1>
 
         {showHeaderRow && (
           <header

@@ -38,9 +38,6 @@ export default async function QrPage({
     <DashboardPage
       title={t('qrCode')}
       data-test-id="restaurant-qr"
-      crumbs={[
-        { label: r.name, href: `/dashboard/r/${slug}`, testId: 'restaurant' },
-      ]}
     >
       <RestaurantQrShelf
         brandedUrl={brandedUrl}

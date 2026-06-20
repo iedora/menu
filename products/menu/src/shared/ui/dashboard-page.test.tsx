@@ -30,44 +30,6 @@ describe('DashboardPage', () => {
     expect(html).toContain('>Billing</h1>')
   })
 
-  it('renders the breadcrumb trail when at least one intermediate crumb is supplied', () => {
-    const html = renderToStaticMarkup(
-      <DashboardPage
-        title="QR Code"
-        data-test-id="qr"
-        crumbs={[
-          { label: 'Tasca do Avô', href: '/menu/dashboard/r/tasca', testId: 'restaurant' },
-        ]}
-      >
-        <div />
-      </DashboardPage>,
-    )
-    expect(html).toContain('aria-label="Breadcrumb"')
-    expect(html).toContain('data-test-id="qr-breadcrumbs"')
-    expect(html).toContain('data-test-id="qr-breadcrumb-restaurant"')
-    expect(html).toContain('href="/menu/dashboard/r/tasca"')
-    expect(html).toContain('>Tasca do Avô</a>')
-    expect(html).toContain('data-test-id="qr-breadcrumb-current"')
-    expect(html).toContain('>QR Code</h1>')
-  })
-
-  it('falls back to index when a crumb has no testId', () => {
-    const html = renderToStaticMarkup(
-      <DashboardPage
-        title="X"
-        data-test-id="x"
-        crumbs={[
-          { label: 'A', href: '/a' },
-          { label: 'B', href: '/b' },
-        ]}
-      >
-        {null}
-      </DashboardPage>,
-    )
-    expect(html).toContain('data-test-id="x-breadcrumb-0"')
-    expect(html).toContain('data-test-id="x-breadcrumb-1"')
-  })
-
   it('renders eyebrow + description + actions in the header row only when supplied', () => {
     const html = renderToStaticMarkup(
       <DashboardPage

@@ -19,9 +19,6 @@ export default async function MenuBuilderPage({
     <DashboardPage
       title={data.menu.name}
       data-test-id="menu-builder"
-      crumbs={[
-        { label: r.name, href: `/dashboard/r/${slug}`, testId: 'restaurant' },
-      ]}
     >
       <MenuBuilder
         slug={slug}
