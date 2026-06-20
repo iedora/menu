@@ -7,9 +7,9 @@ import {
 import { PRODUCTS, productUrl, CONTACT_EMAIL, BRAND_NAME } from '@iedora/brand'
 
 export const metadata: Metadata = {
-  title: 'Iedora. House of Software.',
+  title: 'iedora — software house. AI consultancy, workshops & products.',
   description:
-    'We build quiet tools for restaurants. Digital menus, reservations, order-to-table.'
+    'iedora is a software house. We take on consultancy, run hands-on AI workshops, and build our own products. Menu is live today.',
 }
 
 export default function HouseLanding() {
@@ -39,43 +39,81 @@ export default function HouseLanding() {
             </span>
           </span>
           <h1 className="ds-hero__h ds-hero__h--dot">
-            Software for <em>restaurants</em>.
+            We build <em>AI software</em> that ships.
           </h1>
           <Statement>
-            We build quiet tools for the people who run restaurants. Digital menus
-            work now. Reservations and order-to-table are on the way.
+            iedora is a software house. We take on consultancy, run hands-on AI
+            workshops, and build our own products. Menu is live today &mdash; more
+            is on the way.
           </Statement>
           <p className="ds-hero__trust" data-test-id="house-trust">
-            Self-hosted multi-tenant platform. Patient work, quiet interfaces.
+            Consultancy &middot; AI workshops &middot; Product studio.
           </p>
           <div className="ds-hero__ctas">
             <a
               className="ds-btn ds-btn--primary"
-              href={menuUrl}
-              rel="noopener"
-              data-test-id="house-cta-menu"
+              href={`mailto:${CONTACT_EMAIL}`}
+              data-test-id="house-cta-project"
             >
-              <span>See our first product: menu</span>
+              <span>Start a project</span>
               <span className="ds-btn__arrow" aria-hidden="true">
                 →
               </span>
             </a>
             <a
               className="ds-btn"
-              href={`mailto:${CONTACT_EMAIL}`}
-              data-test-id="house-cta-contact"
+              href={menuUrl}
+              rel="noopener"
+              data-test-id="house-cta-menu"
             >
-              <span>Write to {CONTACT_EMAIL}</span>
+              <span>See our product: Menu</span>
             </a>
           </div>
         </header>
+
+        {/* ── Services ──────────────────────────────────────── */}
+        <section data-test-id="house-services">
+          <SectionHeader title="What we do" hint="Services" />
+
+          <div
+            className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+            style={{ marginTop: 24 }}
+          >
+            <Card data-test-id="house-service-consultancy">
+              <CardTitle>Consultancy</CardTitle>
+              <CardDesc>
+                We embed with your team to design and ship real software &mdash;
+                architecture, AI integration, and the hard parts in between.
+              </CardDesc>
+              <CardFoot>Engagements</CardFoot>
+            </Card>
+
+            <Card data-test-id="house-service-workshops">
+              <CardTitle>AI workshops</CardTitle>
+              <CardDesc>
+                Hands-on sessions that get your team building with LLMs &mdash;
+                prompting, agents, evaluation, and shipping to production.
+              </CardDesc>
+              <CardFoot>Half-day &amp; multi-day</CardFoot>
+            </Card>
+
+            <Card data-test-id="house-service-studio">
+              <CardTitle>Product studio</CardTitle>
+              <CardDesc>
+                We build and run our own products. What we learn shipping them
+                goes straight back into the work we do for clients.
+              </CardDesc>
+              <CardFoot>In-house</CardFoot>
+            </Card>
+          </div>
+        </section>
 
         {/* ── Products ──────────────────────────────────────── */}
         <section data-test-id="house-products">
           <SectionHeader title="What we build" hint="Products" />
 
           <div
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
             style={{ marginTop: 24 }}
           >
             <a
@@ -85,37 +123,17 @@ export default function HouseLanding() {
             >
               <CardTitle>Menu</CardTitle>
               <CardDesc>
-                A drag-and-drop menu builder. QR codes, publishing, analytics,
-                multi-language. Always free for one restaurant.
+                A drag-and-drop menu builder for restaurants. QR codes,
+                publishing, analytics, multi-language. Free for one restaurant.
               </CardDesc>
-              <CardFoot>
-                Live &middot; {menuUrl.replace('https://', '')}
-              </CardFoot>
+              <CardFoot>Live &middot; {menuUrl.replace('https://', '')}</CardFoot>
             </a>
 
-            <Card data-test-id="house-product-reservations">
-              <CardTitle>Reservations</CardTitle>
+            <Card data-test-id="house-product-next">
+              <CardTitle>More from the studio</CardTitle>
               <CardDesc>
-                Table management that works around the kitchen, not against it.
-                Guests book, the house knows who is coming.
-              </CardDesc>
-              <CardFoot>Coming soon</CardFoot>
-            </Card>
-
-            <Card data-test-id="house-product-ott">
-              <CardTitle>Order-to-table</CardTitle>
-              <CardDesc>
-                Guests order from the menu. The kitchen sees it instantly. No
-                waiting for a server, no lost tickets.
-              </CardDesc>
-              <CardFoot>Coming soon</CardFoot>
-            </Card>
-
-            <Card data-test-id="house-product-loyalty">
-              <CardTitle>Loyalty</CardTitle>
-              <CardDesc>
-                Remember regulars, reward them quietly. A gentle system regulars
-                actually want to use.
+                Menu is the first product out the door. We are building more
+                in-house, and shipping client work in between.
               </CardDesc>
               <CardFoot>Coming soon</CardFoot>
             </Card>
@@ -124,11 +142,11 @@ export default function HouseLanding() {
 
         {/* ── Contact ───────────────────────────────────────── */}
         <section data-test-id="house-contact">
-          <SectionHeader title="Write to us" hint="Contact" />
+          <SectionHeader title="Let's build something" hint="Contact" />
 
           <Statement>
-            If you run a restaurant and want a better menu, or just want to talk
-            about what we are building, we read every message.
+            Whether you need a team to ship software, a workshop for yours, or you
+            just want to talk about what we are building, we read every message.
           </Statement>
 
           <p style={{ marginTop: 24 }}>
