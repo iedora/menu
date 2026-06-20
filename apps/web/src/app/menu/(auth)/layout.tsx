@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { Phone, UtensilsCrossed } from 'lucide-react'
+import { UtensilsCrossed } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { brandUrl } from '@iedora/brand'
+import { SupportLine } from '../_components/support-line'
 
 /**
  * Warm-light chrome for the auth flow (sign-in / sign-up / sign-out),
@@ -30,14 +31,7 @@ export default async function AuthLayout({
 
         {children}
 
-        <a
-          href="tel:+351917140356"
-          className="mt-auto flex items-center justify-center gap-2 pt-10 text-[14px] text-muted-foreground no-underline"
-          data-test-id="auth-support"
-        >
-          <Phone size={15} strokeWidth={2} /> {t('support')}{' '}
-          <span className="font-semibold text-primary">+351 917 140 356</span>
-        </a>
+        <SupportLine label={t('support')} className="mt-auto" testId="auth-support" />
       </div>
     </div>
   )

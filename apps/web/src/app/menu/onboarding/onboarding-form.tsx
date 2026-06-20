@@ -2,9 +2,10 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Phone } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { Button } from '@iedora/design-system'
 import { completeOnboarding, type OnboardingFormState } from './actions'
+import { SupportLine } from '../_components/support-line'
 
 /**
  * Step 1 form — the warm-light "Tell us about your restaurant" screen
@@ -153,14 +154,7 @@ export function OnboardingForm({ languages, locale }: { languages: Lang[]; local
         >
           {pending ? t('creating') : t('cta')}
         </Button>
-        <a
-          href="tel:+351917140356"
-          className="mt-4 flex items-center justify-center gap-2 text-[14px] text-muted-foreground no-underline"
-          data-test-id="onboarding-support"
-        >
-          <Phone size={15} strokeWidth={2} /> {t('support')}{' '}
-          <span className="font-semibold text-primary">+351 917 140 356</span>
-        </a>
+        <SupportLine label={t('support')} className="mt-4" testId="onboarding-support" />
       </div>
     </form>
   )
