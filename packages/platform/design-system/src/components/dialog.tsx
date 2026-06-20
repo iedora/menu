@@ -133,7 +133,6 @@ export function DialogFooter({ className, ...rest }: DivProps) {
   return <div {...rest} className={cn("ds-dialog__actions", className)} />;
 }
 
-/* Backwards-compatible aliases for the previous static API.
+/* Backwards-compatible alias for the previous static API.
  * `DialogBody` is the same as the new `DialogDescription`. */
 export const DialogBody = DialogDescription;
-export const DialogActions = DialogFooter;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Toast, ToastStack } from "./toast";
+import { Toast } from "./toast";
 
 describe("Toast", () => {
   it("renders with role=status and the base class", () => {
@@ -30,17 +30,5 @@ describe("Toast", () => {
       </Toast>,
     );
     expect(html).toContain('class="ds-toast ds-toast--warn"');
-  });
-});
-
-describe("ToastStack", () => {
-  it("renders a polite live region with the stack class", () => {
-    const html = renderToStaticMarkup(
-      <ToastStack>
-        <Toast title="x">y</Toast>
-      </ToastStack>,
-    );
-    expect(html).toMatch(/^<div[^>]*aria-live="polite"[^>]*class="ds-toast-stack"[^>]*>/);
-    expect(html).toContain("ds-toast");
   });
 });

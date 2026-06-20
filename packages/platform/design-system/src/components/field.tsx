@@ -130,12 +130,3 @@ export function FieldSelect({
     </select>
   );
 }
-
-/**
- * Aliases — the editorial-Field vocabulary is the canon, but `Input`,
- * `Textarea`, `Select` are more discoverable when a caller just wants
- * "a styled control" without composing the Field shell.
- */
-export const Input = FieldInput;
-export const Textarea = FieldTextarea;
-export const Select = FieldSelect;

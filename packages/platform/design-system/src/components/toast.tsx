@@ -9,10 +9,6 @@ type ToastProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
 };
 
-type ToastStackProps = HTMLAttributes<HTMLDivElement> & {
-  children: ReactNode;
-};
-
 function variantClass(variant: ToastVariant | undefined) {
   switch (variant) {
     case "ok":
@@ -37,22 +33,6 @@ export function Toast({ variant, title, className, children, ...rest }: ToastPro
     >
       <div className="ds-toast__title">{title}</div>
       <div className="ds-toast__msg">{children}</div>
-    </div>
-  );
-}
-
-/**
- * Fixed bottom-right container for toasts. Drop your <Toast> instances
- * inside and they'll stack with 12px gaps.
- */
-export function ToastStack({ className, children, ...rest }: ToastStackProps) {
-  return (
-    <div
-      {...rest}
-      aria-live="polite"
-      className={cn("ds-toast-stack", className)}
-    >
-      {children}
     </div>
   );
 }
