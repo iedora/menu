@@ -94,10 +94,10 @@ export default async function DashboardPage() {
           <span
             data-test-id="dashboard-views-progress"
             aria-hidden="true"
-            className="relative ml-2 inline-block h-1 w-20 overflow-hidden bg-[var(--ink-14)] align-middle sm:w-32"
+            className="relative ml-2 inline-block h-1.5 w-20 overflow-hidden rounded-full bg-muted align-middle sm:w-32"
           >
             <span
-              className="absolute inset-y-0 left-0 bg-[var(--cinnabar)] transition-[width]"
+              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width]"
               style={{ width: `${Math.min(100, (viewCount / viewLimit) * 100)}%` }}
             />
           </span>
@@ -122,7 +122,7 @@ export default async function DashboardPage() {
     <Link
       href={addAnotherRestaurantHref()}
       data-test-id="dashboard-new-restaurant"
-      className="inline-flex items-center border border-[var(--ink)] bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-[var(--paper)] no-underline transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
+      className="inline-flex items-center rounded-[12px] bg-primary px-4 py-2 text-[13.5px] font-semibold text-white no-underline transition-colors hover:bg-[var(--cinnabar-deep)]"
     >
       {t('newRestaurant')}
     </Link>
@@ -130,7 +130,7 @@ export default async function DashboardPage() {
     <Link
       href="/menu/dashboard/billing"
       data-test-id="dashboard-upgrade-cta"
-      className="inline-flex items-center border border-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-[var(--ink)] no-underline transition-colors hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+      className="inline-flex items-center rounded-[12px] border border-border px-4 py-2 text-[13.5px] font-semibold text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
     >
       {tBilling('upgradeCta')}
     </Link>
