@@ -82,7 +82,7 @@ export function RestaurantQrShelf({
           </div>
 
           <p
-            className="max-w-prose text-sm text-[var(--ink-55)]"
+            className="max-w-prose text-sm text-[var(--muted-foreground)]"
             data-test-id="restaurant-qr-bound-explanation"
           >
             {t('boundStickersExplanation')}
@@ -160,7 +160,7 @@ function StickerCard({
 
   return (
     <article
-      className="flex flex-col gap-3 border border-[var(--ink-14)] bg-[var(--paper)] p-3"
+      className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--background)] p-3"
       data-test-id="qr-sticker-card"
     >
       <div
@@ -176,21 +176,21 @@ function StickerCard({
         ) : (
           <div
             style={{ width: COMPACT_PX, height: COMPACT_PX }}
-            className="animate-pulse bg-[var(--ink-14)]"
+            className="animate-pulse bg-[var(--border)]"
           />
         )}
       </div>
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+        <span className="text-[10.5px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
           {t('stickerCodeLabel')} · {code}
         </span>
         {label && (
-          <span className="truncate text-sm text-[var(--ink)]" title={label}>
+          <span className="truncate text-sm text-[var(--foreground)]" title={label}>
             {label}
           </span>
         )}
         <span
-          className="truncate font-mono text-[10px] text-[var(--ink-40)]"
+          className="truncate font-mono text-[10px] text-[var(--muted-foreground)]"
           title={stickerUrl}
         >
           {stickerUrl.replace(/^https?:\/\//, '')}

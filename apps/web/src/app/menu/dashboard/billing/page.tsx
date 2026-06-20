@@ -99,7 +99,7 @@ export default async function BillingPage() {
         })}
       </section>
 
-      <p className="text-sm text-[var(--ink-55)]" data-test-id="billing-contact">
+      <p className="text-sm text-[var(--muted-foreground)]" data-test-id="billing-contact">
         {t('changePlanHint')}
       </p>
     </DashboardPage>

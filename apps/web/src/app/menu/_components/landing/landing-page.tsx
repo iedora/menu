@@ -61,7 +61,7 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Sticky top bar ──────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--paper)_90%,transparent)] backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_90%,transparent)] backdrop-blur">
         <div className="mx-auto flex h-15 max-w-xl items-center px-5 py-3 lg:max-w-5xl">
           <Link href="/menu" className="flex items-center gap-2 no-underline">
             <span className="grid size-8 place-items-center rounded-lg bg-primary text-white"><UtensilsCrossed size={17} strokeWidth={2.2} /></span>
@@ -112,7 +112,7 @@ export default async function LandingPage() {
             </div>
             {/* Menu-card mockup */}
             <div className="mt-2 w-full max-w-sm -rotate-2 lg:mt-0 lg:max-w-md lg:justify-self-end">
-              <div className="rounded-[24px] border border-border bg-card p-6 text-left shadow-[0_30px_70px_-28px_var(--ink-22)]">
+              <div className="rounded-[24px] border border-border bg-card p-6 text-left shadow-[0_30px_70px_-28px_var(--border)]">
                 <p className="font-[family-name:var(--display)] text-[22px] font-extrabold text-foreground">{t("hero.card.name")}</p>
                 <p className="mb-4 text-[13px] italic text-primary">{t("hero.card.note")}</p>
                 <ul className="flex flex-col gap-3">
@@ -171,12 +171,12 @@ export default async function LandingPage() {
       <main className="mx-auto max-w-xl px-5 lg:max-w-5xl">
         {/* ── Specials board (chalkboard) ───────────────────── */}
         <section className="py-9">
-          <div className="rounded-[24px] bg-[var(--ink)] p-7 text-[var(--paper)]">
+          <div className="rounded-[24px] bg-[var(--foreground)] p-7 text-[var(--background)]">
             <span className="font-[family-name:var(--display)] text-[15px] font-semibold italic text-primary">{t("board.accent")}</span>
-            <h2 className="mt-3 text-[25px] font-extrabold leading-[1.15] text-[var(--paper)]">{t("board.title")}</h2>
+            <h2 className="mt-3 text-[25px] font-extrabold leading-[1.15] text-[var(--background)]">{t("board.title")}</h2>
             <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3">
               {bullets.map((b) => (
-                <li key={b} className="flex items-center gap-2 text-[14.5px] text-[var(--paper)]">
+                <li key={b} className="flex items-center gap-2 text-[14.5px] text-[var(--background)]">
                   <Check size={16} strokeWidth={2.5} className="shrink-0 text-primary" />
                   {b}
                 </li>
@@ -197,7 +197,7 @@ export default async function LandingPage() {
 
         {/* ── Testimonial (comment card) ────────────────────── */}
         <section className="py-9">
-          <div className="rotate-1 rounded-[24px] border border-border bg-card p-6 shadow-[0_24px_60px_-28px_var(--ink-22)] lg:mx-auto lg:max-w-2xl">
+          <div className="rotate-1 rounded-[24px] border border-border bg-card p-6 shadow-[0_24px_60px_-28px_var(--border)] lg:mx-auto lg:max-w-2xl">
             <div className="mb-3 flex gap-1 text-primary">
               {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={17} fill="currentColor" strokeWidth={0} />)}
             </div>

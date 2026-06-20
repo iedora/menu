@@ -74,7 +74,7 @@ export function QrViewer({
       <div
         ref={printRef}
         data-test-id="qr-printable"
-        className="qr-printable mx-auto flex w-fit flex-col items-center gap-4 border border-[var(--ink-14)] bg-white p-6"
+        className="qr-printable mx-auto flex w-fit flex-col items-center gap-4 border border-[var(--border)] bg-white p-6"
       >
         {svgMarkup ? (
           <div
@@ -87,21 +87,21 @@ export function QrViewer({
         ) : (
           <div
             style={{ width: PREVIEW_PX, height: PREVIEW_PX }}
-            className="animate-pulse bg-[var(--ink-14)]"
+            className="animate-pulse bg-[var(--border)]"
           />
         )}
         <div className="space-y-1 text-center">
-          <p className="font-[family-name:var(--serif)] text-base font-medium text-[var(--ink)]">
+          <p className="font-[family-name:var(--display)] text-base font-semibold text-[var(--foreground)]">
             {restaurantName}
           </p>
-          <p className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+          <p className="text-[10.5px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
             {t('scan')}
           </p>
           {/* Fallback URL — printed alongside the QR so anyone who can't
               scan can still type the address. Protocol stripped to keep
               the line tight; full URL is the title for hover/copy. */}
           <p
-            className="break-all font-mono text-[10px] text-[var(--ink-40)]"
+            className="break-all font-mono text-[10px] text-[var(--muted-foreground)]"
             title={publicUrl}
             data-test-id="qr-public-url"
           >

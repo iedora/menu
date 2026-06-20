@@ -109,7 +109,7 @@ export default async function DashboardPage() {
           <Link
             href="/menu/dashboard/billing"
             data-test-id="dashboard-views-upgrade-nudge"
-            className="font-medium text-[var(--ink)] underline-offset-4 hover:underline"
+            className="font-medium text-[var(--foreground)] underline-offset-4 hover:underline"
           >
             {t('viewsNudge')}
           </Link>

@@ -164,7 +164,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen flex-col bg-[var(--paper)] lg:flex-row">
+      <div className="flex min-h-screen flex-col bg-[var(--background)] lg:flex-row">
         {/* Desktop nav is the sidebar rail (lg+); below `lg` the sidebar
             stays off-canvas and the BottomNav below carries navigation —
             no hamburger drawer, matching the Pencil mobile chrome. */}
@@ -194,7 +194,7 @@ export default async function DashboardLayout({
           <SidebarFooter>
             <UserLocaleSwitcher />
             <span
-              className="min-w-0 truncate font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)]"
+              className="min-w-0 truncate text-[10.5px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]"
               title={session.email ?? undefined}
               data-test-id="dashboard-user-email"
             >

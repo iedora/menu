@@ -46,7 +46,7 @@ export function UserLocaleSwitcher() {
             aria-label={lang.nativeName}
             data-active={active ? 'true' : 'false'}
             data-test-id={`dashboard-locale-${lang.code}`}
-            className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-40)] transition-colors hover:text-[var(--ink)] disabled:cursor-default data-[active=true]:text-[var(--ink)]"
+            className="text-[10.5px] uppercase tracking-[0.18em] text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:cursor-default data-[active=true]:text-[var(--foreground)]"
           >
             {lang.code}
           </button>

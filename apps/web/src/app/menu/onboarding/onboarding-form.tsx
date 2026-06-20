@@ -99,7 +99,7 @@ export function OnboardingForm({ languages, locale }: { languages: Lang[]; local
         {/* Public URL — live preview of the derived slug */}
         <div>
           <label className="mb-1.5 block text-[14px] font-semibold text-foreground">{t('publicUrl')}</label>
-          <div className="flex items-center gap-1 rounded-[12px] border border-border bg-[var(--paper-2)] px-4 py-3 text-[15px]" data-test-id="onboarding-public-url">
+          <div className="flex items-center gap-1 rounded-[12px] border border-border bg-[var(--muted)] px-4 py-3 text-[15px]" data-test-id="onboarding-public-url">
             <span className="text-muted-foreground">iedora.com/m/</span>
             <span className="truncate font-semibold text-foreground">{slug}</span>
             <Check size={18} strokeWidth={2.5} className="ml-auto shrink-0 text-[var(--green)]" />

@@ -125,7 +125,7 @@ export function ItemTranslations({
         <FieldLabel htmlFor={`item-${itemId}-tname-${activeLang}`}>
           {t('itemName')}
         </FieldLabel>
-        <p className="text-xs text-[var(--ink-55)]">{name || '—'}</p>
+        <p className="text-xs text-[var(--muted-foreground)]">{name || '—'}</p>
         <FieldInput
           id={`item-${itemId}-tname-${activeLang}`}
           data-test-id={`item-${itemId}-tname-${activeLang}`}
@@ -142,7 +142,7 @@ export function ItemTranslations({
         <FieldLabel htmlFor={`item-${itemId}-tdesc-${activeLang}`}>
           {t('itemDescription')}
         </FieldLabel>
-        <p className="text-xs text-[var(--ink-55)]">{description || '—'}</p>
+        <p className="text-xs text-[var(--muted-foreground)]">{description || '—'}</p>
         <FieldTextarea
           id={`item-${itemId}-tdesc-${activeLang}`}
           data-test-id={`item-${itemId}-tdesc-${activeLang}`}
@@ -168,7 +168,7 @@ export function ItemTranslations({
                   className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:gap-3"
                 >
                   <span
-                    className="truncate font-[family-name:var(--serif)] text-sm text-[var(--ink-70)]"
+                    className="truncate text-sm font-medium text-[var(--foreground)]"
                     title={v.label}
                   >
                     {v.label}
@@ -224,7 +224,7 @@ function LanguageTabs({
       role="tablist"
       aria-label="Translations"
       data-test-id={`${idPrefix}-tabs`}
-      className="flex flex-wrap gap-1 border-b border-[var(--ink-14)]"
+      className="flex flex-wrap gap-1 border-b border-[var(--border)]"
     >
       {languages.map((code) => {
         const meta = LANGUAGE_META.find((m) => m.code === code)
@@ -242,13 +242,13 @@ function LanguageTabs({
             className={
               'px-3 py-1.5 text-xs ' +
               (isActive
-                ? 'border-b-2 border-[var(--ink)] font-medium text-[var(--ink)]'
-                : 'text-[var(--ink-55)] hover:text-[var(--ink)]')
+                ? 'border-b-2 border-[var(--foreground)] font-medium text-[var(--foreground)]'
+                : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]')
             }
           >
             {meta.nativeName}
             {isDefault && (
-              <span className="ml-1 font-[family-name:var(--mono)] text-[10px] uppercase tracking-[0.16em] opacity-70">
+              <span className="ml-1 text-[10px] uppercase tracking-[0.16em] opacity-70">
                 default
               </span>
             )}

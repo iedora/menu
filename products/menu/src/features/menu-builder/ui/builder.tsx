@@ -122,9 +122,9 @@ export function MenuBuilder({
         >
           <div className="space-y-4">
             {categories.length === 0 ? (
-              <div className="border border-dashed border-[var(--ink-24)] p-8 text-center">
+              <div className="border border-dashed border-[var(--border)] p-8 text-center">
                 <p
-                  className="text-base text-[var(--ink-70)] mb-4"
+                  className="text-base text-[var(--foreground)] mb-4"
                   data-test-id="menu-builder-empty"
                 >
                   {t('emptyMenu')}

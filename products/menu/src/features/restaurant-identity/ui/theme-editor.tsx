@@ -253,7 +253,7 @@ function LanguagesSection({
               >
                 <span className="min-w-0">
                   <span className="truncate">{lang.name}</span>
-                  <span className="ml-2 font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.16em] text-[var(--ink-55)]">
+                  <span className="ml-2 text-[10.5px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                     {lang.nativeName}
                   </span>
                 </span>
@@ -291,7 +291,7 @@ function LanguagesSection({
           {pending ? tc('saving') : t('save')}
         </Button>
         {saved && !dirty && (
-          <span className="text-sm text-[var(--ink-55)]">{t('saved')}</span>
+          <span className="text-sm text-[var(--muted-foreground)]">{t('saved')}</span>
         )}
         {error && (
           <span className="text-sm text-[var(--cinnabar)]">{error}</span>
@@ -636,7 +636,7 @@ function ThemeSection({
                 <div className="font-[family-name:var(--display)] text-base font-semibold">
                   {l.name}
                 </div>
-                <div className="mt-1 text-xs text-[var(--ink-55)]">
+                <div className="mt-1 text-xs text-[var(--muted-foreground)]">
                   {l.description}
                 </div>
               </button>
@@ -699,7 +699,7 @@ function ThemeSection({
           {t('reset')}
         </Button>
         {saved && !dirty && (
-          <span className="text-sm text-[var(--ink-55)]">{t('saved')}</span>
+          <span className="text-sm text-[var(--muted-foreground)]">{t('saved')}</span>
         )}
         {error && (
           <span className="text-sm text-[var(--cinnabar)]">{error}</span>

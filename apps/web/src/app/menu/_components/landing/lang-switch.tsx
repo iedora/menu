@@ -26,7 +26,7 @@ export function LangSwitch() {
   }
 
   return (
-    <div className="hidden items-center gap-0.5 rounded-full bg-[var(--paper-2)] p-[3px] sm:inline-flex" role="group" aria-label="Language">
+    <div className="hidden items-center gap-0.5 rounded-full bg-[var(--muted)] p-[3px] sm:inline-flex" role="group" aria-label="Language">
       {LOCALES.map((code) => {
         const active = code === current;
         return (

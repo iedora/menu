@@ -129,7 +129,7 @@ export function LocalizedFields({
           role="tablist"
           aria-label="Translations"
           data-test-id={`${id}-i18n-tabs`}
-          className="flex flex-wrap gap-1 border-b border-[var(--ink-14)]"
+          className="flex flex-wrap gap-1 border-b border-[var(--border)]"
         >
           {visibleLanguages
             .map((code) => LANGUAGE_META.find((m) => m.code === code))
@@ -148,13 +148,13 @@ export function LocalizedFields({
                   className={
                     'px-3 py-1.5 text-xs ' +
                     (isActive
-                      ? 'border-b-2 border-[var(--ink)] font-medium text-[var(--ink)]'
-                      : 'text-[var(--ink-55)] hover:text-[var(--ink)]')
+                      ? 'border-b-2 border-[var(--foreground)] font-medium text-[var(--foreground)]'
+                      : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]')
                   }
                 >
                   {langMeta.nativeName}
                   {isDefault && (
-                    <span className="ml-1 font-[family-name:var(--mono)] text-[10px] uppercase tracking-[0.16em] opacity-70">
+                    <span className="ml-1 text-[10px] uppercase tracking-[0.16em] opacity-70">
                       default
                     </span>
                   )}

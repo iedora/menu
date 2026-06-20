@@ -39,7 +39,7 @@ export function BottomNav({ tabs }: { tabs: BottomTab[] }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-[color-mix(in_srgb,var(--paper)_92%,transparent)] backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-[color-mix(in_srgb,var(--background)_92%,transparent)] backdrop-blur lg:hidden"
       aria-label="Primary"
       data-test-id="dashboard-bottom-nav"
     >

@@ -387,7 +387,7 @@ export function SortableItem({
                 the bottom so an accidental tap can't reach it during
                 normal editing. */}
             <section
-              className="border-t border-[var(--ink-14)] pt-4"
+              className="border-t border-[var(--border)] pt-4"
               data-test-id={`menu-item-part-danger-${item.id}`}
             >
               {confirmDelete ? (

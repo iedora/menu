@@ -157,7 +157,7 @@ export function DashboardPage({
               ) : null}
               {description ? (
                 <p
-                  className="max-w-prose text-sm text-[var(--ink-70)]"
+                  className="max-w-prose text-sm text-[var(--foreground)]"
                   data-test-id={ns('description')}
                 >
                   {description}

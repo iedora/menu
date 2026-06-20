@@ -219,21 +219,21 @@ function PrintSheetSummary({
   const cm2PerCode = grid.mmPerCode / 100
   return (
     <div
-      className="mt-4 flex flex-col gap-2 border border-[var(--ink-14)] bg-[var(--paper)] p-3 sm:flex-row sm:items-center sm:justify-between"
+      className="mt-4 flex flex-col gap-2 border border-[var(--border)] bg-[var(--background)] p-3 sm:flex-row sm:items-center sm:justify-between"
       data-test-id="qr-print-sheet-summary"
     >
       <div>
-        <p className="font-[family-name:var(--mono)] text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+        <p className="text-[10.5px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
           A4 · 210 × 297 mm
         </p>
-        <p className="mt-1 text-sm text-[var(--ink)]">
+        <p className="mt-1 text-sm text-[var(--foreground)]">
           {grid.cols} × {grid.rows} ={' '}
           <strong data-test-id="qr-print-sheet-total">{grid.total}</strong> QR code
           {grid.total === 1 ? '' : 's'} per sheet
         </p>
         {grid.total > 0 && (
           <p
-            className="mt-0.5 text-[11px] text-[var(--ink-55)]"
+            className="mt-0.5 text-[11px] text-[var(--muted-foreground)]"
             data-test-id="qr-print-sheet-per-code"
           >
             ≈ {cm2PerCode.toFixed(1)} cm² of paper per sticker

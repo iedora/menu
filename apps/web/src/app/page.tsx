@@ -16,8 +16,8 @@ export default function DevSurfaceIndex() {
   }))
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--paper)] p-8 text-[var(--ink)]">
-      <h1 className="font-[family-name:var(--mono)] text-[11px] uppercase tracking-[0.18em] text-[var(--ink-55)]">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--background)] p-8 text-[var(--foreground)]">
+      <h1 className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         iedora · dev surface index
       </h1>
       <ul className="flex flex-col items-center gap-3">
