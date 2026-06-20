@@ -3064,3 +3064,12 @@ body.ds-loaded .ds-hero--in .ds-hero__trust   { opacity: 1; transform: translate
   color: var(--ink-40);
 }
 
+/* Dialog top (eyebrow + close) — sans label instead of mono caps. */
+.ds-dialog__top {
+  font-family: var(--sans);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  border-bottom-color: var(--border);
+}
+

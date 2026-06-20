@@ -18,7 +18,7 @@ export function EditorialRow({ row }: { row: Row }) {
         {row.index && (
           <span
             aria-hidden="true"
-            className="font-serif text-[12.5px] italic text-muted-foreground tabular-nums"
+            className="text-[12.5px] text-muted-foreground tabular-nums"
           >
             {row.index}
           </span>
@@ -27,7 +27,7 @@ export function EditorialRow({ row }: { row: Row }) {
           href={row.href}
           className="block min-w-0 no-underline text-foreground"
         >
-          <div className="text-[17px] font-medium leading-tight tracking-tight">
+          <div className="font-[family-name:var(--display)] text-[17px] font-semibold leading-tight tracking-tight">
             {row.title}
           </div>
           <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[12.5px] text-muted-foreground">
@@ -50,7 +50,7 @@ export function EditorialRow({ row }: { row: Row }) {
               )}
             </div>
             {trailing.comparison && (
-              <div className="font-serif text-[12px] italic text-muted-foreground mt-1">
+              <div className="text-[12px] text-muted-foreground mt-1">
                 {trailing.comparison}
               </div>
             )}
@@ -60,7 +60,7 @@ export function EditorialRow({ row }: { row: Row }) {
       {(row.metadata || (row.actions && row.actions.length > 0)) && (
         <div className={styles.subRow}>
           {row.metadata && (
-            <span className="font-serif italic text-muted-foreground">
+            <span className="text-muted-foreground">
               {row.metadata}
             </span>
           )}
