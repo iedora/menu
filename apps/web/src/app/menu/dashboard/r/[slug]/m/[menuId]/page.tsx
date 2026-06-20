@@ -11,7 +11,7 @@ export default async function MenuBuilderPage({
   params: Promise<{ slug: string; menuId: string }>
 }) {
   const { slug, menuId } = await params
-  const { restaurant: r } = await requireRestaurantBySlug(slug)
+  await requireRestaurantBySlug(slug) // auth gate — tenant must own the slug
   const data = await loadBuilderData(slug, menuId)
   if (!data) notFound()
 
