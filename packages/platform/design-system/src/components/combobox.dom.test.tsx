@@ -208,6 +208,29 @@ describe("Combobox", () => {
     expect(input.className).toContain("ds-combobox__input");
   });
 
+  it("surfaces an error: marks the input invalid, links the alert, tints the chip", () => {
+    function ErroredCombobox() {
+      const [v, setV] = useState<string | null>(null);
+      return (
+        <Combobox
+          aria-label="pick one"
+          options={SAMPLE}
+          value={v}
+          onChange={setV}
+          error="Pick an option."
+        />
+      );
+    }
+    const { container } = render(<ErroredCombobox />);
+    const input = screen.getByRole("combobox", { name: /pick one/i });
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("Pick an option.");
+    // aria-describedby points at the alert element.
+    expect(input.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(container.querySelector(".ds-combobox--error")).not.toBeNull();
+  });
+
   it("renders a hidden form-input when `name` is provided", () => {
     function FormCombobox() {
       const [v, setV] = useState<string | null>("beta");

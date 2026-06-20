@@ -60,8 +60,14 @@ export function AddItemDialog({
   const [priceText, setPriceText] = useState('')
   const [variants, setVariants] = useState<EditableVariant[]>([])
   const [error, setError] = useState<string | null>(null)
+  // Which control the current error belongs to, so only the failing field is
+  // marked invalid (null = form/variant-level → announced but no field stamp).
+  const [errorField, setErrorField] = useState<'name' | 'price' | null>(null)
+  // Label of the variant row whose price failed to parse (marks that row).
+  const [variantErrorLabel, setVariantErrorLabel] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const nameInputId = `add-item-name-${categoryId}`
+  const errId = `add-item-error-${categoryId}`
 
   // Reset on close runs in the close-side of the onOpenChange handler
   // rather than via useEffect — React's recommended pattern for "tear
@@ -73,6 +79,8 @@ export function AddItemDialog({
       setPriceText('')
       setVariants([])
       setError(null)
+      setErrorField(null)
+      setVariantErrorLabel(null)
     }
     onOpenChange(next)
   }
@@ -80,9 +88,12 @@ export function AddItemDialog({
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setErrorField(null)
+    setVariantErrorLabel(null)
     const trimmed = name.trim()
     if (!trimmed) {
       setError(t('addItemNeedsName'))
+      setErrorField('name')
       return
     }
     const priceCents = priceText.trim()
@@ -90,11 +101,13 @@ export function AddItemDialog({
       : 0
     if (!Number.isFinite(priceCents) || priceCents < 0) {
       setError(t('addItemBadPrice'))
+      setErrorField('price')
       return
     }
     const cleaned = cleanVariants(variants)
     if (!cleaned.ok) {
       setError(t('itemBadVariantPrice', { label: cleaned.label }))
+      setVariantErrorLabel(cleaned.label)
       return
     }
     startTransition(async () => {
@@ -141,6 +154,8 @@ export function AddItemDialog({
               maxLength={120}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              error={errorField === 'name'}
+              aria-describedby={errorField === 'name' ? errId : undefined}
               data-test-id={`menu-add-item-name-input-${categoryId}`}
             />
           </Field>
@@ -154,6 +169,8 @@ export function AddItemDialog({
               placeholder="0.00"
               value={priceText}
               onChange={(e) => setPriceText(e.target.value)}
+              error={errorField === 'price'}
+              aria-describedby={errorField === 'price' ? errId : undefined}
               data-test-id={`menu-add-item-price-input-${categoryId}`}
             />
           </Field>
@@ -161,9 +178,12 @@ export function AddItemDialog({
             value={variants}
             onChange={setVariants}
             idPrefix={`menu-add-item-variant-${categoryId}`}
+            invalidPriceLabel={variantErrorLabel}
           />
           {error && (
             <p
+              id={errId}
+              role="alert"
               className="text-sm text-[var(--cinnabar)]"
               data-test-id={`menu-add-item-error-${categoryId}`}
             >

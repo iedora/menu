@@ -102,7 +102,13 @@ export function SortableItem({
   const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  // Which control the current error belongs to, so only the failing field is
+  // marked invalid (null = form/variant-level → announced but no field stamp).
+  const [errorField, setErrorField] = useState<'name' | 'price' | null>(null)
+  // Label of the variant row whose price failed to parse (marks that row).
+  const [variantErrorLabel, setVariantErrorLabel] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const errId = `item-error-${item.id}`
 
   // Reset local state when reopening so it tracks server truth.
   function onOpenChange(next: boolean) {
@@ -110,6 +116,8 @@ export function SortableItem({
     if (!next) {
       setConfirmDelete(false)
       setError(null)
+      setErrorField(null)
+      setVariantErrorLabel(null)
     } else {
       setName(item.name)
       setDescription(item.description ?? '')
@@ -125,9 +133,12 @@ export function SortableItem({
   function onSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setErrorField(null)
+    setVariantErrorLabel(null)
     const trimmed = name.trim()
     if (!trimmed) {
       setError(t('itemNeedsName'))
+      setErrorField('name')
       return
     }
     const priceCents = priceText.trim()
@@ -135,12 +146,14 @@ export function SortableItem({
       : 0
     if (!Number.isFinite(priceCents) || priceCents < 0) {
       setError(t('itemBadPrice'))
+      setErrorField('price')
       return
     }
 
     const cleaned = cleanVariants(variants)
     if (!cleaned.ok) {
       setError(t('itemBadVariantPrice', { label: cleaned.label }))
+      setVariantErrorLabel(cleaned.label)
       return
     }
 
@@ -277,6 +290,8 @@ export function SortableItem({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={120}
+                  error={errorField === 'name'}
+                  aria-describedby={errorField === 'name' ? errId : undefined}
                   data-test-id={`menu-item-name-input-${item.id}`}
                 />
               </Field>
@@ -303,6 +318,8 @@ export function SortableItem({
                     placeholder="0.00"
                     value={priceText}
                     onChange={(e) => setPriceText(e.target.value)}
+                    error={errorField === 'price'}
+                    aria-describedby={errorField === 'price' ? errId : undefined}
                     data-test-id={`menu-item-price-input-${item.id}`}
                   />
                 </Field>
@@ -346,6 +363,7 @@ export function SortableItem({
                   value={variants}
                   onChange={setVariants}
                   idPrefix={`item-variant-${item.id}`}
+                  invalidPriceLabel={variantErrorLabel}
                 />
               </div>
             </section>
@@ -431,6 +449,8 @@ export function SortableItem({
 
             {error && (
               <p
+                id={errId}
+                role="alert"
                 className="text-sm text-[var(--cinnabar)]"
                 data-test-id={`menu-item-error-${item.id}`}
               >

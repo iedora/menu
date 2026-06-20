@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useId } from "react";
 import { Popover } from "radix-ui";
 import { cn } from "../lib/cn";
 
@@ -45,6 +46,10 @@ export type ComboboxProps = {
   clearable?: boolean;
   disabled?: boolean;
   id?: string;
+  /** Validation message. When set, the chip reads cinnabar, the input is
+   * marked `aria-invalid`, and the message renders with `role="alert"`
+   * tied to the input via `aria-describedby`. */
+  error?: string;
   /** When set, a hidden input is rendered so the combobox can be part of
    * a plain `<form>` submission. */
   name?: string;
@@ -66,12 +71,14 @@ export function Combobox({
   clearable = true,
   disabled = false,
   id,
+  error,
   name,
   className,
   popoverClassName,
   "data-test-id": testId,
   "aria-label": ariaLabel,
 }: ComboboxProps) {
+  const errId = useId();
   const [open, setOpenState] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
@@ -180,7 +187,12 @@ export function Combobox({
       <Popover.Anchor asChild>
         <div
           ref={wrapperRef}
-          className={cn("ds-combobox", disabled && "ds-combobox--disabled", className)}
+          className={cn(
+            "ds-combobox",
+            disabled && "ds-combobox--disabled",
+            error && "ds-combobox--error",
+            className,
+          )}
           data-state={open ? "open" : "closed"}
         >
           <input
@@ -198,6 +210,8 @@ export function Combobox({
                 : undefined
             }
             aria-label={ariaLabel}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errId : undefined}
             disabled={disabled}
             autoComplete="off"
             spellCheck={false}
@@ -248,6 +262,11 @@ export function Combobox({
           </span>
         </div>
       </Popover.Anchor>
+      {error && (
+        <p id={errId} role="alert" data-test-id="field-error" className="ds-field__error">
+          {error}
+        </p>
+      )}
       <Popover.Portal>
         <Popover.Content
           align="start"

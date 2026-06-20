@@ -49,11 +49,16 @@ export function VariantsEditor({
   value,
   onChange,
   idPrefix,
+  invalidPriceLabel,
 }: {
   value: ReadonlyArray<EditableVariant>
   onChange: (next: EditableVariant[]) => void
   /** Used to namespace data-test-id attributes per row. */
   idPrefix: string
+  /** Trimmed label of the row whose price failed to parse on the last
+   * submit — that row's price input is marked invalid so the operator can
+   * see which one to fix. */
+  invalidPriceLabel?: string | null
 }) {
   const t = useTranslations('Builder')
 
@@ -102,6 +107,10 @@ export function VariantsEditor({
                 aria-label={t('itemVariantPriceAria', {
                   label: v.label || t('itemVariantLabelAria'),
                 })}
+                error={
+                  Boolean(invalidPriceLabel) &&
+                  v.label.trim() === invalidPriceLabel
+                }
                 className="text-right"
                 data-test-id={`${idPrefix}-price-${vi}`}
               />

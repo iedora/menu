@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
   Field,
+  FieldError,
   FieldInput,
   FieldLabel,
 } from '@iedora/design-system'
@@ -59,9 +60,11 @@ export function CreateMenuDialog({ slug }: { slug: string }) {
               required
               maxLength={80}
               autoFocus
+              error={Boolean(error)}
+              aria-describedby={error ? 'menu-name-msg' : undefined}
             />
+            {error && <FieldError id="menu-name-msg">{error}</FieldError>}
           </Field>
-          {error && <p className="text-sm text-[var(--cinnabar)]">{error}</p>}
           <DialogFooter>
             <Button type="submit" variant="solid" disabled={pending}>
               {pending ? tc('saving') : tc('save')}

@@ -82,7 +82,7 @@ export function AddSectionDialog({
           className="grid gap-4"
           data-test-id="menu-add-section-form"
         >
-          <Field>
+          <Field error={Boolean(error)}>
             <FieldLabel htmlFor={nameInputId}>
               {t('addSectionName')}
             </FieldLabel>
@@ -94,17 +94,21 @@ export function AddSectionDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t('addSectionPlaceholder')}
+              error={Boolean(error)}
+              aria-describedby={error ? `${nameInputId}-msg` : undefined}
               data-test-id="menu-add-section-name-input"
             />
+            {error && (
+              <p
+                id={`${nameInputId}-msg`}
+                role="alert"
+                className="text-sm text-[var(--cinnabar)]"
+                data-test-id="menu-add-section-error"
+              >
+                {error}
+              </p>
+            )}
           </Field>
-          {error && (
-            <p
-              className="text-sm text-[var(--cinnabar)]"
-              data-test-id="menu-add-section-error"
-            >
-              {error}
-            </p>
-          )}
           <DialogFooter>
             <Button
               type="button"

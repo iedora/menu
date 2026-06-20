@@ -65,8 +65,13 @@ export {
   Field,
   FieldLabel,
   FieldHint,
+  FieldError,
   FieldInput,
   FieldTextarea,
+  FieldSelect,
+  TextField,
+  TextareaField,
+  SelectField,
 } from "./components/field";
 export {
   Combobox,

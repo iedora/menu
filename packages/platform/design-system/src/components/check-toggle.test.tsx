@@ -59,3 +59,39 @@ describe("Toggle", () => {
     expect(html).toContain('class="ds-toggle ds-toggle--on"');
   });
 });
+
+describe("Checkbox error state", () => {
+  it("marks the input invalid, tints the box, and announces the message", () => {
+    const html = renderToStaticMarkup(
+      <Checkbox name="terms" error="Accept the terms to continue.">
+        I accept
+      </Checkbox>,
+    );
+    expect(html).toContain("ds-check--error");
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-describedby="terms-msg"');
+    expect(html).toContain('id="terms-msg"');
+    expect(html).toContain("Accept the terms to continue.");
+  });
+
+  it("renders no alert when valid", () => {
+    const html = renderToStaticMarkup(<Checkbox name="terms">I accept</Checkbox>);
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain("ds-check--error");
+  });
+});
+
+describe("Toggle error state", () => {
+  it("marks the switch invalid and announces the message", () => {
+    const html = renderToStaticMarkup(
+      <Toggle name="analytics" error="Required.">
+        Analytics
+      </Toggle>,
+    );
+    expect(html).toContain("ds-toggle--error");
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-describedby="analytics-msg"');
+  });
+});

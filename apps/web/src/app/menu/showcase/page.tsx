@@ -21,9 +21,12 @@ import {
   DialogTrigger,
   EmptyState,
   Field,
+  FieldError,
   FieldHint,
   FieldInput,
   FieldLabel,
+  SelectField,
+  TextField,
   Lintel,
   MetaStrip,
   Statement,
@@ -220,9 +223,58 @@ export default function ShowcasePage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <Checkbox checked readOnly name="kept">Keep this work in service</Checkbox>
               <Checkbox readOnly name="notify">Notify on a quiet release</Checkbox>
+              <Checkbox readOnly name="terms" error="Accept the terms to continue.">
+                I accept the terms
+              </Checkbox>
               <Toggle checked readOnly name="analytics">Analytics</Toggle>
               <Toggle readOnly name="newsletter">Newsletter</Toggle>
             </div>
+          </div>
+        </Section>
+
+        <Section index="09b" name="Composed fields — label, control, validation" note="VI.4 — error wins over hint; aria-invalid + aria-describedby wired for you.">
+          <div style={{ display: "grid", gap: 32, padding: "32px 0", maxWidth: 480 }}>
+            <TextField
+              label="Email address"
+              name="sc-email"
+              type="email"
+              placeholder="name@iedora.com"
+              hint="We write back, slowly."
+            />
+            <TextField
+              label="Slug"
+              name="sc-slug"
+              defaultValue="menu"
+              error="That slug is already taken."
+            />
+            <SelectField label="Default language" name="sc-lang" defaultValue="en">
+              <option value="en">English</option>
+              <option value="pt">Português</option>
+              <option value="fr">Français</option>
+            </SelectField>
+            <SelectField
+              label="Plan"
+              name="sc-plan"
+              defaultValue=""
+              error="Choose a plan to continue."
+            >
+              <option value="" disabled>
+                — select —
+              </option>
+              <option value="casa">Casa</option>
+              <option value="kasa">Kasa</option>
+            </SelectField>
+            <Field error>
+              <FieldLabel htmlFor="sc-bio">Bio</FieldLabel>
+              <FieldInput
+                id="sc-bio"
+                name="sc-bio"
+                defaultValue="—"
+                error
+                aria-describedby="sc-bio-msg"
+              />
+              <FieldError id="sc-bio-msg">Inline FieldError, role=alert.</FieldError>
+            </Field>
           </div>
         </Section>
 

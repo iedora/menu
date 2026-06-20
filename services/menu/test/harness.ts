@@ -5,10 +5,12 @@ import { type CryptoKey, SignJWT, generateKeyPair } from "jose";
 import { sql } from "kysely";
 
 import { buildApp } from "../src/app";
+import type { BlobClient } from "../src/blob";
 import type { MenuConfig } from "../src/config";
 import { Plans } from "../src/plans";
 import { Limiter } from "../src/ratelimit";
 import type { MenuDB } from "../src/schema";
+import { Uploads } from "../src/uploads";
 
 // Shared test harness for every menu vertical slice. Each slice test owns its
 // behaviour but reuses this setup + the request/seed helpers below, so there is
@@ -25,11 +27,65 @@ export interface Harness {
   db: Database<MenuDB>;
   privateKey: CryptoKey;
   planStub: { code: string }; // mutable so a test can flip the tenant's effective plan
+  /** In-memory object store, present only when the harness was built with
+   * `withUploads` — lets upload tests assert what landed / was deleted. */
+  blob: FakeBlob | null;
   close: () => Promise<void>;
 }
 
-/** Spins up a migrated scratch DB + the menu app with a disabled rate limiter. */
-export async function createHarness(prefix = "menu_test"): Promise<Harness> {
+export interface HarnessOptions {
+  /** Wire a real `Uploads` over an in-memory blob so upload routes work
+   * (instead of the default 503). Exposes the store on `h.blob`. */
+  withUploads?: boolean;
+  /** Run the real sliding-window limiter (default: disabled, as most slice
+   * tests don't want it). Set false to assert 429 enforcement. */
+  rateLimitDisabled?: boolean;
+}
+
+/**
+ * In-memory stand-in for {@link BlobClient}. Covers exactly the surface
+ * `Uploads` touches; `put()` simulates the browser's presigned PUT so a
+ * later `commit()` finds the object. Records deletes for assertions.
+ */
+export class FakeBlob
+  implements Pick<BlobClient, "presignPut" | "publicURL" | "keyFromPublicURL" | "stat" | "delete">
+{
+  readonly objects = new Map<string, { contentType: string; size: number }>();
+  readonly deleted: string[] = [];
+  private readonly base = "https://cdn.test";
+
+  publicURL(key: string): string {
+    return `${this.base}/${key}`;
+  }
+  keyFromPublicURL(url: string): string {
+    const prefix = `${this.base}/`;
+    return url.startsWith(prefix) ? url.slice(prefix.length) : "";
+  }
+  presignPut(key: string): string {
+    return `${this.base}/_put/${key}`;
+  }
+  /** Test helper — pretend the browser PUT the object to `key`. */
+  put(key: string, contentType: string, size: number): void {
+    this.objects.set(key, { contentType, size });
+  }
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async stat(key: string) {
+    const o = this.objects.get(key);
+    return o ? { exists: true, ...o } : { exists: false, contentType: "", size: 0 };
+  }
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async delete(key: string): Promise<void> {
+    this.deleted.push(key);
+    this.objects.delete(key);
+  }
+}
+
+/** Spins up a migrated scratch DB + the menu app. Rate limiter disabled and
+ * storage unconfigured by default; opt into either via {@link HarnessOptions}. */
+export async function createHarness(
+  prefix = "menu_test",
+  opts: HarnessOptions = {},
+): Promise<Harness> {
   const scratch = await createScratchDatabase({
     prefix,
     migrationsDir: `${import.meta.dir}/../migrations`,
@@ -37,20 +93,28 @@ export async function createHarness(prefix = "menu_test"): Promise<Harness> {
   const db = new Database<MenuDB>(scratch.url);
   const kp = await generateKeyPair("EdDSA");
   const planStub = { code: "menu_pro" };
+  const rateLimitDisabled = opts.rateLimitDisabled ?? true;
+  let blob: FakeBlob | null = null;
+  let uploads: Uploads | null = null;
+  if (opts.withUploads) {
+    blob = new FakeBlob();
+    uploads = new Uploads(db, blob as unknown as BlobClient);
+  }
   const app = buildApp({
     db,
-    limiter: new Limiter(db, true),
+    limiter: new Limiter(db, rateLimitDisabled),
     userVerifier: newUserVerifier(kp.publicKey, ISS, AUD),
     auditor: new OutboxWriter(db, "menu"),
     plans: new Plans({ planCode: async () => planStub.code }, db),
-    uploads: null, // storage unconfigured → upload routes answer 503
-    cfg: { rateLimitDisabled: true } as MenuConfig,
+    uploads, // null → upload routes answer 503; FakeBlob-backed when withUploads
+    cfg: { rateLimitDisabled } as MenuConfig,
   });
   return {
     app,
     db,
     privateKey: kp.privateKey,
     planStub,
+    blob,
     close: async () => {
       await db.close();
       await scratch.drop();
@@ -59,9 +123,9 @@ export async function createHarness(prefix = "menu_test"): Promise<Harness> {
 }
 
 /** Registers the per-file lifecycle and returns a ctx populated before tests run. */
-export function useHarness(prefix?: string): Harness {
+export function useHarness(prefix?: string, opts?: HarnessOptions): Harness {
   const ctx = {} as Harness;
-  beforeAll(async () => Object.assign(ctx, await createHarness(prefix)));
+  beforeAll(async () => Object.assign(ctx, await createHarness(prefix, opts)));
   afterAll(() => ctx.close());
   return ctx;
 }

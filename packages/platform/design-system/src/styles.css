@@ -545,6 +545,27 @@
 }
 .ds-field--error .ds-field__hint { color: var(--cinnabar); }
 
+/* Validation message — cinnabar, mono caps, announced via role="alert". The
+   one rule every composed field, the Combobox, and Checkbox/Toggle share so
+   error copy reads identically wherever it surfaces. */
+.ds-field__error {
+  font-family: var(--mono);
+  font-size: var(--t-2xs);
+  letter-spacing: 0.10em;
+  color: var(--cinnabar);
+  margin: 0;
+}
+/* aria-invalid is the source of truth — style off it so a bare control marked
+   invalid (without the `--error` class) still reads red. */
+.ds-input[aria-invalid="true"],
+.ds-textarea[aria-invalid="true"],
+.ds-field input[aria-invalid="true"],
+.ds-field textarea[aria-invalid="true"],
+.ds-field select[aria-invalid="true"],
+.ds-select--error {
+  border-bottom-color: var(--cinnabar);
+}
+
 .ds-textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
 
 /* Compact variant — sized to match `.ds-combobox` so an input and a
@@ -751,6 +772,10 @@
 .ds-combobox--disabled {
   opacity: 0.5;
 }
+.ds-combobox--error,
+.ds-combobox--error:focus-within {
+  border-color: var(--cinnabar);
+}
 
 /* Specificity bump (`.ds-field input.ds-combobox__input`) — without it
    a `<Combobox>` rendered inside a `<Field>` picks up the Field's
@@ -941,6 +966,9 @@
 .ds-check--on .ds-check__box { background: var(--ink); border-color: var(--ink); }
 .ds-check--on .ds-check__tick { opacity: 1; }
 .ds-check__input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.ds-check--error .ds-check__box { border-color: var(--cinnabar); }
+/* Field wrapper stacks the control + its validation message. */
+.ds-check-field, .ds-toggle-field { display: inline-grid; gap: 4px; }
 
 /* Toggle */
 .ds-toggle {
@@ -970,6 +998,7 @@
 }
 .ds-toggle--on .ds-toggle__track { background: var(--ink); border-color: var(--ink); }
 .ds-toggle--on .ds-toggle__knob  { transform: translateX(18px); background: var(--paper); }
+.ds-toggle--error .ds-toggle__track { border-color: var(--cinnabar); }
 .ds-toggle__input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
 
 /* ─────────────────────────────────────────────────────────────

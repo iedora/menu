@@ -378,6 +378,8 @@ function IdentitySection({
           onChange={(e) => patch('name', e.target.value)}
           maxLength={120}
           required
+          error={Boolean(error) || (dirty && !nameValid)}
+          aria-describedby={error ? 'identity-name-msg' : undefined}
         />
       </Field>
 
@@ -454,7 +456,11 @@ function IdentitySection({
         {saved && !dirty && (
           <span className="text-sm text-muted-foreground">Saved</span>
         )}
-        {error && <span className="text-sm text-destructive">{error}</span>}
+        {error && (
+          <span id="identity-name-msg" role="alert" className="text-sm text-destructive">
+            {error}
+          </span>
+        )}
       </div>
     </form>
   )
@@ -526,6 +532,8 @@ function SlugSection({ currentSlug }: { currentSlug: string }) {
               setError(null)
             }}
             maxLength={40}
+            error={Boolean(error) || (dirty && !looksValid)}
+            aria-describedby={error ? 'slug-input-msg' : undefined}
           />
         </div>
         <FieldHint>{t('hint')}</FieldHint>
@@ -549,7 +557,11 @@ function SlugSection({ currentSlug }: { currentSlug: string }) {
         {saved && !dirty && (
           <span className="text-sm text-muted-foreground">{t('saved')}</span>
         )}
-        {error && <span className="text-sm text-destructive">{error}</span>}
+        {error && (
+          <span id="slug-input-msg" role="alert" className="text-sm text-destructive">
+            {error}
+          </span>
+        )}
       </div>
     </form>
   )
@@ -755,9 +767,14 @@ function ColorField({
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
           maxLength={7}
+          aria-invalid={!valid}
+          aria-describedby={valid ? undefined : `${id}-hex-hint`}
         />
       </div>
-      <FieldHint className={valid ? undefined : 'text-[var(--cinnabar)]'}>
+      <FieldHint
+        id={`${id}-hex-hint`}
+        className={valid ? undefined : 'text-[var(--cinnabar)]'}
+      >
         {hint}
       </FieldHint>
     </div>
