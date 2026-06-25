@@ -37,6 +37,7 @@
     "./features/restaurant-identity/ui/theme-editor": "./src/features/restaurant-identity/ui/theme-editor.tsx",
     "./shared/api": "./src/shared/api.ts",
     "./shared/auth-urls": "./src/shared/auth-urls.ts",
+    "./shared/ui/crm": "./src/shared/ui/crm.tsx",
     "./shared/ui/dashboard-page": "./src/shared/ui/dashboard-page.tsx",
     "./shared/ui/editorial-list": "./src/shared/ui/editorial-list/index.ts",
     "./shared/url": "./src/shared/url.ts"

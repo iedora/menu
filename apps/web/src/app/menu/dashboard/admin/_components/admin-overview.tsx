@@ -6,19 +6,9 @@ import {
   listTenantsDirectory,
 } from '@iedora/product-menu/features/restaurant-identity'
 import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
+import { RecordCard, StatCard } from '@iedora/product-menu/shared/ui/crm'
 
 const RESTAURANTS_HREF = '/menu/dashboard/admin/restaurants'
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[18px] border border-border bg-card p-5">
-      <p className="text-[12.5px] text-muted-foreground">{label}</p>
-      <p className="mt-1 font-heading text-[28px] font-extrabold tabular-nums tracking-[-0.5px] text-foreground">
-        {value}
-      </p>
-    </div>
-  )
-}
 
 /**
  * Staff landing — a CRM-style admin home. Cross-tenant headline numbers
@@ -87,30 +77,23 @@ export async function AdminOverview() {
             {t('restaurants.emptyNone')}
           </p>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {recent.map((r) => (
               <li key={r.id}>
-                <Link
-                  href={`${RESTAURANTS_HREF}/${r.id}`}
-                  className="flex items-center gap-3 rounded-[18px] border border-border bg-card p-4 no-underline transition-colors hover:border-primary/50"
+                <RecordCard
                   data-test-id={`admin-overview-recent-${r.slug}`}
-                >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-[15px] font-bold text-primary">
-                    {r.name.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14.5px] font-semibold text-foreground">{r.name}</p>
-                    <p className="truncate text-[12px] text-muted-foreground">
-                      {tenantName.get(r.tenantId) ?? `/r/${r.slug}`}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-right text-[12px] text-muted-foreground">
-                    {r.views30d.toLocaleString()}
-                    <span className="block text-[10.5px] uppercase tracking-wide">
-                      {t('overview.statViews30d')}
+                  titleHref={`${RESTAURANTS_HREF}/${r.id}`}
+                  title={r.name}
+                  subtitle={tenantName.get(r.tenantId) ?? `/r/${r.slug}`}
+                  trailing={
+                    <span className="text-[12px] text-muted-foreground">
+                      {r.views30d.toLocaleString()}
+                      <span className="block text-[10.5px] uppercase tracking-wide">
+                        {t('overview.statViews30d')}
+                      </span>
                     </span>
-                  </span>
-                </Link>
+                  }
+                />
               </li>
             ))}
           </ul>

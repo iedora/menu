@@ -35,7 +35,7 @@ export default function DashboardError({
           <Button variant="outline" onClick={reset}>
             Try again
           </Button>
-          <Button render={<Link href="/menu/dashboard" />}>Dashboard</Button>
+          <Button render={<Link href="/menu/dashboard" />} nativeButton={false}>Dashboard</Button>
         </div>
       </div>
     </div>

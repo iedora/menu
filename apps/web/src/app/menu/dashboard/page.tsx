@@ -1,44 +1,25 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import {
-  getSession,
-  isStaff,
-  requireActiveOrganization,
-} from '@iedora/product-menu/features/auth'
+import { getSession, isStaff, requireActiveOrganization } from '@iedora/product-menu/features/auth'
 import { listRestaurantsWithCounts } from '@iedora/product-menu/features/dashboard-home'
-import {
-  getOrganizationAnalytics,
-  getOrganizationMonthlyViews,
-} from '@iedora/product-menu/features/metrics'
-import {
-  canAddRestaurant,
-  getOrganizationPlan,
-  planHas,
-} from '@iedora/product-menu/features/plans'
+import { getOrganizationMonthlyViews } from '@iedora/product-menu/features/metrics'
+import { canAddRestaurant, getOrganizationPlan, planHas } from '@iedora/product-menu/features/plans'
 import { addAnotherRestaurantHref } from '@iedora/product-menu/features/menu-onboarding'
 import { Card, CardDesc, CardTitle } from '@iedora/ui/components/card'
-import {
-  KpiCard,
-  ScansCard,
-  ScansChart,
-  TopDishesCard,
-  formatDuration,
-} from '@iedora/product-menu/features/dashboard-home/ui/analytics-cards'
 import { DashboardPage as PageShell } from '@iedora/product-menu/shared/ui/dashboard-page'
-import {
-  formatEditedAt,
-  formatIndex,
-} from '@iedora/product-menu/shared/ui/editorial-list'
+import { RecordAction, RecordCard, StatCard } from '@iedora/product-menu/shared/ui/crm'
+import { formatEditedAt, formatIndex } from '@iedora/product-menu/shared/ui/editorial-list'
 import { AdminOverview } from './admin/_components/admin-overview'
 
-const RANGE = '30d' as const
-
+/**
+ * Owner dashboard home — a CRM that mirrors the staff admin overview: a row of
+ * headline metrics, then the operator's restaurants as record cards (avatar +
+ * name + quick actions). Deliberately simple and legible for non-technical
+ * owners on a small phone (320px). The heavy analytics (chart, top dishes,
+ * dwell time) live on the dedicated /analytics page, linked from the nav.
+ */
 export default async function DashboardPage() {
-  const tPromise = getTranslations('Dashboard')
-  const tBillingPromise = getTranslations('Billing')
-  const localePromise = getLocale()
-
-  // Staff get a cross-tenant CRM overview (the per-tenant owner home below is
+  // Staff get the cross-tenant CRM overview (the per-tenant owner home is
   // meaningless for them) — short-circuit before the tenant gate.
   const session = await getSession()
   if (isStaff(session)) {
@@ -46,39 +27,27 @@ export default async function DashboardPage() {
   }
   await requireActiveOrganization()
 
-  const [t, tBilling, locale, restaurants, canAdd, plan, monthlyViews] =
-    await Promise.all([
-      tPromise,
-      tBillingPromise,
-      localePromise,
-      listRestaurantsWithCounts(),
-      canAddRestaurant(),
-      getOrganizationPlan(),
-      getOrganizationMonthlyViews(),
-    ])
+  const [t, tBilling, locale, restaurants, canAdd, plan, monthlyViews] = await Promise.all([
+    getTranslations('Dashboard'),
+    getTranslations('Billing'),
+    getLocale(),
+    listRestaurantsWithCounts(),
+    canAddRestaurant(),
+    getOrganizationPlan(),
+    getOrganizationMonthlyViews(),
+  ])
 
   const numberFmt = new Intl.NumberFormat(locale)
   const hasAnalytics = planHas(plan, 'analytics')
-
-  // The full analytics view (chart + per-dish + dwell time) is a Kasa feature;
-  // free accounts get the headline counts plus an upgrade nudge in its place.
-  const analytics = hasAnalytics ? await getOrganizationAnalytics(RANGE) : null
-
-  // Account-wide content totals — available to every plan, summed from the
-  // restaurant list so the metric row is never empty.
   const totalMenus = restaurants.reduce((n, r) => n + r.menuCount, 0)
   const totalDishes = restaurants.reduce((n, r) => n + r.dishCount, 0)
-  const peakValue = analytics
-    ? analytics.dailyBreakdown.reduce((m, p) => (p.count > m ? p.count : m), 0)
-    : 0
-
   const showIndex = restaurants.length > 1
 
   const actions = canAdd ? (
     <Link
       href={addAnotherRestaurantHref()}
       data-test-id="dashboard-new-restaurant"
-      className="inline-flex items-center rounded-[12px] bg-primary px-4 py-2 text-[13.5px] font-semibold text-white no-underline transition-colors hover:bg-primary/90"
+      className="inline-flex items-center rounded-[10px] bg-primary px-4 py-2 text-[13.5px] font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
     >
       {t('newRestaurant')}
     </Link>
@@ -86,7 +55,7 @@ export default async function DashboardPage() {
     <Link
       href="/menu/dashboard/billing"
       data-test-id="dashboard-upgrade-cta"
-      className="inline-flex items-center rounded-[12px] border border-border px-4 py-2 text-[13.5px] font-semibold text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
+      className="inline-flex items-center rounded-[10px] border border-border px-4 py-2 text-[13.5px] font-semibold text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
     >
       {tBilling('upgradeCta')}
     </Link>
@@ -100,100 +69,59 @@ export default async function DashboardPage() {
       description={t('subtitle')}
       actions={actions}
     >
-      {/* ── Performance metrics (Pencil "App · Dashboard") ──────────── */}
-      <section className="space-y-4" data-test-id="dashboard-metrics">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {analytics ? (
-            <ScansCard
-              range={RANGE}
-              total={analytics.totalScans}
-              today={analytics.todayScans}
-              breakdown={analytics.dailyBreakdown}
-              labels={{
-                eyebrow: t(`analytics.scansEyebrow.${RANGE}`),
-                tagline: t('analytics.scansTagline', {
-                  today: numberFmt.format(analytics.todayScans),
-                }),
-              }}
-            />
-          ) : (
-            <KpiCard
-              testId="dashboard-views"
-              eyebrow={t('analytics.scansEyebrow.30d')}
-              value={numberFmt.format(monthlyViews)}
-              caption={t('viewsThisMonth')}
-            />
-          )}
-          <KpiCard
-            testId="dashboard-menus"
-            eyebrow={t('analytics.menusLabel')}
-            value={numberFmt.format(analytics ? analytics.menus.total : totalMenus)}
-            caption={
-              analytics
-                ? t('analytics.menusCaption', {
-                    active: analytics.menus.active,
-                    paused: analytics.menus.total - analytics.menus.active,
-                  })
-                : t('restaurantCount', { count: restaurants.length })
-            }
-          />
-          <KpiCard
-            testId="dashboard-dishes"
-            eyebrow={t('analytics.dishesLabel')}
-            value={numberFmt.format(analytics ? analytics.dishes.total : totalDishes)}
-            caption={t('analytics.dishesNone')}
-          />
-          <KpiCard
-            testId="dashboard-avg-time"
-            eyebrow={t('analytics.avgTimeLabel')}
-            value={analytics ? formatDuration(analytics.avgSessionSeconds) : '—'}
-            caption={
-              analytics && analytics.avgSessionSeconds != null
-                ? t('analytics.avgTimeCaption')
-                : t('analytics.avgTimeNone')
-            }
-          />
-        </div>
-
-        {analytics ? (
-          <>
-            <ScansChart
-              breakdown={analytics.dailyBreakdown}
-              eyebrow={t(`analytics.chartEyebrow.${RANGE}`)}
-              peakLabel={
-                peakValue > 0
-                  ? t('analytics.chartPeak', { count: numberFmt.format(peakValue) })
-                  : null
-              }
-              locale={locale}
-            />
-            <TopDishesCard
-              title={t('analytics.topDishesLabel')}
-              emptyLabel={t('analytics.topDishesNone')}
-              viewsLabel={(n) =>
-                t('analytics.topDishesViews', { count: numberFmt.format(n) })
-              }
-              dishes={analytics.topDishes}
-            />
-          </>
-        ) : (
-          <Link
-            href="/menu/dashboard/billing"
-            data-test-id="dashboard-analytics-upsell"
-            className="flex flex-col gap-1 rounded-[18px] border border-dashed border-border bg-card p-6 no-underline transition-colors hover:border-primary"
-          >
-            <span className="text-[15px] font-bold text-foreground">
-              {t('analytics.topDishesLabel')} · {t('analytics.chartEyebrow.30d')}
-            </span>
-            <span className="text-[13.5px] text-muted-foreground">
-              {tBilling('upgradeCta')}
-            </span>
-          </Link>
-        )}
+      {/* Headline metrics. */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-test-id="dashboard-metrics">
+        <StatCard
+          data-test-id="dashboard-views"
+          label={t('analytics.scansEyebrow.30d')}
+          value={numberFmt.format(monthlyViews)}
+          caption={t('viewsThisMonth')}
+        />
+        <StatCard
+          data-test-id="dashboard-restaurants-stat"
+          label={t('restaurantsHeading')}
+          value={numberFmt.format(restaurants.length)}
+        />
+        <StatCard
+          data-test-id="dashboard-menus"
+          label={t('analytics.menusLabel')}
+          value={numberFmt.format(totalMenus)}
+        />
+        <StatCard
+          data-test-id="dashboard-dishes"
+          label={t('analytics.dishesLabel')}
+          value={numberFmt.format(totalDishes)}
+        />
       </section>
 
-      {/* ── Restaurants (navigation) ────────────────────────────────── */}
-      <section className="mt-8 space-y-3" data-test-id="dashboard-restaurants">
+      {/* Analytics: a link for Kasa, an upgrade nudge for On Us. */}
+      {hasAnalytics ? (
+        <Link
+          href="/menu/dashboard/analytics"
+          data-test-id="dashboard-analytics-link"
+          className="flex items-center justify-between gap-3 rounded-[18px] border border-border bg-card p-5 no-underline transition-colors hover:border-primary/50"
+        >
+          <span className="min-w-0">
+            <span className="block text-[15px] font-bold text-foreground">{t('analytics.topDishesLabel')}</span>
+            <span className="block truncate text-[13px] text-muted-foreground">
+              {t('analytics.chartEyebrow.30d')}
+            </span>
+          </span>
+          <span aria-hidden className="shrink-0 text-[18px] text-primary">→</span>
+        </Link>
+      ) : (
+        <Link
+          href="/menu/dashboard/billing"
+          data-test-id="dashboard-analytics-upsell"
+          className="flex flex-col gap-1 rounded-[18px] border border-dashed border-border bg-card p-5 no-underline transition-colors hover:border-primary"
+        >
+          <span className="text-[15px] font-bold text-foreground">{t('analytics.topDishesLabel')}</span>
+          <span className="text-[13.5px] text-muted-foreground">{tBilling('upgradeCta')}</span>
+        </Link>
+      )}
+
+      {/* Restaurants directory. */}
+      <section className="space-y-3" data-test-id="dashboard-restaurants">
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
           {t('restaurantsHeading')}
         </h2>
@@ -203,63 +131,30 @@ export default async function DashboardPage() {
             <CardDesc>{t('noRestaurantsHint')}</CardDesc>
           </Card>
         ) : (
-          <ul
-            data-test-id="restaurant-list"
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          >
+          <ul data-test-id="restaurant-list" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {restaurants.map((r, i) => (
-              <li
-                key={r.id}
-                data-test-id="restaurant-card"
-                className="flex h-full flex-col rounded-[18px] border border-border bg-card p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/dashboard/r/${r.slug}`}
-                      className="block truncate text-[17px] font-bold text-foreground no-underline transition-colors hover:text-primary"
-                    >
-                      {r.name}
-                    </Link>
-                    <p className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
-                      /r/{r.slug}
-                    </p>
-                  </div>
-                  {showIndex ? (
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                      {formatIndex(i + 1)}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-3 text-[12.5px] text-muted-foreground">
-                  {t('menuCount', { count: r.menuCount })} ·{' '}
-                  {t('dishCount', { count: r.dishCount })}
-                </p>
-                <p className="mt-1 text-[12px] text-muted-foreground">
-                  {t('editedAt', {
-                    when: formatEditedAt(new Date(r.updatedAt), locale),
-                  })}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
-                  <Link
-                    href={`/dashboard/r/${r.slug}`}
-                    className="rounded-[10px] border border-border px-3 py-1.5 text-[12.5px] font-medium text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
-                  >
-                    {t('actionMenus')}
-                  </Link>
-                  <Link
-                    href={`/dashboard/r/${r.slug}/theme`}
-                    className="rounded-[10px] border border-border px-3 py-1.5 text-[12.5px] font-medium text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
-                  >
-                    {t('actionTheme')}
-                  </Link>
-                  <Link
-                    href={`/dashboard/r/${r.slug}/qr`}
-                    className="rounded-[10px] border border-border px-3 py-1.5 text-[12.5px] font-medium text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
-                  >
-                    {t('actionQr')}
-                  </Link>
-                </div>
+              <li key={r.id}>
+                <RecordCard
+                  data-test-id="restaurant-card"
+                  titleHref={`/dashboard/r/${r.slug}`}
+                  title={r.name}
+                  subtitle={<span className="font-mono">/r/{r.slug}</span>}
+                  trailing={
+                    showIndex ? (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                        {formatIndex(i + 1)}
+                      </span>
+                    ) : undefined
+                  }
+                  meta={`${t('menuCount', { count: r.menuCount })} · ${t('dishCount', { count: r.dishCount })} · ${t('editedAt', { when: formatEditedAt(new Date(r.updatedAt), locale) })}`}
+                  footer={
+                    <>
+                      <RecordAction href={`/dashboard/r/${r.slug}`}>{t('actionMenus')}</RecordAction>
+                      <RecordAction href={`/dashboard/r/${r.slug}/theme`}>{t('actionTheme')}</RecordAction>
+                      <RecordAction href={`/dashboard/r/${r.slug}/qr`}>{t('actionQr')}</RecordAction>
+                    </>
+                  }
+                />
               </li>
             ))}
           </ul>
