@@ -131,19 +131,20 @@ describe("NoiseFilteringSampler", () => {
   });
 
   it("NOISE_PATTERNS is the pinned filter contract", () => {
-    // Load-bearing patterns for the trace budget. The first two
-    // (/up + /api/track/) carry the bulk of volume; /api/health and
-    // /api/ready are reserved for future container probes following the
-    // same convention. Reordering or removing one breaks the dashboard
-    // noise floor in OO. Pin to catch accidental removal.
-    expect(NOISE_PATTERNS).toHaveLength(4);
-    expect(NOISE_PATTERNS[0]!.test("GET /up")).toBe(true);
-    expect(NOISE_PATTERNS[1]!.test("GET /api/track/x")).toBe(true);
-    expect(NOISE_PATTERNS[2]!.test("GET /api/health")).toBe(true);
-    expect(NOISE_PATTERNS[3]!.test("GET /api/ready")).toBe(true);
-    // Spot-check that adjacent paths are NOT swept up — `/api/healthy`
-    // (hypothetical) should not match `/api/health` due to the `$` anchor.
-    expect(NOISE_PATTERNS[2]!.test("GET /api/healthy")).toBe(false);
+    // Load-bearing patterns for the trace budget — pure infra noise that would
+    // otherwise dominate volume now that we keep every business request:
+    //   - /up + container probes (every few seconds per host)
+    //   - the view beacon, on both the Next (/api/track/) and Hono
+    //     (/public/track/) sides — fire-and-forget, already counted in
+    //     daily_view. Pin to catch accidental removal.
+    expect(NOISE_PATTERNS).toHaveLength(5);
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /up"))).toBe(true);
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /api/track/x"))).toBe(true);
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /public/track/x"))).toBe(true);
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /api/health"))).toBe(true);
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /api/ready"))).toBe(true);
+    // The `$` anchor keeps adjacent paths out: `/api/healthy` must not match.
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /api/healthy"))).toBe(false);
   });
 });
 
@@ -177,9 +178,9 @@ describe("defaultSampler — parent-based cross-product correctness", () => {
   });
 
   it("drops a child when the remote parent was not sampled (sampled-flag=00) — even in prod", () => {
-    // Real scenario: menu's outbound was NOT sampled (the 10% ratio
-    // skipped it). genkan must also NOT sample, otherwise OO shows an
-    // orphaned span with no parent context.
+    // Real scenario: an upstream that opted out of a trace (its traceparent
+    // carries flags=00). We must also NOT sample, otherwise the backend records
+    // an orphaned span pointing at a parent that was never recorded.
     const sampler = defaultSampler("production");
     const ctx = ctxWithRemoteSpan(TraceFlags.NONE);
     expect(callShouldSample(sampler, "GET /api/identity/foo", ctx).decision).toBe(
@@ -200,21 +201,13 @@ describe("defaultSampler — parent-based cross-product correctness", () => {
     );
   });
 
-  it("uses the 10% trace-id ratio root sampler in production", () => {
-    // Sampling is deterministic by traceId — we don't try to flip a
-    // coin per call. Same traceId on every shouldSample() call → same
-    // decision. Pin one known-sampled trace id and one known-not-sampled
-    // one so this test is stable across runs.
-    //
-    // TraceIdRatioBasedSampler at 0.1 uses the high 64 bits of the trace
-    // id. We don't pin specific ids (the algorithm could change between
-    // SDK versions); instead we sample N random ids and assert that
-    // ~10% are sampled. With N=1000 the variance is small enough.
+  it("samples every root span in production — no head sampling", () => {
+    // The public menu is the revenue path, so we keep EVERY request's trace in
+    // prod too (the old 10% ratio is gone). A root span (no parent) whose name
+    // isn't infra noise is always recorded, regardless of trace id.
     const sampler = defaultSampler("production");
-    let sampled = 0;
-    const N = 1000;
+    const N = 200;
     for (let i = 0; i < N; i++) {
-      // Random hex trace id — 16 bytes = 32 hex chars
       const id = Array.from({ length: 32 }, () =>
         Math.floor(Math.random() * 16).toString(16),
       ).join("");
@@ -226,11 +219,7 @@ describe("defaultSampler — parent-based cross-product correctness", () => {
         {},
         [],
       );
-      if (result.decision === SamplingDecision.RECORD_AND_SAMPLED) sampled++;
+      expect(result.decision).toBe(SamplingDecision.RECORD_AND_SAMPLED);
     }
-    // 10% target, ±3% tolerance. Real-world: 10/100 = 10%, 100/1000 = 10%
-    // with stddev around ~1%. 3% is generous.
-    expect(sampled / N).toBeGreaterThan(0.07);
-    expect(sampled / N).toBeLessThan(0.13);
   });
 });

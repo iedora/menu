@@ -51,6 +51,6 @@ export type {
  * one dep — and so `bun build` can resolve the import graph from a single
  * workspace root (e.g. inside the migrate container Dockerfile).
  */
-export { context, propagation, SpanStatusCode, SpanKind } from "@opentelemetry/api";
+export { context, propagation, SpanStatusCode, SpanKind, trace } from "@opentelemetry/api";
 export type { Logger, LogRecord } from "@opentelemetry/api-logs";
 export { SeverityNumber } from "@opentelemetry/api-logs";

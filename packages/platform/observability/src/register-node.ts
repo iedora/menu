@@ -9,9 +9,6 @@ import { resourceFromAttributes, defaultResource } from "@opentelemetry/resource
 import {
   BasicTracerProvider,
   BatchSpanProcessor,
-  ParentBasedSampler,
-  AlwaysOnSampler,
-  TraceIdRatioBasedSampler,
 } from "@opentelemetry/sdk-trace-base";
 import {
   MeterProvider,
@@ -26,6 +23,7 @@ import {
 import { ATTR_HOST_NAME } from "@opentelemetry/semantic-conventions/incubating";
 
 import { TenantContextSpanProcessor } from "./signals/processor";
+import { defaultSampler } from "./signals/sampler";
 
 /**
  * Bundle-friendly OTel registration for short-lived Node scripts.
@@ -69,13 +67,6 @@ export type RegisterNodeOptions = {
 
 const DEFAULT_METRIC_EXPORT_INTERVAL_MS = 60_000;
 
-function defaultSampler(environment: string) {
-  const root =
-    environment === "production"
-      ? new TraceIdRatioBasedSampler(0.1)
-      : new AlwaysOnSampler();
-  return new ParentBasedSampler({ root });
-}
 
 export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
   if (process.env.NODE_ENV === "test") return;

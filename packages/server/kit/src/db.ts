@@ -1,8 +1,35 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { SpanKind, SpanStatusCode, tracer } from "@iedora/observability";
 import { SQL } from "bun";
-import { Kysely, sql, type Transaction } from "kysely";
+import { Kysely, type LogEvent, sql, type Transaction } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
+
+// Emits a CLIENT span per query from Kysely's log event (fires on success AND
+// error, with the duration). The span is created AFTER the query, so its start
+// is backdated by the measured duration; it parents to whatever span is active
+// (the request span during a handler), giving the `… → business → db` leaves of
+// the trace. db.query.text is the PARAMETERIZED sql ($1, $2) — no bound values,
+// so no PII. Negligible cost when OTel isn't recording.
+function recordQuerySpan(event: LogEvent): void {
+  const startTime = Date.now() - event.queryDurationMillis;
+  const span = tracer.startSpan("db", { kind: SpanKind.CLIENT, startTime });
+  if (span.isRecording()) {
+    const text = event.query.sql;
+    const op = text.trimStart().split(/\s/, 1)[0]?.toUpperCase();
+    const table = text.match(/\b(?:from|into|update|join)\s+"?([a-z_][a-z0-9_]*)"?/i)?.[1];
+    span.updateName(table ? `db ${op} ${table}` : `db ${op ?? "query"}`);
+    span.setAttribute("db.system", "postgresql");
+    if (op) span.setAttribute("db.operation.name", op);
+    if (table) span.setAttribute("db.collection.name", table);
+    span.setAttribute("db.query.text", text.length > 1000 ? `${text.slice(0, 1000)}…` : text);
+    if (event.level === "error") {
+      span.recordException(event.error as Error);
+      span.setStatus({ code: SpanStatusCode.ERROR, message: String(event.error) });
+    }
+  }
+  span.end();
+}
 
 // Transaction-in-context: the active transaction is carried implicitly so
 // repositories transparently join the caller's unit of work and nested runInTx
@@ -29,6 +56,7 @@ export class Database<DB> {
   // maxLifetime caps connection age — both bound the live-connection count.
   constructor(url: string, opts: { poolMax?: number } = {}) {
     this.root = new Kysely<DB>({
+      log: recordQuerySpan, // one CLIENT span per query (no-op when OTel is off)
       dialect: new PostgresJSDialect({
         postgres: new SQL(url, {
           // Modest pool: short-lived OLTP queries don't need a deep pool, and on

@@ -15,21 +15,7 @@ import {
   BatchLogRecordProcessor,
   type LogRecordProcessor,
 } from "@opentelemetry/sdk-logs";
-import {
-  ParentBasedSampler,
-  TraceIdRatioBasedSampler,
-  AlwaysOnSampler,
-  SamplingDecision,
-  type Sampler,
-  type SamplingResult,
-  type SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import {
-  type Attributes,
-  type Context,
-  type Link,
-  type SpanKind,
-} from "@opentelemetry/api";
+import { type Sampler, type SpanProcessor } from "@opentelemetry/sdk-trace-base";
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_NAMESPACE,
@@ -82,83 +68,11 @@ function parseOtlpHeaders(
  */
 const DEFAULT_METRIC_EXPORT_INTERVAL_MS = 60_000;
 
-/**
- * Spans whose name matches any of these regexes are dropped at sampling
- * time — never recorded, never exported. Two big sources of noise:
- *
- *   - `/up` health checks: hit by cloudflared + uptime checks. One per
- *     second per host. Useless in traces, would dominate the budget.
- *   - `/api/track/[slug]` view beacon: every public-menu visit fires one.
- *     Same volume problem; the metric is already counted via the row
- *     insert in view_seen. Tracing it adds nothing.
- *   - `GET /api/health` / `GET /api/ready`: container probe spam,
- *     same shape as `/up` but reserved for future health endpoints.
- *
- * Patterns match Next 16's auto-generated span names of shape
- * `[METHOD] [route]`, e.g. `GET /up` or `GET /api/track/[slug]`.
- */
-export const NOISE_PATTERNS: RegExp[] = [
-  /\s\/up$/,
-  /\s\/api\/track\//,
-  /\s\/api\/health$/,
-  /\s\/api\/ready$/,
-];
-
-/**
- * Wraps an inner Sampler with a span-name regex denylist. Filter happens
- * BEFORE the inner sampler, so a denied span costs nothing past the
- * shouldSample() call — no record, no export.
- *
- * Exported for the test suite (`__tests__/sampler.test.ts`). Not re-exported
- * from the barrel — this is an internal mechanism, callers shouldn't
- * construct it directly.
- */
-export class NoiseFilteringSampler implements Sampler {
-  constructor(private readonly inner: Sampler) {}
-
-  shouldSample(
-    context: Context,
-    traceId: string,
-    spanName: string,
-    spanKind: SpanKind,
-    attributes: Attributes,
-    links: Link[],
-  ): SamplingResult {
-    if (NOISE_PATTERNS.some((re) => re.test(spanName))) {
-      return { decision: SamplingDecision.NOT_RECORD };
-    }
-    return this.inner.shouldSample(
-      context,
-      traceId,
-      spanName,
-      spanKind,
-      attributes,
-      links,
-    );
-  }
-
-  toString(): string {
-    return `IedoraNoiseFilter(${this.inner.toString()})`;
-  }
-}
-
-/**
- * Default sampling: 100% in dev, 10% in prod, error spans always-on (via
- * parent-based propagation — error-marked parents propagate the sampling
- * decision down). Override per-call by passing `sampler` to registerIedoraOtel.
- *
- * Why parent-based: when menu makes a request to genkan, both processes
- * must agree on whether the trace is sampled — otherwise we get half-spans
- * stitched to a nonexistent parent. Parent-based honours the upstream's
- * decision; the root sampler only fires when there's no parent.
- */
-export function defaultSampler(environment: string): Sampler {
-  const root =
-    environment === "production"
-      ? new TraceIdRatioBasedSampler(0.1)
-      : new AlwaysOnSampler();
-  return new NoiseFilteringSampler(new ParentBasedSampler({ root }));
-}
+// Sampling (no head sampling) + the infra noise filter live in their own
+// dependency-free module so register-node.ts can share them without pulling in
+// @vercel/otel. Imported for internal use + re-exported for back-compat.
+import { defaultSampler, NoiseFilteringSampler, NOISE_PATTERNS } from "./signals/sampler";
+export { defaultSampler, NoiseFilteringSampler, NOISE_PATTERNS };
 
 export type RegisterOptions = {
   /**

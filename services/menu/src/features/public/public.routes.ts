@@ -1,4 +1,5 @@
 import type { PublicPayload } from "@iedora/contracts";
+import { tenantContext, trace } from "@iedora/observability";
 import { type Context, Hono } from "hono";
 import { getConnInfo } from "hono/bun";
 import { getCookie, setCookie } from "hono/cookie";
@@ -65,16 +66,27 @@ export function publicRoutes(deps: MenuDeps) {
     .get("/r/:slug", async (c) => {
       const rest = await restaurantBySlug(db(), c.req.param("slug"));
       if (!rest) throw notFound();
+      // Attribute the request span (IP is already on it) and propagate tenant to
+      // every child span — the menu-content + tree DB spans below inherit
+      // tenant.id / tenant.restaurant_id via the TenantContextSpanProcessor.
+      tenantContext.enterWith({ restaurantId: rest.id, tenantId: rest.tenantId });
+      const span = trace.getActiveSpan();
+      span?.setAttribute("restaurant.id", rest.id);
+      span?.setAttribute("restaurant.slug", rest.slug);
+
       const lang = pickLanguage(
         c.req.query("lang") ?? "",
         c.req.header("accept-language") ?? "",
         rest.supportedLanguages,
         rest.defaultLanguage,
       );
+      span?.setAttribute("menu.language", lang);
 
       const version = await menuContentVersion(db(), rest.id);
       const key = `${rest.id}:${lang}`;
       let entry = menuCache.get(key);
+      const cacheHit = !!entry && entry.version === version;
+      span?.setAttribute("menu.cache", cacheHit ? "hit" : "miss");
       if (!entry || entry.version !== version) {
         const tree = await menuTree(db(), rest.id, true);
         entry = { version, menus: localize(tree, lang) };

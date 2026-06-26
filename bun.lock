@@ -321,6 +321,7 @@
       "dependencies": {
         "@hono/zod-validator": "catalog:",
         "@iedora/contracts": "workspace:*",
+        "@iedora/observability": "workspace:*",
         "@iedora/server-kit": "workspace:*",
         "hono": "catalog:",
         "kysely": "catalog:",

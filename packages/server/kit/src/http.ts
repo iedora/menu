@@ -5,6 +5,7 @@ import {
   propagation,
   SpanKind,
   SpanStatusCode,
+  trace,
   tracer,
 } from "@iedora/observability";
 import { type Env, Hono } from "hono";
@@ -17,6 +18,16 @@ const headerGetter = {
   get: (h: Headers, k: string) => h.get(k) ?? undefined,
   keys: (h: Headers) => Array.from(h.keys()),
 };
+
+// The originating client IP behind Cloudflare + kamal-proxy. PII — only ever
+// goes on the SERVER span (never a metric label or db statement).
+function clientAddress(h: Headers): string | undefined {
+  const cf = h.get("cf-connecting-ip");
+  if (cf) return cf;
+  const xff = h.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]?.trim() || undefined;
+  return h.get("x-real-ip") ?? undefined;
+}
 
 // One SERVER span per request. Bun.serve/Hono aren't auto-instrumented, so this
 // is where backend HTTP tracing comes from: continue any propagated trace, name
@@ -33,6 +44,8 @@ export function otelHttp<E extends Env>() {
         span.setAttribute("http.request.method", method);
         span.setAttribute("url.path", c.req.path);
         if (route) span.setAttribute("http.route", route);
+        const ip = clientAddress(c.req.raw.headers);
+        if (ip) span.setAttribute("client.address", ip);
         try {
           await next();
         } catch (err) {
@@ -100,7 +113,18 @@ export function createServiceApp<E extends Env = ServiceEnv>(): Hono<E> {
   app.use(otelHttp<E>()); // request tracing; no-op until OTel is configured
   app.onError((err, c) => {
     if (err instanceof HTTPException) return err.getResponse();
-    console.error(JSON.stringify({ level: "error", msg: "unhandled error", err: String(err) }));
+    // Correlate the error log with its trace so a log line is a jump-off point
+    // into the full span tree (this is why per-layer breadcrumb logging isn't
+    // needed). Empty trace ids when OTel is off.
+    const sc = trace.getActiveSpan()?.spanContext();
+    console.error(
+      JSON.stringify({
+        level: "error",
+        msg: "unhandled error",
+        err: String(err),
+        ...(sc ? { trace_id: sc.traceId, span_id: sc.spanId } : {}),
+      }),
+    );
     return c.json({ error: "internal error" }, 500);
   });
   return app;
