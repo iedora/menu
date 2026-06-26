@@ -3,7 +3,8 @@ import type { Hono } from "hono";
 import type { Auditor } from "./audit";
 import { serve } from "./boot";
 import { Database } from "./db";
-import { OutboxRelay, OutboxWriter } from "./outbox";
+import type { Mailer } from "./mailer";
+import { OutboxRelay, OutboxWriter, relayHandlers } from "./outbox";
 
 export interface RelayServiceOptions<DB> {
   name: string; // service name for logs (e.g. "iedora-auth")
@@ -11,6 +12,9 @@ export interface RelayServiceOptions<DB> {
   source: string; // OutboxWriter tag (the emitting service, e.g. "auth")
   db: Database<DB>; // the service's primary DB (also where its outbox lives)
   auditDatabaseUrl: string; // the audit DB the relay drains the outbox into
+  /** Optional email transport. When given, the relay also delivers `email.send`
+   *  outbox rows (enqueued via OutboxMailer) through it. */
+  mailer?: Mailer;
   /** Builds the app, given the auditor wired to this service's outbox. An
    * RPC-typed app carries its route schema in the generics, so accept any. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,7 +32,7 @@ export interface RelayServiceOptions<DB> {
 export function runRelayService<DB>(opts: RelayServiceOptions<DB>): void {
   const auditDb = new Database(opts.auditDatabaseUrl, { poolMax: 4 }); // relay is low-volume
   const auditor = new OutboxWriter(opts.db, opts.source);
-  const relay = new OutboxRelay(opts.db, auditDb.root);
+  const relay = new OutboxRelay(opts.db, relayHandlers({ audit: auditDb.root, mailer: opts.mailer }));
   relay.start();
 
   serve(opts.build({ auditor }), {

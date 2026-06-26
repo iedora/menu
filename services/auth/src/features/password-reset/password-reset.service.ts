@@ -42,6 +42,11 @@ export async function requestReset(
   const { token, hash } = newRefreshToken(); // opaque 32-byte token; only its hash is stored
   const expiresAt = new Date(Date.now() + deps.cfg.resetTokenTtlMs);
 
+  // One transaction does everything at once: store the token, record the audit
+  // event, AND enqueue the email into the Postgres outbox. They commit together
+  // (durable — a crash can't lose the email), the request returns without
+  // waiting on SMTP, and the relay delivers in the background. The response time
+  // no longer depends on whether an email was sent, so there's no timing oracle.
   await deps.db.runInTx(async () => {
     await insertResetToken(deps.db.db, { userId: user.id, tokenHash: hash, expiresAt });
     await auditWith(deps.auditor, meta).recordSync({
@@ -50,10 +55,8 @@ export async function requestReset(
       targetType: "user",
       targetId: user.id,
     });
+    await deps.resetMailer.sendPasswordReset(user.email, resetLink(deps.cfg.resetUrlBase, token));
   });
-
-  // Delivery happens outside the tx; the raw token never touches storage again.
-  await deps.resetMailer.sendPasswordReset(user.email, resetLink(deps.cfg.resetUrlBase, token));
 }
 
 /**
@@ -69,9 +72,17 @@ export async function confirmReset(
   const row = await findActiveByHash(deps.db.db, hashRefreshToken(input.token));
   if (!row) throw new HTTPException(400, { message: "invalid or expired token" });
 
-  // Hash outside the tx — argon2 is deliberately expensive; no need to hold a tx.
-  const passwordHash = await hashPassword(input.password);
+  // Run the two independent slow/IO steps together instead of in sequence: the
+  // deliberately-expensive argon2 hash AND the user lookup (only needed for the
+  // notice email) have no dependency on each other.
+  const [passwordHash, user] = await Promise.all([
+    hashPassword(input.password),
+    findUserById(deps.db.db, row.user_id),
+  ]);
 
+  // One transaction: claim the token, set the password, revoke sessions + sibling
+  // tokens, record the audit event, AND enqueue the "password changed" notice
+  // into the outbox — all committed together, delivery handled by the relay.
   await deps.db.runInTx(async () => {
     // Conditional claim is the single-use guard; a lost race means already used.
     if (!(await claimToken(deps.db.db, row.id))) {
@@ -86,9 +97,6 @@ export async function confirmReset(
       targetType: "user",
       targetId: row.user_id,
     });
+    if (user) await deps.resetMailer.sendPasswordChanged(user.email);
   });
-
-  // Out-of-band heads-up that the password changed (no secrets in the message).
-  const user = await findUserById(deps.db.db, row.user_id);
-  if (user) await deps.resetMailer.sendPasswordChanged(user.email);
 }

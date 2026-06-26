@@ -1,7 +1,7 @@
 import { SQL } from "bun";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 
-import { Database, OutboxRelay, OutboxWriter } from "../src";
+import { Database, type EmailMessage, OutboxMailer, OutboxRelay, OutboxWriter, relayHandlers } from "../src";
 
 // Bun-runtime integration test against a real Postgres (testcontainers hangs
 // under Bun). Provisions two throwaway DBs — a producer (outbox) and the audit
@@ -99,7 +99,7 @@ test("writer + relay deliver an outbox event into audit_log", async () => {
     actor: { type: "user", id: "u-1" },
   });
 
-  const relay = new OutboxRelay(producer, audit.root);
+  const relay = new OutboxRelay(producer, relayHandlers({ audit: audit.root }));
   const published = await relay.drainOnce();
   expect(published).toBe(1);
   expect(await auditCount()).toBe(1);
@@ -120,7 +120,7 @@ test("a poison payload is dead-lettered, not delivered", async () => {
   ]);
   await sql.end();
 
-  const relay = new OutboxRelay(producer, audit.root);
+  const relay = new OutboxRelay(producer, relayHandlers({ audit: audit.root }));
   await relay.drainOnce();
 
   const sql2 = new SQL(urlFor(producerName));
@@ -130,4 +130,23 @@ test("a poison payload is dead-lettered, not delivered", async () => {
   await sql2.end();
   expect(dead[0]!.n).toBe(1);
   expect(await auditCount()).toBe(1); // unchanged — only the good event landed
+});
+
+test("OutboxMailer enqueues; the relay delivers it through the transport", async () => {
+  // OutboxMailer.send writes an email.send row; the relay drains it into a
+  // capturing transport (the real one would be SMTP).
+  const sent: EmailMessage[] = [];
+  await new OutboxMailer(producer).send({ to: "u@iedora.com", subject: "hello", text: "hi", html: "<p>hi</p>" });
+
+  const relay = new OutboxRelay(
+    producer,
+    relayHandlers({ audit: audit.root, mailer: { async send(m) { sent.push(m); } } }),
+  );
+  const published = await relay.drainOnce();
+
+  expect(published).toBe(1);
+  expect(sent).toHaveLength(1);
+  expect(sent[0]!.to).toBe("u@iedora.com");
+  expect(sent[0]!.subject).toBe("hello");
+  expect(await auditCount()).toBe(1); // unchanged — email didn't touch audit_log
 });

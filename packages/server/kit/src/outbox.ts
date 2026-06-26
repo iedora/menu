@@ -3,9 +3,11 @@ import { type Kysely, sql } from "kysely";
 import { type AuditEnvelope, type AuditEvent, type Auditor, buildEnvelope } from "./audit";
 import { insertAuditLog } from "./auditlog";
 import type { Database } from "./db";
+import type { EmailMessage, Mailer } from "./mailer";
 import { sqlState } from "./pgerror";
 
 const AUDIT_SUBJECT = "audit.events";
+const EMAIL_SUBJECT = "email.send";
 const MAX_ATTEMPTS = 5;
 
 // OutboxWriter records audit events into the producer's own outbox table within
@@ -39,6 +41,52 @@ export class OutboxWriter<DB> implements Auditor {
   }
 }
 
+// OutboxMailer is a {@link Mailer} whose "send" ENQUEUES the email into the same
+// outbox table (and the caller's transaction) instead of delivering it. So a
+// request enqueues the email atomically with its business change (one commit,
+// "everything at once") and returns immediately; the relay delivers it in the
+// background via the real transport. Durable: a process crash can't lose it.
+export class OutboxMailer<DB> implements Mailer {
+  constructor(private readonly database: Database<DB>) {}
+
+  async send(msg: EmailMessage): Promise<void> {
+    const payload = Buffer.from(JSON.stringify(msg));
+    await sql`INSERT INTO outbox (subject, payload) VALUES (${EMAIL_SUBJECT}, ${payload})`.execute(
+      this.database.db,
+    );
+  }
+}
+
+// A payload that will never parse/deliver no matter how often it's retried —
+// dead-letter it on the first failure instead of retrying forever.
+class PermanentOutboxError extends Error {}
+
+/** One outbox subject's delivery: how to apply a payload, and whether a delivery
+ *  error is permanent (count an attempt, eventually dead-letter) vs transient
+ *  (retry forever, no attempt). Defaults to the Postgres-SQLSTATE classifier. */
+export interface OutboxHandler {
+  deliver: (payload: Uint8Array) => Promise<void>;
+  isPermanent?: (err: unknown) => boolean;
+}
+
+/** The relay handler set: audit always; email only when a transport is given.
+ *  Audit retries forever while the audit DB is down (transient); email counts
+ *  every failure so a bad recipient dead-letters after MAX_ATTEMPTS. */
+export function relayHandlers(opts: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  audit: Kysely<any>;
+  mailer?: Mailer;
+}): Record<string, OutboxHandler> {
+  const handlers: Record<string, OutboxHandler> = {
+    [AUDIT_SUBJECT]: { deliver: (p) => insertAuditLog(opts.audit, parseEnvelope(p)) },
+  };
+  if (opts.mailer) {
+    const mailer = opts.mailer;
+    handlers[EMAIL_SUBJECT] = { deliver: (p) => mailer.send(parseEmail(p)), isPermanent: () => true };
+  }
+  return handlers;
+}
+
 interface RelayOptions {
   intervalMs?: number;
   batch?: number;
@@ -46,15 +94,16 @@ interface RelayOptions {
 
 interface ClaimedRow {
   id: string;
+  subject: string;
   payload: Uint8Array;
   attempts: number;
 }
 
-// OutboxRelay drains the producer's outbox straight into the audit database and
-// marks rows published (Postgres-only). Rows are
-// processed independently (a poison row can't fail the batch); a deterministic
-// failure dead-letters after MAX_ATTEMPTS, a transient one (audit DB down)
-// retries forever without counting an attempt.
+// OutboxRelay drains the producer's outbox, dispatching each row to its
+// subject's handler (Postgres-only). Rows are processed independently (a poison
+// row can't fail the batch); a permanent failure dead-letters after
+// MAX_ATTEMPTS, a transient one (sink down) retries forever without counting an
+// attempt. An unknown subject is dead-lettered immediately.
 export class OutboxRelay<DB> {
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -63,8 +112,7 @@ export class OutboxRelay<DB> {
 
   constructor(
     private readonly src: Database<DB>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly audit: Kysely<any>,
+    private readonly handlers: Record<string, OutboxHandler>,
     opts: RelayOptions = {},
   ) {
     this.intervalMs = opts.intervalMs ?? 1000;
@@ -110,7 +158,7 @@ export class OutboxRelay<DB> {
   private async drainBatch(): Promise<number> {
     return this.src.root.transaction().execute(async (trx) => {
       const claimed = await sql<ClaimedRow>`
-        SELECT id, payload, attempts FROM outbox
+        SELECT id, subject, payload, attempts FROM outbox
         WHERE published_at IS NULL AND failed_at IS NULL
         ORDER BY created_at
         LIMIT ${this.batch} FOR UPDATE SKIP LOCKED
@@ -120,18 +168,20 @@ export class OutboxRelay<DB> {
 
       const published: string[] = [];
       for (const row of rows) {
-        let env: AuditEnvelope;
-        try {
-          env = parseEnvelope(row.payload);
-        } catch (err) {
-          await this.deadLetter(trx, row.id, row.attempts + 1, err);
+        const handler = this.handlers[row.subject];
+        if (!handler) {
+          await this.deadLetter(trx, row.id, row.attempts + 1, `unknown subject: ${row.subject}`);
           continue;
         }
         try {
-          await insertAuditLog(this.audit, env);
+          await handler.deliver(row.payload);
           published.push(row.id);
         } catch (err) {
-          if (isPermanent(err)) {
+          if (err instanceof PermanentOutboxError) {
+            // A malformed payload will never parse — dead-letter at once.
+            await this.deadLetter(trx, row.id, row.attempts + 1, err);
+          } else if ((handler.isPermanent ?? pgPermanent)(err)) {
+            // Deterministic delivery failure — count attempts, dead-letter at MAX.
             if (row.attempts + 1 >= MAX_ATTEMPTS) {
               await this.deadLetter(trx, row.id, row.attempts + 1, err);
             } else {
@@ -175,15 +225,28 @@ export class OutboxRelay<DB> {
 }
 
 function parseEnvelope(payload: Uint8Array): AuditEnvelope {
-  const env = JSON.parse(Buffer.from(payload).toString("utf8")) as AuditEnvelope;
+  let env: AuditEnvelope;
+  try {
+    env = JSON.parse(Buffer.from(payload).toString("utf8")) as AuditEnvelope;
+  } catch (err) {
+    throw new PermanentOutboxError(`bad audit payload: ${String(err)}`);
+  }
   env.occurredAt = new Date(env.occurredAt); // revive Date from its ISO string
   return env;
+}
+
+function parseEmail(payload: Uint8Array): EmailMessage {
+  try {
+    return JSON.parse(Buffer.from(payload).toString("utf8")) as EmailMessage;
+  } catch (err) {
+    throw new PermanentOutboxError(`bad email payload: ${String(err)}`);
+  }
 }
 
 // A deterministic data/integrity error recurs on every retry (dead-letter it);
 // a connection/resource/operator error is transient (retry, don't count it).
 // Bun's PostgresError carries the SQLSTATE in `errno`.
-function isPermanent(err: unknown): boolean {
+function pgPermanent(err: unknown): boolean {
   const cls = sqlState(err)?.slice(0, 2);
   if (cls === undefined) return false; // not a Postgres error → transient (retry)
   return !(cls === "08" || cls === "53" || cls === "57" || cls === "58");
