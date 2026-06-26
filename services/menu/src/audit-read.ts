@@ -13,6 +13,11 @@ import type { ServiceTokenSource } from "./billing";
 export interface AuditReader {
   forTarget(targetId: string, limit: number): Promise<AuditRecord[]>;
   forTenant(tenantId: string, limit: number): Promise<AuditRecord[]>;
+  // Everything a single actor (user) did, across every tenant and domain — the
+  // staff Users CRM activity timeline (logins, failures, restaurants, plans,
+  // payments, edits). Keyed by actor_id, not tenant. An optional `action`
+  // prefix narrows it (e.g. "auth.session.login" for the login-attempts view).
+  forActor(actorId: string, limit: number, action?: string): Promise<AuditRecord[]>;
 }
 
 export class AuditHttpReader implements AuditReader {
@@ -22,17 +27,23 @@ export class AuditHttpReader implements AuditReader {
     this.client = new ServiceClient(base, tokens, "audit");
   }
 
-  async forTarget(targetId: string, limit: number): Promise<AuditRecord[]> {
-    const out = await this.client.get<{ events: AuditRecord[] }>(
-      `/obs/events?target=${encodeURIComponent(targetId)}&limit=${limit}`,
-    );
+  // One filtered read for every view — URLSearchParams handles encoding, so the
+  // three public helpers are just named filter shapes over it.
+  private async query(filters: Record<string, string>, limit: number): Promise<AuditRecord[]> {
+    const qs = new URLSearchParams({ ...filters, limit: String(limit) });
+    const out = await this.client.get<{ events: AuditRecord[] }>(`/obs/events?${qs}`);
     return out.events;
   }
 
-  async forTenant(tenantId: string, limit: number): Promise<AuditRecord[]> {
-    const out = await this.client.get<{ events: AuditRecord[] }>(
-      `/obs/events?tenant=${encodeURIComponent(tenantId)}&limit=${limit}`,
-    );
-    return out.events;
+  forTarget(targetId: string, limit: number): Promise<AuditRecord[]> {
+    return this.query({ target: targetId }, limit);
+  }
+
+  forTenant(tenantId: string, limit: number): Promise<AuditRecord[]> {
+    return this.query({ tenant: tenantId }, limit);
+  }
+
+  forActor(actorId: string, limit: number, action?: string): Promise<AuditRecord[]> {
+    return this.query({ actor: actorId, ...(action ? { action } : {}) }, limit);
   }
 }

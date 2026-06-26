@@ -1,4 +1,5 @@
 import type { AuditFilter, AuditQueryResponse, AuditRecord } from "@iedora/contracts";
+import { iso } from "@iedora/server-kit";
 import { type Kysely, sql } from "kysely";
 
 import type { AuditDB } from "../../schema";
@@ -8,10 +9,6 @@ const MAX_LIMIT = 200;
 
 function clampLimit(n: number | undefined): number {
   return n && n > 0 && n <= MAX_LIMIT ? n : DEFAULT_LIMIT;
-}
-
-function iso(v: unknown): string {
-  return v instanceof Date ? v.toISOString() : String(v);
 }
 
 // queryAudit returns audit records newest-first using keyset pagination on
@@ -34,6 +31,8 @@ export async function queryAudit(db: Kysely<AuditDB>, f: AuditFilter): Promise<A
       "target_id",
       "session_id",
       "trace_id",
+      "ip",
+      "user_agent",
       "meta",
     ]);
 
@@ -62,6 +61,8 @@ export async function queryAudit(db: Kysely<AuditDB>, f: AuditFilter): Promise<A
     targetId: r.target_id ?? undefined,
     sessionId: r.session_id ?? undefined,
     traceId: r.trace_id ?? undefined,
+    ip: r.ip ?? undefined,
+    userAgent: r.user_agent ?? undefined,
     meta: r.meta ?? {},
   }));
 

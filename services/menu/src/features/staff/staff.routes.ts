@@ -1,4 +1,9 @@
-import { staffCreateRestaurant, staffImportRestaurant, staffTransferOwnership } from "@iedora/contracts";
+import {
+  adminSetPasswordRequest,
+  staffCreateRestaurant,
+  staffImportRestaurant,
+  staffTransferOwnership,
+} from "@iedora/contracts";
 import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
@@ -37,6 +42,7 @@ function onInvalid(
   return undefined;
 }
 const AUDIT_TRAIL_LIMIT = 20; // most-recent audit events shown on the admin detail page
+const USER_AUDIT_LIMIT = 50; // a user's activity timeline runs longer than a restaurant's
 
 // Best-effort sub-fetch for the aggregation below: a failure (service down,
 // token expired) is logged and degraded to `fallback` so the page still renders
@@ -194,6 +200,78 @@ export function staffRoutes(deps: MenuDeps) {
       const rest = await restaurantById(db(), id);
       if (!rest) throw notFound();
       return c.json({ events: await deps.audit.forTenant(rest.tenantId, AUDIT_TRAIL_LIMIT) });
+    })
+    // --- Users CRM (read-only). The auth service owns the user + session reads;
+    // the audit service owns the activity timeline (everything the user did).
+    // The menu service is the staff BFF that fans out to both. ---
+    .get("/users", async (c) => {
+      const q = c.req.query("q")?.trim() || undefined;
+      return c.json({ users: await deps.tenant.listUsers(q) });
+    })
+    // User record aggregate: the profile (+ memberships) and the device/session
+    // history. The activity timeline is NOT loaded here — the Activity tab
+    // fetches it lazily via .../audit so a record view never scans audit it
+    // doesn't show (mirrors the restaurant detail). 404 for an unknown user.
+    .get("/users/:id", async (c) => {
+      const id = c.req.param("id");
+      const user = await deps.tenant.getUser(id);
+      if (!user) throw notFound();
+      const sessions = await bestEffort("user sessions", deps.tenant.getUserSessions(id), []);
+      return c.json({ user, sessions });
+    })
+    // Lazy activity feed for the user record's Activity tab: every event this
+    // user is the actor of, across tenants + domains, newest first.
+    .get("/users/:id/audit", async (c) => {
+      const id = c.req.param("id");
+      if (!(await deps.tenant.getUser(id))) throw notFound();
+      return c.json({ events: await deps.audit.forActor(id, USER_AUDIT_LIMIT) });
+    })
+    // Login attempts: the user's sign-in events only (success + failure, with
+    // IP + reason), for the Logins tab.
+    .get("/users/:id/login-attempts", async (c) => {
+      const id = c.req.param("id");
+      if (!(await deps.tenant.getUser(id))) throw notFound();
+      return c.json({ events: await deps.audit.forActor(id, USER_AUDIT_LIMIT, "auth.session.login") });
+    })
+    // --- user account actions (the audit trail is emitted here, with the
+    // acting staff member as the actor + the managed user as the target). ---
+    .post("/users/:id/force-password-change", async (c) => {
+      const id = c.req.param("id");
+      if (!(await deps.tenant.getUser(id))) throw notFound();
+      await deps.tenant.forcePasswordChange(id);
+      await deps.auditor.record({
+        action: "auth.user.force_password_change",
+        actor: { type: "user", id: c.get("user").userId },
+        targetType: "user",
+        targetId: id,
+      });
+      return c.json({ ok: true });
+    })
+    .post("/users/:id/set-password", zValidator("json", adminSetPasswordRequest), async (c) => {
+      const id = c.req.param("id");
+      if (!(await deps.tenant.getUser(id))) throw notFound();
+      await deps.tenant.setUserPassword(id, c.req.valid("json").password);
+      await deps.auditor.record({
+        action: "auth.user.password_set_by_admin",
+        actor: { type: "user", id: c.get("user").userId },
+        targetType: "user",
+        targetId: id,
+      });
+      return c.json({ ok: true });
+    })
+    .post("/users/:id/sessions/:family/revoke", async (c) => {
+      const id = c.req.param("id");
+      const family = c.req.param("family");
+      if (!(await deps.tenant.getUser(id))) throw notFound();
+      await deps.tenant.revokeUserSession(id, family);
+      await deps.auditor.record({
+        action: "auth.session.revoked_by_admin",
+        actor: { type: "user", id: c.get("user").userId },
+        targetType: "user",
+        targetId: id,
+        meta: { family },
+      });
+      return c.json({ ok: true });
     })
     // Staff identity override: a privileged rename of the friendly name,
     // cross-tenant by id. The owner-scoped builder still owns menu content; this

@@ -1,6 +1,7 @@
 import type { Subscription } from "@iedora/contracts";
-import { type Kysely, sql } from "kysely";
+import { type Kysely, type Selectable, sql } from "kysely";
 
+import type { Subscriptions } from "../db.generated";
 import type { BillingDB } from "../schema";
 import { iso, isoOpt } from "./dates";
 
@@ -16,8 +17,7 @@ const COLUMNS = [
   "updated_at",
 ] as const;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSubscription(r: any): Subscription {
+function toSubscription(r: Pick<Selectable<Subscriptions>, (typeof COLUMNS)[number]>): Subscription {
   return {
     id: r.id,
     tenantId: r.tenant_id,

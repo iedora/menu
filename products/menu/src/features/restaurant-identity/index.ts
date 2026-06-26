@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import { ApiError } from '@iedora/api-client'
 import * as api from '../../shared/api'
 import type { PublicMenu } from '../menu-publishing/rsc/types'
 
@@ -16,7 +17,37 @@ import type { PublicMenu } from '../menu-publishing/rsc/types'
  * cross-cutting read loaders the dashboard pages need.
  */
 
-export type { StaffRestaurantRow, StaffRestaurantFull } from '../../shared/api'
+export type {
+  StaffRestaurantRow,
+  StaffRestaurantFull,
+  AdminUser,
+  AdminUserDetail,
+  AdminUserSession,
+} from '../../shared/api'
+
+/**
+ * Staff-only cross-tenant user directory (admin Users page). Search by email
+ * or name. Staff-role enforced by the service; the page gates with
+ * `requireStaff` first.
+ */
+export const listUsersDirectory = cache(async (q?: string) => {
+  const { users } = await api.staffUsers(q)
+  return users
+})
+
+/**
+ * One user's profile (+ memberships) and session history for the admin user
+ * detail page. Returns null on a 404 so the page can `notFound()`. The activity
+ * timeline loads lazily via the `loadUserAuditAction` server action.
+ */
+export const loadUserDetail = cache(async (id: string) => {
+  try {
+    return await api.staffUserDetail(id)
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
+})
 
 /**
  * Staff-only cross-tenant restaurant directory (admin restaurants

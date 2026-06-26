@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useActionResult } from './use-action-result'
 import { Button } from '@iedora/ui/components/ui/button'
 import {
   Dialog,
@@ -23,22 +24,16 @@ import { createMenu } from '../actions'
 
 export function CreateMenuDialog({ slug }: { slug: string }) {
   const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const { pending, error, run } = useActionResult()
   const t = useTranslations('Restaurant')
   const tc = useTranslations('Common')
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(null)
     const formData = new FormData(event.currentTarget)
-    startTransition(async () => {
-      const res = await createMenu(slug, formData)
-      if (res && 'error' in res) {
-        setError(res.error ?? 'Could not create menu')
-        return
-      }
-      setOpen(false)
+    run(() => createMenu(slug, formData), {
+      fallback: 'Could not create menu',
+      onSuccess: () => setOpen(false),
     })
   }
 

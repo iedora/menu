@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { parsePriceCents } from '../../../shared/format'
 import { Button } from '@iedora/ui/components/ui/button'
 import {
   Dialog,
@@ -104,14 +105,13 @@ export function AddItemDialog({
     const hasVariants = variants.length > 0
     let priceCents = 0
     if (!hasVariants) {
-      priceCents = priceText.trim()
-        ? Math.round(Number(priceText.replace(',', '.')) * 100)
-        : 0
-      if (!Number.isFinite(priceCents) || priceCents < 0) {
+      const parsed = priceText.trim() ? parsePriceCents(priceText) : 0
+      if (parsed === null) {
         setError(t('addItemBadPrice'))
         setErrorField('price')
         return
       }
+      priceCents = parsed
     }
     const cleaned = cleanVariants(variants)
     if (!cleaned.ok) {

@@ -39,6 +39,42 @@ export const DEFAULT_THEME: ResolvedTheme = {
   secondaryColor: '#6b7280',
 }
 
+/**
+ * Curated "looks" the owner picks from instead of wiring layout + font +
+ * colours by hand. A preset is just a bundle of the four persisted theme
+ * fields, so picking one writes the same `ResolvedTheme` shape the public
+ * renderer already consumes — no new storage. The brand colour the owner
+ * sets afterwards overrides `primaryColor` on top of the chosen preset.
+ */
+export type StylePreset = {
+  id: string
+  /** i18n key suffix under `Settings.Theme.presets.*`. */
+  key: string
+} & ResolvedTheme
+
+// Each preset owns a UNIQUE (layout, font) pair — that pair is the identity
+// `matchPreset` keys on, so two presets must never collide on it (the brand
+// colour is deliberately NOT part of the match, so a colour tweak keeps the
+// preset selected).
+export const STYLE_PRESETS: readonly StylePreset[] = [
+  { id: 'classic', key: 'classic', layout: 'classic', font: 'lora', primaryColor: '#111111', secondaryColor: '#6b7280' },
+  { id: 'modern', key: 'modern', layout: 'minimal', font: 'space-grotesk', primaryColor: '#1a1a1a', secondaryColor: '#8a8a8a' },
+  { id: 'warm', key: 'warm', layout: 'cards', font: 'inter', primaryColor: '#b45309', secondaryColor: '#92766a' },
+  { id: 'bold', key: 'bold', layout: 'classic', font: 'space-grotesk', primaryColor: '#b91c1c', secondaryColor: '#6b7280' },
+  { id: 'fresh', key: 'fresh', layout: 'minimal', font: 'inter', primaryColor: '#2e7d32', secondaryColor: '#6b8a72' },
+  { id: 'editorial', key: 'editorial', layout: 'editorial', font: 'playfair', primaryColor: '#1f2937', secondaryColor: '#6b7280' },
+] as const
+
+/** The preset whose layout + font match a theme (brand colour is independent). */
+export function matchPreset(theme: ResolvedTheme): StylePreset | undefined {
+  return STYLE_PRESETS.find((p) => p.layout === theme.layout && p.font === theme.font)
+}
+
+/** A small palette of brand-colour quick-picks for the colour control. */
+export const BRAND_SWATCHES = [
+  '#111111', '#b91c1c', '#b45309', '#2e7d32', '#0369a1', '#6d28d9', '#be185d',
+] as const
+
 // Coerce the stored blob (possibly null/partial/legacy — or the untyped
 // `Record<string, unknown>` the public payload carries) into a fully
 // populated theme. Unknown layout/font values fall back to defaults rather

@@ -8,17 +8,40 @@ import {
   CollapsibleTrigger,
 } from '@iedora/ui/components/ui/collapsible'
 import type { AuditRecord } from '@iedora/product-menu/shared/api'
+import { formatDate } from '../restaurants/_components/primitives'
 
 // Maps the service's audit action codes onto `Admin.audit.<key>` i18n keys.
+// Covers every action emitted across auth / menu / billing so the user activity
+// timeline reads in plain language (a failed login is special-cased below).
 const AUDIT_KEYS: Record<string, string> = {
+  // auth
+  'auth.session.login': 'login',
+  'auth.session.logout': 'logout',
+  'auth.session.logout_all': 'logoutAll',
+  'auth.token.refresh': 'tokenRefresh',
+  'auth.token.reuse_detected': 'tokenReuse',
+  'auth.user.register': 'register',
+  'auth.user.role_granted': 'roleGranted',
+  'auth.user.password_reset_requested': 'passwordResetRequested',
+  'auth.user.password_reset_completed': 'passwordResetCompleted',
+  'auth.user.password_changed': 'passwordChanged',
+  'auth.user.force_password_change': 'forcePasswordChange',
+  'auth.user.password_set_by_admin': 'passwordSetByAdmin',
+  'auth.session.revoked_by_admin': 'sessionRevoked',
+  'auth.tenant.created': 'tenantCreated',
+  'auth.tenant.owner_transferred': 'tenantOwnerTransferred',
+  // menu
   'menu.restaurant.created': 'created',
+  'menu.restaurant.renamed': 'renamed',
   'menu.restaurant.slug_renamed': 'slugRenamed',
   'menu.restaurant.deleted': 'deleted',
   'menu.restaurant.owner_transferred': 'ownerTransferred',
   'menu.restaurant.qr_printed': 'qrPrinted',
+  // billing
   'billing.subscription.created': 'subscriptionCreated',
-  'billing.payment.recorded': 'paymentRecorded',
+  'billing.subscription.canceled': 'subscriptionCanceled',
   'billing.subscription.expired': 'subscriptionExpired',
+  'billing.payment.recorded': 'paymentRecorded',
 }
 
 function formatRelative(iso: string): string {
@@ -31,7 +54,14 @@ function formatRelative(iso: string): string {
     return h <= 0 ? 'just now' : `${h}h`
   }
   if (days < 30) return `${days}d`
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatDate(iso)
+}
+
+/** The failure reason a failed sign-in carries in `meta` (bad_password, etc.). */
+function failureReason(e: AuditRecord): string | undefined {
+  if (e.outcome !== 'failure' || !e.meta || typeof e.meta !== 'object') return undefined
+  const r = (e.meta as Record<string, unknown>).reason
+  return typeof r === 'string' ? r : undefined
 }
 
 /**
@@ -42,6 +72,8 @@ function formatRelative(iso: string): string {
 function auditData(e: AuditRecord): [string, string][] {
   const out: [string, string][] = []
   if (e.outcome && e.outcome !== 'success') out.push(['outcome', e.outcome])
+  if (e.ip) out.push(['ip', e.ip])
+  if (e.userAgent) out.push(['device', e.userAgent])
   if (e.targetId) out.push(['target', e.targetType ? `${e.targetType}:${e.targetId}` : e.targetId])
   if (e.actorId) out.push(['actor', e.actorType ? `${e.actorType}:${e.actorId}` : e.actorId])
   if (e.sessionId) out.push(['session', e.sessionId])
@@ -52,20 +84,22 @@ function auditData(e: AuditRecord): [string, string][] {
   return out
 }
 
-function Summary({ label, sub }: { label: string; sub: string }) {
+function Summary({ label, sub, danger }: { label: string; sub: string; danger?: boolean }) {
   return (
     <div className="min-w-0 flex-1">
-      <p className="truncate text-[14px] font-medium text-foreground">{label}</p>
+      <p className={`truncate text-[14px] font-medium ${danger ? 'text-destructive' : 'text-foreground'}`}>
+        {label}
+      </p>
       <p className="truncate text-[12px] text-muted-foreground">{sub}</p>
     </div>
   )
 }
 
 /**
- * Restaurant audit trail. Each event that carries extra detail (`meta`
- * payload, target, session, trace…) becomes a shadcn Collapsible that
- * reveals that data on demand; events with nothing to show stay a plain
- * row.
+ * Shared admin audit trail. Renders any `AuditRecord[]` (a restaurant's tenant
+ * feed or a user's cross-domain timeline). Each event that carries extra detail
+ * (IP, device, meta, target, session…) becomes a Collapsible that reveals it on
+ * demand; bare events stay a plain row. Failed sign-ins read in red.
  */
 export function AuditLog({ events }: { events: AuditRecord[] }) {
   const t = useTranslations('Admin')
@@ -77,9 +111,18 @@ export function AuditLog({ events }: { events: AuditRecord[] }) {
   return (
     <ul data-test-id="admin-audit-list">
       {events.map((e) => {
-        const key = AUDIT_KEYS[e.action]
+        const failedLogin = e.action === 'auth.session.login' && e.outcome === 'failure'
+        const key = failedLogin ? 'loginFailed' : AUDIT_KEYS[e.action]
         const label = key ? t(`audit.${key}`) : e.action
-        const sub = (e.actorId ?? e.actorType) + ' · ' + e.source
+        // Source + IP inline so the security-relevant context reads at a glance;
+        // a failed sign-in also shows its reason.
+        const reason = failureReason(e)
+        const reasonLabel = reason
+          ? t.has(`audit.reason.${reason}`)
+            ? t(`audit.reason.${reason}`)
+            : reason
+          : undefined
+        const sub = [e.source, e.ip ?? undefined, reasonLabel].filter(Boolean).join(' · ')
         const when = formatRelative(e.at)
         const data = auditData(e)
 
@@ -89,7 +132,7 @@ export function AuditLog({ events }: { events: AuditRecord[] }) {
               key={e.id}
               className="flex items-center justify-between gap-3 border-b border-border py-[11px] last:border-b-0"
             >
-              <Summary label={label} sub={sub} />
+              <Summary label={label} sub={sub} danger={failedLogin} />
               <time className="shrink-0 text-[12px] text-muted-foreground">{when}</time>
             </li>
           )
@@ -106,7 +149,7 @@ export function AuditLog({ events }: { events: AuditRecord[] }) {
                     aria-hidden
                     className="shrink-0 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
                   />
-                  <Summary label={label} sub={sub} />
+                  <Summary label={label} sub={sub} danger={failedLogin} />
                 </div>
                 <time className="shrink-0 text-[12px] text-muted-foreground">{when}</time>
               </CollapsibleTrigger>

@@ -6,6 +6,7 @@ import { PlusIcon } from '@phosphor-icons/react'
 import { Button } from '@iedora/ui/components/ui/button'
 import { AppDialog } from '@iedora/ui/components/app-dialog'
 import { FieldMessage, SelectField, TextField } from '@iedora/ui/components/field'
+import { formatMoney } from '../../_components/primitives'
 
 type PlanOption = { value: string; label: string; priceCents: number }
 
@@ -15,14 +16,6 @@ export type RecordPaymentPayload = {
   currency: string
   planCode: string
   promo?: string
-}
-
-function money(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en-IE', { style: 'currency', currency }).format(cents / 100)
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`
-  }
 }
 
 /**
@@ -122,7 +115,7 @@ export function RecordPaymentDialog({
             hint={
               listCents > 0 ? (
                 <span className="flex items-center gap-2">
-                  <span>{t('listPrice', { price: money(listCents, currency) })}</span>
+                  <span>{t('listPrice', { price: formatMoney(listCents, currency) })}</span>
                   {discountPct > 0 ? (
                     <span
                       className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700"

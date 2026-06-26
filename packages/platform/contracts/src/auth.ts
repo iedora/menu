@@ -9,6 +9,9 @@ export const tokenResponse = z.object({
   expiresAt: z.string(), // RFC3339
   userId: z.string(),
   tenantId: z.string().optional(),
+  // Set after a sign-in when an admin has flagged the account: the client must
+  // route the user through a "set a new password" screen before continuing.
+  mustChangePassword: z.boolean().optional(),
 });
 export type TokenResponse = z.infer<typeof tokenResponse>;
 
@@ -17,6 +20,22 @@ export const loginRequest = z.object({
   password: z.string().min(1),
 });
 export type LoginRequest = z.infer<typeof loginRequest>;
+
+// Self-service / forced password change (user-authed). `currentPassword` is
+// required for a voluntary change but omitted on a forced change (the user just
+// authenticated at login). New password mirrors the reset policy (>= 12).
+export const changePasswordRequest = z.object({
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(12).max(200),
+});
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequest>;
+
+// Admin sets a temporary password for a user (service-only). The user is forced
+// to change it at next login.
+export const adminSetPasswordRequest = z.object({
+  password: z.string().min(12).max(200),
+});
+export type AdminSetPasswordRequest = z.infer<typeof adminSetPasswordRequest>;
 
 export const registerRequest = z.object({
   email: z.string().email(),
@@ -93,11 +112,68 @@ export const adminTransferNewOwnerRequest = z.object({
 });
 export type AdminTransferNewOwnerRequest = z.infer<typeof adminTransferNewOwnerRequest>;
 
+// --- admin user management (read-only), behind GET /auth/admin/users* ---
+// Service-only reads the menu BFF fans out to for the staff "Users" CRM. Dates
+// are RFC3339 strings on the wire. `ip` is the raw client IP captured going
+// forward (NULL on older sessions); `tenantCount` lets the list show reach
+// without a second round-trip.
+
+export const adminUser = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string().nullable(),
+  role: z.string().nullable(),
+  banned: z.boolean(),
+  banReason: z.string().nullable(),
+  banExpiresAt: z.string().nullable(),
+  emailVerifiedAt: z.string().nullable(),
+  createdAt: z.string(),
+  passwordChangedAt: z.string(),
+  mustChangePassword: z.boolean(),
+  tenantCount: z.number().int(),
+});
+export type AdminUser = z.infer<typeof adminUser>;
+
+export const adminUserMembership = z.object({
+  tenantId: z.string(),
+  role: z.string(),
+});
+export type AdminUserMembership = z.infer<typeof adminUserMembership>;
+
+export const adminUserDetail = adminUser.extend({
+  memberships: z.array(adminUserMembership),
+});
+export type AdminUserDetail = z.infer<typeof adminUserDetail>;
+
+export const adminUserSession = z.object({
+  id: z.string(),
+  familyId: z.string(),
+  tenantId: z.string().nullable(),
+  ip: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  issuedAt: z.string(),
+  expiresAt: z.string(),
+  absoluteExpiresAt: z.string(),
+  revokedAt: z.string().nullable(),
+  // Live (not revoked, not past either expiry) at query time.
+  current: z.boolean(),
+});
+export type AdminUserSession = z.infer<typeof adminUserSession>;
+
+export const adminUserList = z.object({ users: z.array(adminUser) });
+export type AdminUserList = z.infer<typeof adminUserList>;
+
+export const adminUserSessionList = z.object({ sessions: z.array(adminUserSession) });
+export type AdminUserSessionList = z.infer<typeof adminUserSessionList>;
+
 export const whoamiResponse = z.object({
   userId: z.string(),
   tenantId: z.string().optional(),
   roles: z.array(z.string()),
   email: z.string().optional(),
+  // Live force-change flag (read from the DB, not the token) — the dashboard
+  // guard sends the user to the change-password screen while it's true.
+  mustChangePassword: z.boolean().optional(),
 });
 export type WhoamiResponse = z.infer<typeof whoamiResponse>;
 
@@ -115,6 +191,8 @@ export const accessClaims = z.object({
   sid: z.string().optional(),
   roles: z.array(z.string()).default([]),
   email: z.string().optional(),
+  // must-change-password — lets the dashboard guard short-circuit locally.
+  mcp: z.boolean().optional(),
   typ: z.literal("access"),
   iss: z.string(),
   aud: z.union([z.string(), z.array(z.string())]),

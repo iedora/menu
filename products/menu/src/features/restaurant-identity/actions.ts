@@ -3,10 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { AuditRecord, ImportPayload } from '@iedora/contracts'
-import { staffTransferOwnership as transferOwnershipSchema } from '@iedora/contracts'
+import { Currencies, staffTransferOwnership as transferOwnershipSchema } from '@iedora/contracts'
 import { ApiError } from '@iedora/api-client'
 import * as api from '../../shared/api'
 import { requireStaff } from '../auth'
+import { staffMutation } from './staff-action'
 import { LANGUAGE_CODES, type LanguageCode } from '../i18n'
 import { localizedSchema, pruneLocalized } from '../i18n/server'
 import { revalidateRestaurant } from '../menu-publishing'
@@ -75,6 +76,9 @@ const LanguageInput = z
         error: 'Pick at least one language.',
       })
       .min(1, 'Pick at least one language'),
+    defaultCurrency: z.enum(Currencies as unknown as [string, ...string[]], {
+      error: 'Pick a currency.',
+    }),
   })
   .refine((d) => d.supportedLanguages.includes(d.defaultLanguage), {
     message: 'Default language must be in the supported set',
@@ -97,6 +101,7 @@ export async function updateLanguageSettings(
       defaultLanguage: parsed.data.defaultLanguage,
       // Dedupe + keep declarative order from input.
       supportedLanguages: Array.from(new Set(parsed.data.supportedLanguages)),
+      defaultCurrency: parsed.data.defaultCurrency,
     })
   } catch (err) {
     return { ok: false, error: errorMessage(err) }
@@ -232,6 +237,36 @@ export async function loadRestaurantAuditAction(id: string): Promise<AuditRecord
   await requireStaff()
   const { events } = await api.staffRestaurantAudit(id)
   return events
+}
+
+/** A user's activity timeline (everything they did, across tenants + domains) —
+ * loaded lazily by the Users CRM Activity tab. Staff-gated. */
+export async function loadUserAuditAction(id: string): Promise<AuditRecord[]> {
+  await requireStaff()
+  const { events } = await api.staffUserAudit(id)
+  return events
+}
+
+/** A user's login attempts (success + failure) — the Logins tab. Staff-gated. */
+export async function loadUserLoginAttemptsAction(id: string): Promise<AuditRecord[]> {
+  await requireStaff()
+  const { events } = await api.staffUserLoginAttempts(id)
+  return events
+}
+
+/** Force a user to change their password at next login (revokes their sessions). */
+export async function forcePasswordChangeAction(id: string): Promise<{ ok: boolean }> {
+  return staffMutation(() => api.staffForcePasswordChange(id), `/menu/dashboard/admin/users/${id}`)
+}
+
+/** Set a temporary password for a user; they must change it at next login. */
+export async function setUserPasswordAction(id: string, password: string): Promise<{ ok: boolean }> {
+  return staffMutation(() => api.staffSetUserPassword(id, password), `/menu/dashboard/admin/users/${id}`)
+}
+
+/** Kick one of a user's devices (revoke a session family). */
+export async function revokeUserSessionAction(id: string, family: string): Promise<{ ok: boolean }> {
+  return staffMutation(() => api.staffRevokeUserSession(id, family), `/menu/dashboard/admin/users/${id}`)
 }
 
 // Whether a target tenant can receive another restaurant (plan capacity) —

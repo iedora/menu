@@ -31,6 +31,9 @@ export interface AccessTokenInput {
   tenantId?: string;
   sessionId?: string;
   roles?: string[];
+  /** Force-change flag — minted into the `mcp` claim so the dashboard guard can
+   *  short-circuit locally (no DB round-trip) for the common case. */
+  mustChangePassword?: boolean;
 }
 
 export interface JwtIssuerConfig {
@@ -64,6 +67,7 @@ export class JwtIssuer {
       ...(input.tenantId ? { tid: input.tenantId } : {}),
       ...(input.sessionId ? { sid: input.sessionId } : {}),
       ...(input.email ? { email: input.email } : {}),
+      ...(input.mustChangePassword ? { mcp: true } : {}),
     })
       .setProtectedHeader({ alg: "EdDSA", kid: this.cfg.kid })
       .setSubject(input.userId)

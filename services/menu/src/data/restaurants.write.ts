@@ -41,13 +41,14 @@ export async function updateIdentityRow(db: DB, r: Restaurant, promoting: boolea
   if (promoting) {
     await sql`
       UPDATE restaurants SET name=${r.name}, theme=${jsonbOrNull(r.theme)}, default_language=${r.defaultLanguage},
-        supported_languages=${textArray(r.supportedLanguages)}, updated_at=now()
+        supported_languages=${textArray(r.supportedLanguages)}, default_currency=${r.defaultCurrency}, updated_at=now()
       WHERE id=${r.id}`.execute(db);
   } else {
     await sql`
       UPDATE restaurants SET name=${r.name}, description=${r.description === "" ? null : r.description},
         description_i18n=${jsonbOrNull(r.descriptionI18n)}, theme=${jsonbOrNull(r.theme)},
-        default_language=${r.defaultLanguage}, supported_languages=${textArray(r.supportedLanguages)}, updated_at=now()
+        default_language=${r.defaultLanguage}, supported_languages=${textArray(r.supportedLanguages)},
+        default_currency=${r.defaultCurrency}, updated_at=now()
       WHERE id=${r.id}`.execute(db);
   }
   const updated = await db

@@ -1,8 +1,8 @@
-import Link from 'next/link'
 import { PlusIcon } from '@phosphor-icons/react/ssr'
 import { getTranslations } from 'next-intl/server'
 import { requireStaff } from '@iedora/product-menu/features/auth'
 import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
+import { ActionButton } from '@iedora/product-menu/shared/ui/crm'
 import {
   listRestaurantsDirectory,
   listTenantsDirectory,
@@ -52,14 +52,10 @@ export default async function AdminRestaurantsPage() {
       title={t('restaurants.title')}
       description={t('restaurants.subtitle', { count: rows.length })}
       actions={
-        <Link
-          href="/menu/dashboard/admin/restaurants/new"
-          data-test-id="admin-restaurants-new"
-          className="inline-flex items-center gap-2 rounded-[10px] bg-primary px-[18px] py-[11px] text-[14px] font-semibold text-white no-underline transition-colors hover:bg-primary/90"
-        >
+        <ActionButton href="/menu/dashboard/admin/restaurants/new" data-test-id="admin-restaurants-new">
           <PlusIcon size={16} weight="bold" aria-hidden />
           {t('restaurants.newRestaurant')}
-        </Link>
+        </ActionButton>
       }
       data-test-id="admin-restaurants"
     >

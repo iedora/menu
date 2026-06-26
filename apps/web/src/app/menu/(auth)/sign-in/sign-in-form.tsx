@@ -96,7 +96,7 @@ export function SignInForm({
         type="submit"
         variant="default"
         size="lg"
-        className="!w-full !justify-center"
+        className="!w-full !justify-center !rounded-full normal-case tracking-normal"
         disabled={pending || redirecting}
         data-test-id="sign-in-submit"
       >

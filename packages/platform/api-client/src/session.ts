@@ -10,6 +10,9 @@ export type Session = {
   tenantId: string | null
   roles: string[]
   email: string | null
+  /** Force-change flag from the `mcp` claim. When false (the common case) the
+   *  dashboard guard skips its live DB check entirely. */
+  mustChangePassword: boolean
   /** Access-token expiry (unix ms). Middleware refreshes before this. */
   expiresAt: number
 }
@@ -24,6 +27,7 @@ export function sessionFromToken(token: string): Session | null {
     tenantId: claims.tid ?? null,
     roles: claims.roles ?? [],
     email: claims.email ?? null,
+    mustChangePassword: claims.mcp === true,
     expiresAt: claims.exp * 1000,
   }
 }

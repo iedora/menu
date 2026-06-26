@@ -102,7 +102,7 @@ export function RestaurantsTable({ rows }: { rows: AdminRestaurantRow[] }) {
           <button
             type="button"
             onClick={() => setQuery('')}
-            className="shrink-0 rounded-[10px] border border-border px-3 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="shrink-0 rounded-full border border-border px-3 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             data-test-id="admin-restaurants-clear-filters"
           >
             {t('restaurants.clear')}

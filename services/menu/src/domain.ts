@@ -26,6 +26,7 @@ export interface Restaurant {
   theme: Theme | null;
   defaultLanguage: string;
   supportedLanguages: string[];
+  defaultCurrency: string;
   onboardingCompletedAt: Date | null;
   updatedAt: Date;
 }

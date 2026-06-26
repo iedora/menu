@@ -14,6 +14,12 @@ export type LocalizedText = z.infer<typeof localizedText>;
 export const theme = z.record(z.string(), z.unknown());
 export type Theme = z.infer<typeof theme>;
 
+// Menu currencies the owner can pick as the restaurant default (new dishes
+// inherit it). ISO 4217 codes; the first entry is the fallback default.
+// Shared so the backend validator and the settings selector stay in lockstep.
+export const Currencies = ["EUR", "USD", "GBP", "BRL", "CHF", "CAD", "AUD", "JPY"] as const;
+export type CurrencyCode = (typeof Currencies)[number];
+
 // --- public read model (one language, no i18n maps) ---
 
 export const publicVariant = z.object({
@@ -90,6 +96,9 @@ export const restaurant = z.object({
   theme: theme.optional(),
   defaultLanguage: z.string(),
   supportedLanguages: z.array(z.string()),
+  // Default for new dishes. `.default` keeps payloads from a not-yet-migrated
+  // backend parseable during a rollout (missing → EUR).
+  defaultCurrency: z.string().default("EUR"),
   onboardingCompletedAt: z.string().optional(),
   updatedAt: z.string(),
 });
@@ -302,6 +311,7 @@ export const identityPatch = z.object({
   theme: theme.optional(),
   defaultLanguage: z.string().optional(),
   supportedLanguages: z.array(z.string()).optional(),
+  defaultCurrency: z.string().optional(),
 });
 export type IdentityPatch = z.infer<typeof identityPatch>;
 

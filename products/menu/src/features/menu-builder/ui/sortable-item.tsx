@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useOptimistic, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -22,7 +22,8 @@ import {
 } from '@iedora/ui/components/field'
 import { SectionHeader } from '@iedora/ui/components/section-header'
 import { useTranslations } from 'next-intl'
-import { formatPrice } from '../../../shared/format'
+import { formatPrice, parsePriceCents } from '../../../shared/format'
+import { GripIcon } from './grip-icon'
 import { ImageUpload } from '../../upload/ui/image-upload'
 import type { LanguageCode, LocalizedText } from '../../i18n'
 import { deleteItem, updateItem } from '../actions'
@@ -113,6 +114,32 @@ export function SortableItem({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const errId = `item-error-${item.id}`
 
+  // Row-level availability toggle: flip the status badge instantly, persist in
+  // the background, and let useOptimistic reconcile with server truth after the
+  // refresh (and auto-revert if the action fails). A separate transition from
+  // the dialog's `pending` so toggling never blocks the form.
+  const [optimisticAvailable, setOptimisticAvailable] = useOptimistic(item.available)
+  const [, startToggle] = useTransition()
+
+  function toggleAvailability(e: React.MouseEvent | React.KeyboardEvent) {
+    e.stopPropagation() // don't open the edit dialog
+    const next = !optimisticAvailable
+    startToggle(async () => {
+      setOptimisticAvailable(next)
+      // Send the item's CURRENT fields with only `available` flipped; omit
+      // `variants` (undefined = leave them untouched) so nothing is overwritten.
+      const res = await updateItem(slug, item.id, {
+        name: item.name,
+        description: item.description ?? undefined,
+        priceCents: item.priceCents,
+        available: next,
+        nameI18n: item.nameI18n ?? undefined,
+        descriptionI18n: item.descriptionI18n ?? undefined,
+      })
+      if (!(res && 'error' in res)) router.refresh()
+    })
+  }
+
   // Reset local state when reopening so it tracks server truth.
   function onOpenChange(next: boolean) {
     setOpen(next)
@@ -149,14 +176,13 @@ export function SortableItem({
     const hasVariants = variants.length > 0
     let priceCents = 0
     if (!hasVariants) {
-      priceCents = priceText.trim()
-        ? Math.round(Number(priceText.replace(',', '.')) * 100)
-        : 0
-      if (!Number.isFinite(priceCents) || priceCents < 0) {
+      const parsed = priceText.trim() ? parsePriceCents(priceText) : 0
+      if (parsed === null) {
         setError(t('itemBadPrice'))
         setErrorField('price')
         return
       }
+      priceCents = parsed
     }
 
     const cleaned = cleanVariants(variants)
@@ -211,7 +237,7 @@ export function SortableItem({
         className="group flex min-h-16 w-full cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent px-3.5 py-3 text-left text-foreground transition-colors first:border-t-0 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-[unavailable=true]:opacity-[0.55]"
         onClick={() => onOpenChange(true)}
         data-test-id={`menu-item-row-${item.id}`}
-        data-unavailable={item.available ? 'false' : 'true'}
+        data-unavailable={optimisticAvailable ? 'false' : 'true'}
       >
         <span
           className="inline-flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
@@ -272,15 +298,27 @@ export function SortableItem({
           {formattedPrice ?? t('noPrice')}
         </span>
         <span
+          role="button"
+          tabIndex={0}
+          aria-pressed={optimisticAvailable}
+          aria-label={t(optimisticAvailable ? 'itemHide' : 'itemShow', { name: item.name })}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={toggleAvailability}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              toggleAvailability(e)
+            }
+          }}
           className={
-            'ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[""] ' +
-            (item.available
-              ? 'text-green-700 bg-green-100'
-              : 'text-muted-foreground bg-muted')
+            'ml-2 inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[""] ' +
+            (optimisticAvailable
+              ? 'text-green-700 bg-green-100 hover:bg-green-200'
+              : 'text-muted-foreground bg-muted hover:bg-muted/80')
           }
           data-test-id={`menu-item-status-${item.id}`}
         >
-          {item.available ? t('itemAvailable') : t('itemHidden')}
+          {optimisticAvailable ? t('itemAvailable') : t('itemHidden')}
         </span>
       </button>
 
@@ -525,15 +563,4 @@ export function SortableItem({
   )
 }
 
-function GripIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="9" cy="6" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="6" r="1.5" fill="currentColor" />
-      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="9" cy="18" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="18" r="1.5" fill="currentColor" />
-    </svg>
-  )
-}
+// GripIcon moved to ./grip-icon (shared with sortable-category).

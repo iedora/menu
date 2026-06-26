@@ -3,6 +3,35 @@ import type { Kysely } from "kysely";
 
 import type { AuthDB } from "../schema";
 
+// One projection + one mapper for the tenant-joined-to-owner shape, shared by
+// the by-id and list reads so the two can't drift.
+const TENANT_OWNER_COLS = [
+  "tenants.id as id",
+  "tenants.name as name",
+  "tenants.slug as slug",
+  "users.id as owner_id",
+  "users.email as owner_email",
+  "users.name as owner_name",
+] as const;
+
+type TenantOwnerRow = {
+  id: string;
+  name: string;
+  slug: string | null;
+  owner_id: string;
+  owner_email: string;
+  owner_name: string | null;
+};
+
+function toTenantWithOwner(row: TenantOwnerRow): TenantWithOwner {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    owner: { id: row.owner_id, email: row.owner_email, name: row.owner_name },
+  };
+}
+
 /** A tenant by id joined to its owner user (the membership with role 'owner').
  * Returns undefined when the tenant doesn't exist or has no owner membership. */
 export async function findTenantWithOwner(
@@ -15,23 +44,10 @@ export async function findTenantWithOwner(
       join.onRef("memberships.tenant_id", "=", "tenants.id").on("memberships.role", "=", "owner"),
     )
     .innerJoin("users", "memberships.user_id", "users.id")
-    .select([
-      "tenants.id as id",
-      "tenants.name as name",
-      "tenants.slug as slug",
-      "users.id as owner_id",
-      "users.email as owner_email",
-      "users.name as owner_name",
-    ])
+    .select(TENANT_OWNER_COLS)
     .where("tenants.id", "=", tenantId)
     .executeTakeFirst();
-  if (!row) return undefined;
-  return {
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    owner: { id: row.owner_id, email: row.owner_email, name: row.owner_name },
-  };
+  return row ? toTenantWithOwner(row) : undefined;
 }
 
 /** Every tenant joined to its owner (membership role 'owner'), name-ascending.
@@ -44,22 +60,10 @@ export async function listTenantsWithOwners(db: Kysely<AuthDB>): Promise<TenantW
       join.onRef("memberships.tenant_id", "=", "tenants.id").on("memberships.role", "=", "owner"),
     )
     .innerJoin("users", "memberships.user_id", "users.id")
-    .select([
-      "tenants.id as id",
-      "tenants.name as name",
-      "tenants.slug as slug",
-      "users.id as owner_id",
-      "users.email as owner_email",
-      "users.name as owner_name",
-    ])
+    .select(TENANT_OWNER_COLS)
     .orderBy("tenants.name", "asc")
     .execute();
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    owner: { id: row.owner_id, email: row.owner_email, name: row.owner_name },
-  }));
+  return rows.map(toTenantWithOwner);
 }
 
 export async function createTenant(db: Kysely<AuthDB>, name: string): Promise<string> {

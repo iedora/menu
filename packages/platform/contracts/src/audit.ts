@@ -19,6 +19,11 @@ export const auditRecord = z.object({
   targetId: z.string().optional(),
   sessionId: z.string().optional(),
   traceId: z.string().optional(),
+  // Request context. `ip` is the raw client IP (captured going forward for the
+  // admin security view); `userAgent` is the client string. Both optional —
+  // historical rows and system/service events carry neither.
+  ip: z.string().optional(),
+  userAgent: z.string().optional(),
   meta: z.unknown(),
 });
 export type AuditRecord = z.infer<typeof auditRecord>;

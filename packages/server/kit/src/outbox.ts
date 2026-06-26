@@ -3,6 +3,7 @@ import { type Kysely, sql } from "kysely";
 import { type AuditEnvelope, type AuditEvent, type Auditor, buildEnvelope } from "./audit";
 import { insertAuditLog } from "./auditlog";
 import type { Database } from "./db";
+import { sqlState } from "./pgerror";
 
 const AUDIT_SUBJECT = "audit.events";
 const MAX_ATTEMPTS = 5;
@@ -183,10 +184,7 @@ function parseEnvelope(payload: Uint8Array): AuditEnvelope {
 // a connection/resource/operator error is transient (retry, don't count it).
 // Bun's PostgresError carries the SQLSTATE in `errno`.
 function isPermanent(err: unknown): boolean {
-  const sqlState = (err as { errno?: unknown })?.errno;
-  if (typeof sqlState === "string") {
-    const cls = sqlState.slice(0, 2);
-    return !(cls === "08" || cls === "53" || cls === "57" || cls === "58");
-  }
-  return false;
+  const cls = sqlState(err)?.slice(0, 2);
+  if (cls === undefined) return false; // not a Postgres error → transient (retry)
+  return !(cls === "08" || cls === "53" || cls === "57" || cls === "58");
 }

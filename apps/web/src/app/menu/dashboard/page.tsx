@@ -7,7 +7,7 @@ import { canAddRestaurant, getOrganizationPlan, planHas } from '@iedora/product-
 import { addAnotherRestaurantHref } from '@iedora/product-menu/features/menu-onboarding'
 import { Card, CardDesc, CardTitle } from '@iedora/ui/components/card'
 import { DashboardPage as PageShell } from '@iedora/product-menu/shared/ui/dashboard-page'
-import { RecordAction, RecordCard, StatCard } from '@iedora/product-menu/shared/ui/crm'
+import { ActionButton, RecordAction, RecordCard, StatCard } from '@iedora/product-menu/shared/ui/crm'
 import { formatEditedAt, formatIndex } from '@iedora/product-menu/shared/ui/editorial-list'
 import { AdminOverview } from './admin/_components/admin-overview'
 
@@ -39,26 +39,22 @@ export default async function DashboardPage() {
 
   const numberFmt = new Intl.NumberFormat(locale)
   const hasAnalytics = planHas(plan, 'analytics')
+  // Monthly view quota (-1 = unlimited): the headline metric shows how many
+  // views are left before the plan cap so an owner sees it at a glance.
+  const unlimitedViews = plan.monthlyViews < 0
+  const viewsRemaining = unlimitedViews ? 0 : Math.max(0, plan.monthlyViews - monthlyViews)
   const totalMenus = restaurants.reduce((n, r) => n + r.menuCount, 0)
   const totalDishes = restaurants.reduce((n, r) => n + r.dishCount, 0)
   const showIndex = restaurants.length > 1
 
   const actions = canAdd ? (
-    <Link
-      href={addAnotherRestaurantHref()}
-      data-test-id="dashboard-new-restaurant"
-      className="inline-flex items-center rounded-[10px] bg-primary px-4 py-2 text-[13.5px] font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
-    >
+    <ActionButton href={addAnotherRestaurantHref()} data-test-id="dashboard-new-restaurant">
       {t('newRestaurant')}
-    </Link>
+    </ActionButton>
   ) : (
-    <Link
-      href="/menu/dashboard/billing"
-      data-test-id="dashboard-upgrade-cta"
-      className="inline-flex items-center rounded-[10px] border border-border px-4 py-2 text-[13.5px] font-semibold text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
-    >
+    <ActionButton href="/menu/dashboard/billing" variant="outline" data-test-id="dashboard-upgrade-cta">
       {tBilling('upgradeCta')}
-    </Link>
+    </ActionButton>
   )
 
   return (
@@ -75,7 +71,11 @@ export default async function DashboardPage() {
           data-test-id="dashboard-views"
           label={t('analytics.scansEyebrow.30d')}
           value={numberFmt.format(monthlyViews)}
-          caption={t('viewsThisMonth')}
+          caption={
+            unlimitedViews
+              ? t('viewsUnlimitedTag')
+              : t('viewsRemaining', { count: numberFmt.format(viewsRemaining) })
+          }
         />
         <StatCard
           data-test-id="dashboard-restaurants-stat"

@@ -1,4 +1,12 @@
-import type { AuditRecord, Invoice, Subscription, TenantWithOwner } from "@iedora/contracts";
+import type {
+  AdminUser,
+  AdminUserDetail,
+  AdminUserSession,
+  AuditRecord,
+  Invoice,
+  Subscription,
+  TenantWithOwner,
+} from "@iedora/contracts";
 import { Database, OutboxWriter, ServiceClientError, newUserVerifier } from "@iedora/server-kit";
 import { createScratchDatabase } from "@iedora/server-kit/testkit";
 import { afterAll, beforeAll } from "bun:test";
@@ -31,6 +39,10 @@ export interface Harness {
   /** Mutable billing/audit/tenant fakes for the staff aggregation endpoint. */
   billingStub: { subscriptions: Subscription[]; invoices: Invoice[] };
   auditStub: { events: AuditRecord[] };
+  /** Users CRM fake: `list` drives GET /users, `detail` drives GET /users/:id
+   * (null → 404), `sessions` the device history. The activity timeline reuses
+   * `auditStub.events` (forActor). */
+  userStub: { list: AdminUser[]; detail: AdminUserDetail | null; sessions: AdminUserSession[] };
   /** Tenant reader/admin fake. `value`/`fail` drive `tenant()` (existence +
    * best-effort path); `list` drives the picker; `createError`/`newTenantId`
    * drive new-tenant provisioning, and `createdNames` records the calls. */
@@ -113,6 +125,7 @@ export async function createHarness(
     invoices: [],
   };
   const auditStub: { events: AuditRecord[] } = { events: [] };
+  const userStub: Harness["userStub"] = { list: [], detail: null, sessions: [] };
   const tenantStub: Harness["tenantStub"] = {
     value: null,
     fail: false,
@@ -153,7 +166,11 @@ export async function createHarness(
         return inv;
       },
     },
-    audit: { forTarget: async () => auditStub.events, forTenant: async () => auditStub.events },
+    audit: {
+      forTarget: async () => auditStub.events,
+      forTenant: async () => auditStub.events,
+      forActor: async () => auditStub.events,
+    },
     tenant: {
       tenant: async () => {
         if (tenantStub.fail) throw new Error("auth unavailable");
@@ -167,6 +184,12 @@ export async function createHarness(
         }
         return { id: tenantStub.newTenantId, name };
       },
+      listUsers: async () => userStub.list,
+      getUser: async () => userStub.detail,
+      getUserSessions: async () => userStub.sessions,
+      forcePasswordChange: async () => {},
+      setUserPassword: async () => {},
+      revokeUserSession: async () => {},
     },
     uploads, // null → upload routes answer 503; FakeBlob-backed when withUploads
     cfg: { rateLimitDisabled } as MenuConfig,
@@ -178,6 +201,7 @@ export async function createHarness(
     planStub,
     billingStub,
     auditStub,
+    userStub,
     tenantStub,
     blob,
     close: async () => {

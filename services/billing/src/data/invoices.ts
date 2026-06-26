@@ -1,6 +1,7 @@
 import type { Invoice } from "@iedora/contracts";
-import type { Kysely } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 
+import type { Invoices } from "../db.generated";
 import type { BillingDB } from "../schema";
 import { iso } from "./dates";
 
@@ -19,8 +20,7 @@ const COLUMNS = [
   "created_at",
 ] as const;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toInvoice(r: any): Invoice {
+function toInvoice(r: Pick<Selectable<Invoices>, (typeof COLUMNS)[number]>): Invoice {
   return {
     id: r.id,
     tenantId: r.tenant_id,

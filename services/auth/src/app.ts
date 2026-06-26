@@ -2,6 +2,7 @@ import { createServiceApp, healthRoutes } from "@iedora/server-kit";
 import { Hono } from "hono";
 
 import type { AuthDeps } from "./deps";
+import { accountRoutes } from "./features/account/account.routes";
 import { jwksRoutes } from "./features/jwks/jwks.routes";
 import { loginRoutes } from "./features/login/login.routes";
 import { logoutRoutes } from "./features/logout/logout.routes";
@@ -10,6 +11,7 @@ import { refreshRoutes } from "./features/refresh/refresh.routes";
 import { registerRoutes } from "./features/register/register.routes";
 import { tenantAdminRoutes } from "./features/tenants/tenant-admin.routes";
 import { tenantsRoutes } from "./features/tenants/tenants.routes";
+import { usersAdminRoutes } from "./features/users/users-admin.routes";
 import { tokenRoutes } from "./features/token/token.routes";
 import { whoamiRoutes } from "./features/whoami/whoami.routes";
 
@@ -24,6 +26,8 @@ export function buildApp(deps: AuthDeps) {
     .route("/", passwordResetRoutes(deps))
     .route("/", tenantsRoutes(deps))
     .route("/", tenantAdminRoutes(deps))
+    .route("/", usersAdminRoutes(deps))
+    .route("/", accountRoutes(deps))
     .route("/", whoamiRoutes(deps))
     .route("/", tokenRoutes(deps))
     .route("/", jwksRoutes(deps));

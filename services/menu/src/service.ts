@@ -1,4 +1,5 @@
 import type { LocalizedText, StaffTransferOwnership } from "@iedora/contracts";
+import { Currencies } from "@iedora/contracts";
 import { sql } from "kysely";
 
 import * as builder from "./data/builder";
@@ -134,6 +135,9 @@ export async function createRestaurant(
         theme: null,
         defaultLanguage,
         supportedLanguages: supported,
+        // Matches the restaurants.default_currency column default; the row is
+        // inserted without an explicit currency so the DB picks EUR.
+        defaultCurrency: "EUR",
         onboardingCompletedAt: null,
         updatedAt: new Date(),
       };
@@ -244,6 +248,7 @@ export interface IdentityPatch {
   theme?: Record<string, unknown>;
   defaultLanguage?: string;
   supportedLanguages?: string[];
+  defaultCurrency?: string;
 }
 
 // updateIdentity applies a patch. Changing the default language atomically
@@ -259,6 +264,12 @@ export async function updateIdentity(
   if (p.defaultLanguage !== undefined) next.defaultLanguage = p.defaultLanguage;
   if (p.supportedLanguages !== undefined) next.supportedLanguages = p.supportedLanguages;
   validLanguages(next.defaultLanguage, next.supportedLanguages);
+
+  if (p.defaultCurrency !== undefined) {
+    const code = p.defaultCurrency.trim().toUpperCase();
+    if (!(Currencies as readonly string[]).includes(code)) throw invalid("unsupported currency");
+    next.defaultCurrency = code;
+  }
 
   if (p.name !== undefined) next.name = trimmed("name", p.name, MAX_SHORT_NAME);
   if (p.description !== undefined) next.description = optional("description", p.description, 1000);
@@ -388,7 +399,7 @@ export interface ItemWrite {
   variants?: Variant[];
 }
 
-function normalizeItem(w: ItemWrite, defaultLang: string): builder.ItemInput {
+function normalizeItem(w: ItemWrite, defaultLang: string, defaultCurrency: string): builder.ItemInput {
   if ((w.tags?.length ?? 0) > 20) throw invalid("too many tags");
   validPrice("price", w.priceCents);
   return {
@@ -397,7 +408,9 @@ function normalizeItem(w: ItemWrite, defaultLang: string): builder.ItemInput {
     nameI18n: validI18n("name", w.nameI18n, defaultLang),
     descriptionI18n: validI18n("description", w.descriptionI18n, defaultLang),
     priceCents: w.priceCents,
-    currency: w.currency || "EUR",
+    // A new dish inherits the restaurant's default currency unless the write
+    // explicitly carries one (the EUR fallback only bites a currency-less row).
+    currency: w.currency || defaultCurrency || "EUR",
     available: w.available ?? true,
     tags: w.tags ?? [],
     variants: validVariants(w.variants, defaultLang),
@@ -409,9 +422,29 @@ export function createItem(
   categoryId: string,
   restaurantId: string,
   defaultLang: string,
+  defaultCurrency: string,
   w: ItemWrite,
 ): Promise<string> {
-  return builder.createItem(deps.db.db, categoryId, restaurantId, normalizeItem(w, defaultLang));
+  return builder.createItem(deps.db.db, categoryId, restaurantId, normalizeItem(w, defaultLang, defaultCurrency));
+}
+
+/** Bulk variant of {@link createItem} for the JSON import: normalizes + inserts
+ *  a whole category's items in one statement (the category is freshly created in
+ *  the same tx, so positions follow the array order). */
+export function createItems(
+  deps: MenuDeps,
+  categoryId: string,
+  restaurantId: string,
+  defaultLang: string,
+  defaultCurrency: string,
+  ws: ItemWrite[],
+): Promise<void> {
+  return builder.createItemsBatch(
+    deps.db.db,
+    categoryId,
+    restaurantId,
+    ws.map((w) => normalizeItem(w, defaultLang, defaultCurrency)),
+  );
 }
 
 export function updateItem(
@@ -419,10 +452,17 @@ export function updateItem(
   itemId: string,
   restaurantId: string,
   defaultLang: string,
+  defaultCurrency: string,
   w: ItemWrite,
 ): Promise<void> {
   // nil = leave stored variants alone; non-nil (even empty) = replace.
-  return builder.updateItem(deps.db.db, itemId, restaurantId, normalizeItem(w, defaultLang), w.variants != null);
+  return builder.updateItem(
+    deps.db.db,
+    itemId,
+    restaurantId,
+    normalizeItem(w, defaultLang, defaultCurrency),
+    w.variants != null,
+  );
 }
 
 export function deleteItem(deps: MenuDeps, itemId: string, restaurantId: string): Promise<void> {

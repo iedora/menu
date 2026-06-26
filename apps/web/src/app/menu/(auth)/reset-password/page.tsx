@@ -32,7 +32,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
         ) : (
           <Link
             href={signInHref}
-            className="inline-flex w-full items-center justify-center rounded-[12px] bg-primary px-4 py-3 text-[16px] font-semibold text-white no-underline transition-colors hover:bg-primary/90"
+            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-[16px] font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
             data-test-id="reset-back-link"
           >
             {t('backToSignIn')}

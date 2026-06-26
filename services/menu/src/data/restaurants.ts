@@ -21,6 +21,7 @@ export const RESTAURANT_COLS = [
   "theme",
   "default_language",
   "supported_languages",
+  "default_currency",
   "onboarding_completed_at",
   "updated_at",
 ] as const;
@@ -40,6 +41,7 @@ export function toRestaurant(r: RestaurantRow): Restaurant {
     theme: parseJson<Theme>(r.theme),
     defaultLanguage: r.default_language,
     supportedLanguages: r.supported_languages,
+    defaultCurrency: r.default_currency,
     onboardingCompletedAt: r.onboarding_completed_at ? new Date(r.onboarding_completed_at) : null,
     updatedAt: new Date(r.updated_at),
   };

@@ -61,7 +61,13 @@ function mockRefreshOk(newRefresh = 'rt2', newAccess = accessToken(future())) {
   return f
 }
 function mockRefreshDead() {
-  const f = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({ error: 'dead' }), headers: { getSetCookie: () => [] } }))
+  const f = vi.fn(async () => ({
+    ok: false,
+    status: 401,
+    statusText: 'Unauthorized',
+    text: async () => JSON.stringify({ error: 'dead' }),
+    headers: { getSetCookie: () => [] },
+  }))
   vi.stubGlobal('fetch', f)
   return f
 }

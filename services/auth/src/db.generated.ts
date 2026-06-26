@@ -44,6 +44,7 @@ export interface Sessions {
   expires_at: Timestamp;
   family_id: string;
   id: Generated<string>;
+  ip: string | null;
   ip_hash: Buffer | null;
   issued_at: Generated<Timestamp>;
   replaced_by: string | null;
@@ -69,7 +70,9 @@ export interface Users {
   email: string;
   email_verified_at: Timestamp | null;
   id: Generated<string>;
+  must_change_password: Generated<boolean>;
   name: string | null;
+  password_changed_at: Generated<Timestamp>;
   password_hash: string;
   role: string | null;
   updated_at: Generated<Timestamp>;

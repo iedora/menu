@@ -1,9 +1,8 @@
 import type { KeyObject } from "node:crypto";
 
-import { createMiddleware } from "hono/factory";
 import { type CryptoKey, importJWK, jwtVerify, SignJWT } from "jose";
 
-import type { ServiceEnv } from "./http";
+import { bearerAuth, type ServiceEnv } from "./http";
 
 // Verifies the internal service tokens minted by the auth service (EdDSA):
 // algorithm pinned to EdDSA (algorithm-confusion defense), issuer + audience
@@ -82,15 +81,9 @@ export function parseClients(s: string): Map<string, string> {
 
 /** Hono middleware: 401 unless a valid service bearer token is present; sets `clientId`. */
 export function serviceAuth(v: ServiceVerifier) {
-  return createMiddleware<ServiceEnv>(async (c, next) => {
-    const header = c.req.header("authorization") ?? "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-    if (!token) return c.json({ error: "missing bearer token" }, 401);
-    try {
-      c.set("clientId", await verifyServiceToken(v, token));
-    } catch {
-      return c.json({ error: "invalid service token" }, 401);
-    }
-    await next();
+  return bearerAuth<ServiceEnv>({
+    verify: (token) => verifyServiceToken(v, token),
+    setKey: "clientId",
+    invalidMsg: "invalid service token",
   });
 }

@@ -29,7 +29,7 @@ const orderInput = z.object({ orderedIds: z.array(z.string()) });
 // /restaurants/{slug}. Relies on the parent `scoped` middleware; reads the
 // restaurant (id + default language) from context.
 export function builderRoutes(deps: MenuDeps) {
-  const rid = (c: { get: (k: "restaurant") => { id: string; defaultLanguage: string } }) =>
+  const rid = (c: { get: (k: "restaurant") => { id: string; defaultLanguage: string; defaultCurrency: string } }) =>
     c.get("restaurant");
 
   return new Hono<MenuEnv>()
@@ -67,12 +67,19 @@ export function builderRoutes(deps: MenuDeps) {
     })
     .post("/categories/:categoryID/items", zValidator("json", itemWrite), async (c) =>
       c.json({
-        id: await createItem(deps, c.req.param("categoryID"), rid(c).id, rid(c).defaultLanguage, c.req.valid("json")),
+        id: await createItem(
+          deps,
+          c.req.param("categoryID"),
+          rid(c).id,
+          rid(c).defaultLanguage,
+          rid(c).defaultCurrency,
+          c.req.valid("json"),
+        ),
       }),
     )
     .patch("/items/:itemID", zValidator("json", itemWrite), async (c) => {
       const r = rid(c);
-      await updateItem(deps, c.req.param("itemID"), r.id, r.defaultLanguage, c.req.valid("json"));
+      await updateItem(deps, c.req.param("itemID"), r.id, r.defaultLanguage, r.defaultCurrency, c.req.valid("json"));
       return c.json({ ok: true });
     })
     .delete("/items/:itemID", async (c) => {

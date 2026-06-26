@@ -118,6 +118,7 @@ export interface RateLimitEvents {
 export interface Restaurants {
   banner_url: string | null;
   created_at: Generated<Timestamp>;
+  default_currency: Generated<string>;
   default_language: Generated<string>;
   description: string | null;
   description_i18n: Json | null;

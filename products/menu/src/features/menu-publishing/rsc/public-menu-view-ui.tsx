@@ -1,9 +1,5 @@
 import Link from 'next/link'
-import {
-  LANGUAGE_META,
-  type LanguageCode,
-  getLanguage,
-} from '../../i18n'
+import { type LanguageCode, getLanguage } from '../../i18n'
 import type { ResolvedTheme } from './theme'
 import { MenuRenderer } from './menu-renderer'
 import { MenuTracker } from './menu-tracker'
@@ -57,8 +53,10 @@ export function PublicMenuView({
           className="flex justify-end gap-1 px-5 pt-4"
         >
           {data.supportedLanguages
-            .map((code) => LANGUAGE_META.find((m) => m.code === code))
-            .filter((m): m is (typeof LANGUAGE_META)[number] => Boolean(m))
+            .flatMap((code) => {
+              const m = getLanguage(code)
+              return m ? [m] : []
+            })
             .map((langMeta) => {
               const isActive = langMeta.code === data.currentLanguage
               const className =

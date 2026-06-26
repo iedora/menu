@@ -8,6 +8,19 @@ export {
   type TokenResponse,
 } from './cookies'
 export { ApiError } from './error'
-export { login, register, refreshTokens, logout, createTenant, forgotPassword, resetPassword, type AuthResult } from './auth-api'
+export {
+  login,
+  register,
+  refreshTokens,
+  logout,
+  createTenant,
+  forgotPassword,
+  resetPassword,
+  whoami,
+  changePassword,
+  mySessions,
+  revokeMyDevice,
+  type AuthResult,
+} from './auth-api'
 export { getSession, sessionFromToken, type Session } from './session'
 export { serverFetch, apiJson } from './server-fetch'

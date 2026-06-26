@@ -59,6 +59,22 @@ test("DELETE an item removes it from the tree", async () => {
   expect((await items()).some((i) => i.id === itemB)).toBe(false);
 });
 
+test("a new dish inherits the restaurant's default currency", async () => {
+  // Move the restaurant default to USD via the identity patch.
+  const patch = await h.app.request("/api/restaurants/builder", await jsonPatch(h, { defaultCurrency: "USD" }));
+  expect(patch.status).toBe(200);
+  // A dish created without an explicit currency picks up the new default
+  // (the old hard-coded EUR fallback would have made this fail).
+  const id = await idOf(
+    await h.app.request(
+      `/api/restaurants/builder/categories/${catId}/items`,
+      await json(h, { name: "Inherited", priceCents: 300 }),
+    ),
+  );
+  const row = await sql<{ currency: string }>`SELECT currency FROM items WHERE id=${id}`.execute(h.db.root);
+  expect(row.rows[0]!.currency).toBe("USD");
+});
+
 test("DELETE a category cascades to its remaining items", async () => {
   const res = await h.app.request(`/api/restaurants/builder/categories/${catId}`, { method: "DELETE", headers: await auth(h) });
   expect(res.status).toBe(200);

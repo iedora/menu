@@ -12,28 +12,37 @@ import type { AuthDeps } from "./deps";
 export interface RequestMeta {
   userAgent: string | null;
   ipHash: Buffer | null;
+  /** The raw client IP — kept for the admin security view (the `ip_hash` stays
+   *  the GDPR-safe correlation key). Null when no forwarded IP is present. */
+  ip: string | null;
 }
 
-/** Client context recorded with sessions + audit events (IP is hashed, never raw). */
+/** Client context recorded with sessions + audit events. We keep both the raw
+ *  IP (for the admin Users CRM) and its hash (the privacy-safe key). */
 export function metaFrom(c: Context): RequestMeta {
   const ua = c.req.header("user-agent") ?? null;
   const xff = c.req.header("x-forwarded-for");
   const ip = xff ? (xff.split(",")[0]?.trim() ?? "") : "";
-  return { userAgent: ua, ipHash: ip ? createHash("sha256").update(ip).digest() : null };
+  return {
+    userAgent: ua,
+    ip: ip || null,
+    ipHash: ip ? createHash("sha256").update(ip).digest() : null,
+  };
 }
 
 /**
  * A request-scoped auditor that stamps every event with the request's
- * user-agent + ip hash, so each call site states only what differs
+ * user-agent, raw IP + ip hash, so each call site states only what differs
  * (action/outcome/actor/meta) and no auth flow can forget that context. Build
  * one per request from its {@link RequestMeta}.
  */
 export function auditWith(auditor: Auditor, meta: RequestMeta) {
   const userAgent = meta.userAgent ?? undefined;
   const ipHash = meta.ipHash ?? undefined;
+  const ip = meta.ip ?? undefined;
   return {
-    record: (e: AuditEvent) => auditor.record({ userAgent, ipHash, ...e }),
-    recordSync: (e: AuditEvent) => auditor.recordSync({ userAgent, ipHash, ...e }),
+    record: (e: AuditEvent) => auditor.record({ userAgent, ipHash, ip, ...e }),
+    recordSync: (e: AuditEvent) => auditor.recordSync({ userAgent, ipHash, ip, ...e }),
   };
 }
 
@@ -44,6 +53,9 @@ export interface Tokens {
   refreshExpiresAt: Date;
   userId: string;
   tenantId: string;
+  /** True when the account is flagged for a forced password change — the client
+   *  routes the user to the change-password screen after this sign-in. */
+  mustChangePassword: boolean;
 }
 
 /** A fresh session family + its opaque refresh token (not yet persisted). */
@@ -67,6 +79,7 @@ export function buildSession(
       absoluteExpiresAt: new Date(now.getTime() + cfg.refreshAbsoluteTtlMs),
       userAgent: meta.userAgent,
       ipHash: meta.ipHash,
+      ip: meta.ip,
     },
   };
 }
@@ -94,6 +107,7 @@ export function buildNextSession(
       absoluteExpiresAt: abs,
       userAgent: meta.userAgent,
       ipHash: meta.ipHash,
+      ip: meta.ip,
     },
   };
 }
@@ -113,6 +127,7 @@ export async function mintTokens(
     tenantId: tenantId ?? undefined,
     sessionId: familyId,
     roles: user.role ? [user.role] : [],
+    mustChangePassword: user.must_change_password,
   });
   return {
     accessToken,
@@ -121,6 +136,7 @@ export async function mintTokens(
     refreshExpiresAt,
     userId: user.id,
     tenantId: tenantId ?? "",
+    mustChangePassword: user.must_change_password,
   };
 }
 
@@ -130,12 +146,14 @@ export function tokenJson(t: Tokens): {
   expiresAt: string;
   userId: string;
   tenantId?: string;
+  mustChangePassword?: boolean;
 } {
   return {
     accessToken: t.accessToken,
     expiresAt: t.accessExpiresAt.toISOString(),
     userId: t.userId,
     ...(t.tenantId ? { tenantId: t.tenantId } : {}),
+    ...(t.mustChangePassword ? { mustChangePassword: true } : {}),
   };
 }
 

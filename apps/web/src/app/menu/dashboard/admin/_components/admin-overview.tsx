@@ -6,7 +6,7 @@ import {
   listTenantsDirectory,
 } from '@iedora/product-menu/features/restaurant-identity'
 import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
-import { RecordCard, StatCard } from '@iedora/product-menu/shared/ui/crm'
+import { ActionButton, RecordCard, StatCard } from '@iedora/product-menu/shared/ui/crm'
 
 const RESTAURANTS_HREF = '/menu/dashboard/admin/restaurants'
 
@@ -35,14 +35,10 @@ export async function AdminOverview() {
       title={t('overview.title')}
       description={t('overview.subtitle')}
       actions={
-        <Link
-          href={`${RESTAURANTS_HREF}/new`}
-          data-test-id="admin-overview-new"
-          className="inline-flex items-center gap-2 rounded-[10px] bg-primary px-[18px] py-[11px] text-[14px] font-semibold text-white no-underline transition-colors hover:bg-primary/90"
-        >
+        <ActionButton href={`${RESTAURANTS_HREF}/new`} data-test-id="admin-overview-new">
           <PlusIcon size={16} weight="bold" aria-hidden />
           {t('restaurants.newRestaurant')}
-        </Link>
+        </ActionButton>
       }
       data-test-id="admin-overview"
     >

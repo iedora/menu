@@ -5,7 +5,7 @@ import type { MenuDeps } from "../../deps";
 import type { Restaurant } from "../../domain";
 import { invalid } from "../../errors";
 import { Languages } from "../../i18n";
-import { createCategory, createItem, createMenu, createRestaurant } from "../../service";
+import { createCategory, createItems, createMenu, createRestaurant } from "../../service";
 import { validLanguages } from "../../validate";
 
 // Staff provisioning of a restaurant (admin "New restaurant"): resolve the
@@ -121,8 +121,15 @@ export async function staffImportRestaurant(
       const menuId = await createMenu(deps, restaurant.id, menu.name);
       for (const category of menu.categories ?? []) {
         const categoryId = await createCategory(deps, menuId, restaurant.id, category.name);
-        for (const item of category.items ?? []) {
-          await createItem(deps, categoryId, restaurant.id, restaurant.defaultLanguage, {
+        // One multi-row INSERT for the whole category (freshly created, so item
+        // order is the array order) instead of a round-trip per item.
+        await createItems(
+          deps,
+          categoryId,
+          restaurant.id,
+          restaurant.defaultLanguage,
+          restaurant.defaultCurrency,
+          (category.items ?? []).map((item) => ({
             name: item.name,
             nameI18n: item.nameI18n,
             description: item.description,
@@ -131,8 +138,8 @@ export async function staffImportRestaurant(
             currency: item.currency,
             available: item.available,
             tags: item.tags,
-          });
-        }
+          })),
+        );
       }
     }
     return restaurant;

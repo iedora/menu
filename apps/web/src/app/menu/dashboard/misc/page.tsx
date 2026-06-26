@@ -1,11 +1,15 @@
 import Link from 'next/link'
 import { CaretRightIcon } from '@phosphor-icons/react/ssr'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { getSession, requireActiveOrganization } from '@iedora/product-menu/features/auth'
+import { getOrganizationMonthlyViews } from '@iedora/product-menu/features/metrics'
 import { getOrganizationPlan } from '@iedora/product-menu/features/plans'
 import { DashboardPage } from '@iedora/product-menu/shared/ui/dashboard-page'
+import { ActionButton } from '@iedora/product-menu/shared/ui/crm'
 import { SettingsLogout } from '@iedora/product-menu/features/dashboard-home/ui/settings-logout'
 import { UserLocaleSwitcher } from '@iedora/product-menu/features/dashboard-home/ui/user-locale-switcher'
+import { ChangePasswordForm } from './change-password-form'
+import { MyDevices } from './my-devices'
 
 /**
  * Settings — account + preferences + plan (Pencil "App · Settings").
@@ -15,13 +19,23 @@ import { UserLocaleSwitcher } from '@iedora/product-menu/features/dashboard-home
  */
 export default async function MiscPage() {
   const orgPromise = requireActiveOrganization()
-  const [, t, tBilling, plan, session] = await Promise.all([
+  const [, t, tBilling, tDash, plan, monthlyViews, session, locale] = await Promise.all([
     orgPromise,
     getTranslations('Misc'),
     getTranslations('Billing'),
+    getTranslations('Dashboard'),
     orgPromise.then(() => getOrganizationPlan()),
+    orgPromise.then(() => getOrganizationMonthlyViews()),
     getSession(),
+    getLocale(),
   ])
+
+  const numberFmt = new Intl.NumberFormat(locale)
+  const unlimitedViews = plan.monthlyViews < 0
+  const viewsPct =
+    unlimitedViews || plan.monthlyViews === 0
+      ? 0
+      : Math.min(100, Math.round((monthlyViews / plan.monthlyViews) * 100))
 
   const email = session?.email ?? ''
   const initial = (email.trim()[0] ?? '?').toUpperCase()
@@ -67,6 +81,22 @@ export default async function MiscPage() {
           </div>
         </section>
 
+        {/* Security — change password */}
+        <section className="space-y-2" data-test-id="settings-security">
+          <p className={sectionLabel}>{t('security.title')}</p>
+          <div className={`${card} p-4`}>
+            <ChangePasswordForm />
+          </div>
+        </section>
+
+        {/* Devices — the owner's own logged-in devices */}
+        <section className="space-y-2" data-test-id="settings-devices">
+          <p className={sectionLabel}>{t('devices.title')}</p>
+          <div className={`${card} p-4`}>
+            <MyDevices />
+          </div>
+        </section>
+
         {/* Plan */}
         <section className="space-y-2" data-test-id="settings-plan">
           <p className={sectionLabel}>{t('plan')}</p>
@@ -76,12 +106,40 @@ export default async function MiscPage() {
                 <p className="text-[15px] font-semibold text-foreground">{planName}</p>
                 <p className="text-[13px] text-muted-foreground">{t('planHint')}</p>
               </div>
-              <Link
-                href="/dashboard/billing"
-                className="shrink-0 rounded-full bg-primary px-4 py-2 text-[13.5px] font-semibold text-white no-underline transition-colors hover:bg-primary/90"
-              >
-                {t('manage')}
-              </Link>
+              <ActionButton href="/dashboard/billing">{t('manage')}</ActionButton>
+            </div>
+            {/* Monthly views usage against the plan cap. */}
+            <div className="space-y-2 p-4" data-test-id="settings-views-usage">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px] text-foreground">{t('viewsUsage')}</span>
+                <span className="shrink-0 text-[13.5px] font-semibold tabular-nums text-foreground">
+                  {unlimitedViews
+                    ? tDash('viewsUnlimitedTag')
+                    : tDash('viewsCount', {
+                        count: numberFmt.format(monthlyViews),
+                        limit: numberFmt.format(plan.monthlyViews),
+                      })}
+                </span>
+              </div>
+              {!unlimitedViews && (
+                <>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                    <div
+                      className={`h-full rounded-full ${viewsPct >= 90 ? 'bg-destructive' : 'bg-primary'}`}
+                      style={{ width: `${viewsPct}%` }}
+                    />
+                  </div>
+                  {viewsPct >= 80 ? (
+                    <Link
+                      href="/dashboard/billing"
+                      className="block text-[12.5px] font-semibold text-primary no-underline"
+                      data-test-id="settings-views-nudge"
+                    >
+                      {tDash('viewsNudge')}
+                    </Link>
+                  ) : null}
+                </>
+              )}
             </div>
             <Link
               href="/dashboard/billing"

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useActionResult } from './use-action-result'
 import { Button } from '@iedora/ui/components/ui/button'
 import {
   Dialog,
@@ -44,32 +45,32 @@ export function CategoryTranslateDialog({
   const [descriptionI18n, setDescriptionI18n] = useState<LocalizedText>(
     initial.descriptionI18n ?? {},
   )
-  const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const { pending, error, run } = useActionResult()
   const [nameError, setNameError] = useState<string | null>(null)
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(null)
     setNameError(null)
     if (!name.trim()) {
       setNameError('Name is required.')
       return
     }
-    startTransition(async () => {
-      const res = await updateCategoryTranslations(slug, categoryId, {
-        name: name.trim(),
-        description: description.trim(),
-        nameI18n,
-        descriptionI18n,
-      })
-      if (res && 'error' in res) {
-        setError(res.error ?? 'Could not save')
-        return
-      }
-      setOpen(false)
-      router.refresh()
-    })
+    run(
+      () =>
+        updateCategoryTranslations(slug, categoryId, {
+          name: name.trim(),
+          description: description.trim(),
+          nameI18n,
+          descriptionI18n,
+        }),
+      {
+        fallback: 'Could not save',
+        onSuccess: () => {
+          setOpen(false)
+          router.refresh()
+        },
+      },
+    )
   }
 
   return (

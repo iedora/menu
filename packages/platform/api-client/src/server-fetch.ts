@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { refreshTokens } from './auth-api'
 import { ACCESS_COOKIE, REFRESH_COOKIE, authCookies, type CookieWrite } from './cookies'
 import { MENU_URL } from './config'
-import { ApiError } from './error'
+import { ApiError, errorMessageFromResponse } from './error'
 
 /**
  * Fetch against the menu API with the caller's Bearer token.
@@ -51,26 +51,7 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
 /** serverFetch + JSON decode, throwing ApiError on non-2xx. */
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await serverFetch(path, init)
-  if (!res.ok) {
-    // Surface the service's real message. Read the body as text once, then
-    // prefer a JSON `{ error }` shape, else use the raw text (Hono's
-    // HTTPException returns the message as a plain-text body). Falls back to
-    // the status text only when there's no body at all.
-    let message = res.statusText
-    const text = await res.text().catch(() => '')
-    if (text) {
-      try {
-        const body = JSON.parse(text) as unknown
-        message =
-          body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
-            ? (body as { error: string }).error
-            : text
-      } catch {
-        message = text
-      }
-    }
-    throw new ApiError(res.status, message)
-  }
+  if (!res.ok) throw new ApiError(res.status, await errorMessageFromResponse(res))
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }

@@ -1,7 +1,8 @@
 import type { KeyObject } from "node:crypto";
 
-import { createMiddleware } from "hono/factory";
 import { type CryptoKey, jwtVerify } from "jose";
+
+import { bearerAuth } from "./http";
 
 // Verifies USER access tokens (EdDSA). Used by product services (menu, admin)
 // and auth's own authenticated routes. Algorithm pinned; iss/aud checked; the
@@ -12,6 +13,9 @@ export interface UserPrincipal {
   tenantId?: string;
   roles: string[];
   email?: string;
+  /** The session family id (the `sid` claim) — identifies the current device,
+   *  so a self-service password change can keep it while revoking the others. */
+  sessionId?: string;
 }
 
 export interface UserVerifier {
@@ -55,6 +59,7 @@ export async function verifyAccessToken(v: UserVerifier, token: string): Promise
     tenantId: typeof payload.tid === "string" ? payload.tid : undefined,
     roles: Array.isArray(payload.roles) ? (payload.roles as string[]) : [],
     email: typeof payload.email === "string" ? payload.email : undefined,
+    sessionId: typeof payload.sid === "string" ? payload.sid : undefined,
   };
 
   const expMs = typeof payload.exp === "number" ? payload.exp * 1000 : 0;
@@ -70,16 +75,10 @@ export async function verifyAccessToken(v: UserVerifier, token: string): Promise
 
 /** Hono middleware: 401 unless a valid user access token is present; sets `user`. */
 export function userAuth(v: UserVerifier) {
-  return createMiddleware<UserEnv>(async (c, next) => {
-    const header = c.req.header("authorization") ?? "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-    if (!token) return c.json({ error: "missing bearer token" }, 401);
-    try {
-      c.set("user", await verifyAccessToken(v, token));
-    } catch {
-      return c.json({ error: "invalid access token" }, 401);
-    }
-    await next();
+  return bearerAuth<UserEnv>({
+    verify: (token) => verifyAccessToken(v, token),
+    setKey: "user",
+    invalidMsg: "invalid access token",
   });
 }
 

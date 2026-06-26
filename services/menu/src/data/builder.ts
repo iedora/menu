@@ -138,6 +138,30 @@ export async function createItem(
   return returnedOrNotFound(r).id;
 }
 
+// createItemsBatch inserts many items into one (already-validated) category in a
+// single multi-row INSERT — the import path, where the category was just created
+// in the same tx, so the per-row INSERT…SELECT ownership check and the
+// max(position)+1 probe are unnecessary: positions are the array order and the
+// category id is trusted. Collapses O(items) round-trips to one. No-op on [].
+export async function createItemsBatch(
+  db: DB,
+  categoryId: string,
+  restaurantId: string,
+  items: ItemInput[],
+): Promise<void> {
+  if (items.length === 0) return;
+  const rows = items.map(
+    (inp, position) =>
+      sql`(${categoryId}, ${restaurantId}, ${inp.name}, ${jsonbOrNull(inp.nameI18n)}, ${textOrNull(inp.description)},
+        ${jsonbOrNull(inp.descriptionI18n)}, ${inp.priceCents}, ${inp.currency}, ${inp.available},
+        ${textArray(inp.tags)}, ${jsonbOrNull(variantsParam(inp.variants))}, ${position})`,
+  );
+  await sql`
+    INSERT INTO items (category_id, restaurant_id, name, name_i18n, description, description_i18n,
+      price_cents, currency, available, tags, variants, position)
+    VALUES ${sql.join(rows)}`.execute(db);
+}
+
 // updateItem replaces an item's fields. replaceVariants distinguishes "leave the
 // variants column alone" (false) from "set it to inp.variants — possibly
 // clearing it" (true).

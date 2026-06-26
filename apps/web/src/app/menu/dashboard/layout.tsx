@@ -29,12 +29,14 @@ import {
   GearIcon,
   StorefrontIcon,
   ForkKnifeIcon,
+  UsersIcon,
 } from '@phosphor-icons/react/ssr'
 import { SidebarInset, SidebarProvider } from '@iedora/ui/components/ui/sidebar'
 import { signInUrl } from '@iedora/product-menu/shared/auth-urls'
 import { publicUrl } from '@iedora/product-menu/shared/url'
 import { ONBOARDING_STEPS } from '@iedora/product-menu/features/menu-onboarding'
 import { getSession, isStaff } from '@iedora/product-menu/features/auth'
+import { enforcePasswordChange } from '@iedora/product-menu/features/account/guard'
 import { listRestaurantsWithCounts } from '@iedora/product-menu/features/dashboard-home'
 import { DEFAULT_PLAN, getOrganizationPlan, getPlanDisplay, planHas } from '@iedora/product-menu/features/plans'
 import { AppSidebar, type AppNavItem } from '../../../components/app-sidebar'
@@ -66,6 +68,10 @@ export default async function DashboardLayout({
   if (!session) {
     redirect(signInUrl(publicUrl('/menu/dashboard').toString()))
   }
+  // Forced password change takes priority over everything else: while the flag
+  // is set, the user can only reach the change-password screen (which lives
+  // outside this layout, so no redirect loop).
+  await enforcePasswordChange()
   // Staff (iedora-admin / iedora-support) are cross-tenant operators;
   // they don't need to belong to a tenant to land on the dashboard.
   const tenantId = session.tenantId
@@ -96,6 +102,7 @@ export default async function DashboardLayout({
     ? [
         { href: '/menu/dashboard', label: nav('overview'), icon: <SquaresFourIcon {...icon} />, exact: true, testId: 'dashboard-nav-overview' },
         { href: '/menu/dashboard/admin/restaurants', label: nav('restaurants'), icon: <StorefrontIcon {...icon} />, match: ['/menu/dashboard/r'], testId: 'dashboard-nav-admin-restaurants' },
+        { href: '/menu/dashboard/admin/users', label: nav('users'), icon: <UsersIcon {...icon} />, testId: 'dashboard-nav-admin-users' },
         { href: '/menu/dashboard/admin/qr-codes', label: nav('qrCodes'), icon: <QrCodeIcon {...icon} />, testId: 'dashboard-nav-admin' },
         ...(tenantId ? [{ href: '/menu/dashboard/misc', label: nav('settings'), icon: <GearIcon {...icon} />, testId: 'dashboard-nav-settings' }] : []),
       ]

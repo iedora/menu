@@ -49,6 +49,7 @@ export default async function ThemePage({
         initialLanguageSettings={{
           defaultLanguage: r.defaultLanguage as LanguageCode,
           supportedLanguages: r.supportedLanguages as LanguageCode[],
+          defaultCurrency: r.defaultCurrency,
         }}
       />
     </DashboardPage>

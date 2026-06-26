@@ -36,7 +36,7 @@ export function ResetPasswordForm({ token, signInHref }: { token: string; signIn
         </p>
         <Link
           href={signInHref}
-          className="inline-flex w-full items-center justify-center rounded-[12px] bg-primary px-4 py-3 text-[16px] font-semibold text-white no-underline transition-colors hover:bg-primary/90"
+          className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-[16px] font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
           data-test-id="reset-sign-in-cta"
         >
           {t('signInCta')}

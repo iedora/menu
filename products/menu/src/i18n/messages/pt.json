@@ -22,7 +22,8 @@
     "overview": "Visão geral",
     "settings": "Definições",
     "dashboard": "Painel",
-    "menu": "Menu"
+    "menu": "Menu",
+    "users": "Utilizadores"
   },
   "Auth": {
     "signIn": {
@@ -89,6 +90,17 @@
       "remembered": "Já se lembra?",
       "backToSignIn": "Voltar ao início de sessão"
     },
+    "changePassword": {
+      "title": "Define uma nova palavra-passe",
+      "subtitle": "A tua conta precisa de uma nova palavra-passe antes de continuares.",
+      "newLabel": "Nova palavra-passe",
+      "newPlaceholder": "Uma nova palavra-passe",
+      "confirmLabel": "Confirma a nova palavra-passe",
+      "hint": "Usa pelo menos {min} caracteres.",
+      "submit": "Definir e continuar",
+      "submitting": "A guardar…",
+      "failed": "Não foi possível alterar a palavra-passe. Tenta novamente."
+    },
     "support": "Precisa de ajuda? Ligue-nos",
     "fields": {
       "emailRequired": "Introduza o seu email.",
@@ -151,6 +163,8 @@
     "viewsThisMonth": "visualizações este mês",
     "viewsCount": "{count} / {limit}",
     "viewsUnlimited": "{count}",
+    "viewsRemaining": "{count} restantes",
+    "viewsUnlimitedTag": "Ilimitadas",
     "viewsNudge": "→ Faz upgrade para remover o limite",
     "analytics": {
       "range": {
@@ -205,6 +219,10 @@
   },
   "Settings": {
     "livePreview": "Pré-visualização",
+    "groups": {
+      "settings": "Definições",
+      "theme": "Tema"
+    },
     "Identity": {
       "title": "Identidade",
       "subtitle": "Nome, descrição e imagens que aparecem no topo do menu.",
@@ -231,6 +249,10 @@
     "Languages": {
       "title": "Idiomas",
       "subtitle": "Escolhe que idiomas o menu suporta e qual é o predefinido.",
+      "localeTitle": "Idioma e moeda",
+      "localeSubtitle": "Os idiomas do teu menu e a moeda que os pratos novos usam.",
+      "currency": "Moeda predefinida",
+      "currencyHint": "Os pratos novos usam esta moeda. Os pratos atuais mantêm a sua.",
       "default": "Predefinido",
       "makeDefault": "Tornar predefinido",
       "save": "Guardar idiomas",
@@ -243,13 +265,19 @@
     },
     "Theme": {
       "title": "Tema",
-      "subtitle": "Layout, tipografia e cores.",
-      "layout": "Layout",
-      "font": "Tipo de letra",
-      "primary": "Cor primária",
-      "primaryHint": "Títulos e corpo do texto",
-      "secondary": "Cor secundária",
-      "secondaryHint": "Descrições, separadores, legendas",
+      "subtitle": "Escolhe um estilo e define a tua cor de marca.",
+      "style": "Estilo",
+      "brandColor": "Cor de marca",
+      "brandColorCustom": "Cor personalizada",
+      "brandColorHint": "Usada nos títulos e detalhes do teu menu.",
+      "presets": {
+        "classic": "Clássico",
+        "modern": "Moderno",
+        "warm": "Acolhedor",
+        "bold": "Forte",
+        "fresh": "Fresco",
+        "editorial": "Editorial"
+      },
       "save": "Guardar tema",
       "reset": "Repor predefinições",
       "saved": "Guardado"
@@ -312,7 +340,29 @@
     "plan": "Plano",
     "planHint": "O seu plano atual",
     "manage": "Gerir",
-    "billing": "Faturação e recibos"
+    "viewsUsage": "Visualizações este mês",
+    "billing": "Faturação e recibos",
+    "security": {
+      "title": "Segurança",
+      "current": "Palavra-passe atual",
+      "new": "Nova palavra-passe",
+      "confirm": "Confirma a nova palavra-passe",
+      "hint": "Usa pelo menos {min} caracteres.",
+      "save": "Alterar palavra-passe",
+      "saving": "A guardar…",
+      "done": "Palavra-passe alterada. Os outros dispositivos foram terminados.",
+      "wrongCurrent": "A palavra-passe atual está incorreta.",
+      "failed": "Não foi possível alterar a palavra-passe. Tenta novamente."
+    },
+    "devices": {
+      "title": "Dispositivos",
+      "loading": "A carregar dispositivos…",
+      "empty": "Sem dispositivos ativos.",
+      "active": "Ativo",
+      "ipUnknown": "IP desconhecido",
+      "signOutOthers": "Terminar nos outros dispositivos",
+      "signingOut": "A terminar…"
+    }
   },
   "Builder": {
     "addSection": "Adicionar secção",
@@ -347,6 +397,8 @@
     "itemDescriptionHint": "Uma linha funciona melhor — ingredientes ou nota de prova.",
     "itemAvailable": "Disponível",
     "itemHidden": "Oculto",
+    "itemHide": "Ocultar {name} do menu",
+    "itemShow": "Mostrar {name} no menu",
     "itemPhoto": "Foto",
     "itemNeedsName": "Escreva um nome primeiro.",
     "itemBadPrice": "Indique um preço como 9.50.",
@@ -775,16 +827,92 @@
     "audit": {
       "noActivity": "Ainda não há atividade registada.",
       "created": "Restaurante criado",
+      "renamed": "Restaurante renomeado",
       "slugRenamed": "Slug renomeado",
       "deleted": "Restaurante eliminado",
       "subscriptionCreated": "Subscrição criada",
+      "subscriptionCanceled": "Subscrição cancelada",
       "paymentRecorded": "Pagamento registado — plano atualizado",
       "subscriptionExpired": "Pagamento expirado — passou para On Us",
       "ownerTransferred": "Proprietário transferido",
       "qrPrinted": "Folha de QR impressa",
+      "login": "Sessão iniciada",
+      "loginFailed": "Tentativa de início falhada",
+      "logout": "Sessão terminada",
+      "logoutAll": "Sessão terminada em todo o lado",
+      "tokenRefresh": "Sessão renovada",
+      "tokenReuse": "Reutilização de token detetada",
+      "register": "Conta criada",
+      "roleGranted": "Função atribuída",
+      "passwordResetRequested": "Reposição de palavra-passe pedida",
+      "passwordResetCompleted": "Palavra-passe reposta",
+      "tenantCreated": "Espaço de trabalho criado",
+      "tenantOwnerTransferred": "Proprietário do espaço transferido",
+      "passwordChanged": "Palavra-passe alterada",
+      "forcePasswordChange": "Forçou a alteração de palavra-passe",
+      "passwordSetByAdmin": "Palavra-passe definida por um admin",
+      "sessionRevoked": "Dispositivo terminado",
+      "reason": {
+        "bad_password": "palavra-passe errada",
+        "no_user": "conta inexistente",
+        "banned": "conta banida"
+      },
       "loading": "A carregar atividade…",
       "error": "Não foi possível carregar a atividade.",
       "retry": "Tentar novamente"
+    },
+    "users": {
+      "title": "Utilizadores",
+      "subtitle": "{count, plural, =1 {# conta} other {# contas}} em todos os espaços de trabalho.",
+      "listAria": "Utilizadores",
+      "searchPlaceholder": "Procurar por nome ou email",
+      "searchAria": "Procurar utilizadores",
+      "clear": "Limpar",
+      "count": "{count, plural, =1 {# utilizador} other {# utilizadores}}",
+      "empty": "Nenhum utilizador corresponde à procura.",
+      "tenants": "{count, plural, =1 {# espaço} other {# espaços}}",
+      "tenantsLabel": "Espaços de trabalho",
+      "active": "Ativo",
+      "banned": "Banido",
+      "profile": "Perfil",
+      "status": "Estado",
+      "banReason": "Motivo do banimento",
+      "role": "Função",
+      "roleNone": "Proprietário",
+      "emailVerified": "Email verificado",
+      "notVerified": "Não verificado",
+      "userId": "ID do utilizador",
+      "memberships": "Espaços de trabalho",
+      "passwordChanged": "Última alteração de palavra-passe",
+      "mustChange": "Tem de alterar no próximo início de sessão",
+      "activityTitle": "Atividade",
+      "loginsTab": "Inícios de sessão",
+      "loginsTitle": "Tentativas de início de sessão",
+      "sessionsTitle": "Sessões",
+      "sessionsTab": "Sessões ({count})",
+      "actions": {
+        "title": "Ações da conta",
+        "force": "Forçar alteração de palavra-passe",
+        "setPassword": "Definir palavra-passe temporária",
+        "setPasswordSubmit": "Definir palavra-passe",
+        "tempPlaceholder": "Palavra-passe temporária (12+ caracteres)",
+        "hint": "Ambas terminam a sessão do utilizador em todo o lado e exigem uma nova palavra-passe no próximo início.",
+        "forced": "Feito. O utilizador tem de definir uma nova palavra-passe no próximo início.",
+        "passwordSet": "Palavra-passe temporária definida. O utilizador tem de a alterar no próximo início.",
+        "tooShort": "Usa pelo menos 12 caracteres.",
+        "failed": "A ação falhou. Tenta novamente."
+      }
+    },
+    "sessions": {
+      "empty": "Sem sessões registadas.",
+      "active": "Ativa",
+      "revoked": "Revogada",
+      "expired": "Expirada",
+      "ipUnknown": "IP desconhecido",
+      "startedOn": "Iniciada a {date}",
+      "kick": "Terminar sessão",
+      "kicking": "A terminar…",
+      "kicked": "Sessão terminada"
     },
     "plans": {
       "freeSuffix": "(grátis)"

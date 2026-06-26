@@ -22,7 +22,8 @@
     "overview": "Overview",
     "settings": "Settings",
     "dashboard": "Dashboard",
-    "menu": "Menu"
+    "menu": "Menu",
+    "users": "Users"
   },
   "Auth": {
     "signIn": {
@@ -89,6 +90,17 @@
       "remembered": "Remembered it?",
       "backToSignIn": "Back to sign in"
     },
+    "changePassword": {
+      "title": "Set a new password",
+      "subtitle": "Your account needs a new password before you continue.",
+      "newLabel": "New password",
+      "newPlaceholder": "A new password",
+      "confirmLabel": "Confirm new password",
+      "hint": "Use at least {min} characters.",
+      "submit": "Set password and continue",
+      "submitting": "Saving…",
+      "failed": "Could not change your password. Please try again."
+    },
     "support": "Need help? Call us",
     "fields": {
       "emailRequired": "Enter your email.",
@@ -151,6 +163,8 @@
     "viewsThisMonth": "views this month",
     "viewsCount": "{count} / {limit}",
     "viewsUnlimited": "{count}",
+    "viewsRemaining": "{count} left",
+    "viewsUnlimitedTag": "Unlimited",
     "viewsNudge": "→ Upgrade to remove the limit",
     "analytics": {
       "range": {
@@ -205,6 +219,10 @@
   },
   "Settings": {
     "livePreview": "Live preview",
+    "groups": {
+      "settings": "Settings",
+      "theme": "Theme"
+    },
     "Identity": {
       "title": "Identity",
       "subtitle": "Name, copy, and brand assets shown at the top of the menu.",
@@ -231,6 +249,10 @@
     "Languages": {
       "title": "Languages",
       "subtitle": "Pick which languages your menu supports and which is the default.",
+      "localeTitle": "Language & currency",
+      "localeSubtitle": "The languages your menu speaks and the currency new dishes use.",
+      "currency": "Default currency",
+      "currencyHint": "New dishes use this. Existing dishes keep their own price currency.",
       "default": "Default",
       "makeDefault": "Make default",
       "save": "Save languages",
@@ -243,13 +265,19 @@
     },
     "Theme": {
       "title": "Theme",
-      "subtitle": "Layout, fonts, and brand colors.",
-      "layout": "Layout",
-      "font": "Font",
-      "primary": "Primary color",
-      "primaryHint": "Headings and body text",
-      "secondary": "Secondary color",
-      "secondaryHint": "Descriptions, dividers, captions",
+      "subtitle": "Pick a style, then set your brand color.",
+      "style": "Style",
+      "brandColor": "Brand color",
+      "brandColorCustom": "Custom color",
+      "brandColorHint": "Used for headings and accents across your menu.",
+      "presets": {
+        "classic": "Classic",
+        "modern": "Modern",
+        "warm": "Warm",
+        "bold": "Bold",
+        "fresh": "Fresh",
+        "editorial": "Editorial"
+      },
       "save": "Save theme",
       "reset": "Reset to default",
       "saved": "Saved"
@@ -312,7 +340,29 @@
     "plan": "Plan",
     "planHint": "Your current plan",
     "manage": "Manage",
-    "billing": "Billing & invoices"
+    "viewsUsage": "Views this month",
+    "billing": "Billing & invoices",
+    "security": {
+      "title": "Security",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "hint": "Use at least {min} characters.",
+      "save": "Change password",
+      "saving": "Saving…",
+      "done": "Password changed. Other devices were signed out.",
+      "wrongCurrent": "Your current password is incorrect.",
+      "failed": "Could not change your password. Please try again."
+    },
+    "devices": {
+      "title": "Devices",
+      "loading": "Loading devices…",
+      "empty": "No active devices.",
+      "active": "Active",
+      "ipUnknown": "IP unknown",
+      "signOutOthers": "Sign out other devices",
+      "signingOut": "Signing out…"
+    }
   },
   "Builder": {
     "addSection": "Add section",
@@ -347,6 +397,8 @@
     "itemDescriptionHint": "One line works best — ingredients or a tasting note.",
     "itemAvailable": "Available",
     "itemHidden": "Hidden",
+    "itemHide": "Hide {name} from the menu",
+    "itemShow": "Show {name} on the menu",
     "itemPhoto": "Photo",
     "itemNeedsName": "Type a name first.",
     "itemBadPrice": "Enter a price like 9.50.",
@@ -775,16 +827,92 @@
     "audit": {
       "noActivity": "No activity recorded yet.",
       "created": "Restaurant created",
+      "renamed": "Restaurant renamed",
       "slugRenamed": "Slug renamed",
       "deleted": "Restaurant deleted",
       "subscriptionCreated": "Subscription created",
+      "subscriptionCanceled": "Subscription canceled",
       "paymentRecorded": "Payment recorded — plan upgraded",
       "subscriptionExpired": "Payment expired — dropped to On Us",
       "ownerTransferred": "Owner transferred",
       "qrPrinted": "QR sheet printed",
+      "login": "Signed in",
+      "loginFailed": "Failed sign-in",
+      "logout": "Signed out",
+      "logoutAll": "Signed out everywhere",
+      "tokenRefresh": "Session refreshed",
+      "tokenReuse": "Token reuse detected",
+      "register": "Account created",
+      "roleGranted": "Role granted",
+      "passwordResetRequested": "Password reset requested",
+      "passwordResetCompleted": "Password reset completed",
+      "tenantCreated": "Workspace created",
+      "tenantOwnerTransferred": "Workspace owner transferred",
+      "passwordChanged": "Password changed",
+      "forcePasswordChange": "Forced a password change",
+      "passwordSetByAdmin": "Password set by an admin",
+      "sessionRevoked": "Device signed out",
+      "reason": {
+        "bad_password": "wrong password",
+        "no_user": "no such account",
+        "banned": "account banned"
+      },
       "loading": "Loading activity…",
       "error": "Couldn’t load activity.",
       "retry": "Retry"
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "{count, plural, =1 {# account} other {# accounts}} across every workspace.",
+      "listAria": "Users",
+      "searchPlaceholder": "Search by name or email",
+      "searchAria": "Search users",
+      "clear": "Clear",
+      "count": "{count, plural, =1 {# user} other {# users}}",
+      "empty": "No users match your search.",
+      "tenants": "{count, plural, =1 {# workspace} other {# workspaces}}",
+      "tenantsLabel": "Workspaces",
+      "active": "Active",
+      "banned": "Banned",
+      "profile": "Profile",
+      "status": "Status",
+      "banReason": "Ban reason",
+      "role": "Role",
+      "roleNone": "Owner",
+      "emailVerified": "Email verified",
+      "notVerified": "Not verified",
+      "userId": "User ID",
+      "memberships": "Workspaces",
+      "passwordChanged": "Last password change",
+      "mustChange": "Must change at next login",
+      "activityTitle": "Activity",
+      "loginsTab": "Logins",
+      "loginsTitle": "Login attempts",
+      "sessionsTitle": "Sessions",
+      "sessionsTab": "Sessions ({count})",
+      "actions": {
+        "title": "Account actions",
+        "force": "Force password change",
+        "setPassword": "Set a temporary password",
+        "setPasswordSubmit": "Set password",
+        "tempPlaceholder": "Temporary password (12+ characters)",
+        "hint": "Both sign the user out everywhere and require a new password at next login.",
+        "forced": "Done. The user must set a new password at next login.",
+        "passwordSet": "Temporary password set. The user must change it at next login.",
+        "tooShort": "Use at least 12 characters.",
+        "failed": "Action failed. Please try again."
+      }
+    },
+    "sessions": {
+      "empty": "No sessions on record.",
+      "active": "Active",
+      "revoked": "Revoked",
+      "expired": "Expired",
+      "ipUnknown": "IP unknown",
+      "startedOn": "Started {date}",
+      "kick": "Sign out",
+      "kicking": "Signing out…",
+      "kicked": "Signed out"
     },
     "plans": {
       "freeSuffix": "(free)"

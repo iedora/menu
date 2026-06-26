@@ -1,11 +1,11 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Badge } from '@iedora/ui/components/ui/badge'
 import { Button } from '@iedora/ui/components/ui/button'
-import { Card } from '@iedora/ui/components/ui/card'
 import { Checkbox } from '@iedora/ui/components/ui/checkbox'
 import { Combobox } from '@iedora/ui/components/combobox'
 import {
@@ -15,20 +15,22 @@ import {
   FieldLabel,
   FieldTextarea,
 } from '@iedora/ui/components/field'
-import { SectionHeader } from '@iedora/ui/components/section-header'
+import { Panel, PanelHeader } from '../../../shared/ui/crm'
 import { ImageUpload } from '../../upload/ui/image-upload'
 import { LocalizedFields } from '../../i18n/ui/localized-fields'
 import { MenuRenderer } from '../../menu-publishing/rsc/menu-renderer'
 import type { PublicMenu, PublicRestaurant } from '../../menu-publishing/rsc/types'
 import type { LocalizedText } from '../../i18n'
 import {
+  BRAND_SWATCHES,
   DEFAULT_THEME,
-  FONTS,
   HEX_PATTERN,
-  LAYOUTS,
+  matchPreset,
+  STYLE_PRESETS,
   type ResolvedTheme,
 } from '../../menu-publishing/rsc/theme'
 import { LANGUAGE_META, type LanguageCode } from '../../i18n'
+import { Currencies } from '@iedora/contracts'
 import {
   updateIdentity,
   updateLanguageSettings,
@@ -39,7 +41,31 @@ import {
 export type LanguageSettings = {
   defaultLanguage: LanguageCode
   supportedLanguages: LanguageCode[]
+  defaultCurrency: string
 }
+
+// The save/reset actions reuse the design-system Button but adopt the warm
+// rounded-full pill that is now the single button shape across the product
+// (landing + dashboard), instead of the square admin-kit default.
+const PILL = '!rounded-full normal-case tracking-normal'
+
+// The currency symbol for a code ("EUR" → "€"), derived from the platform's
+// Intl data so we don't hand-maintain a symbol map. Falls back to the code.
+function currencySymbol(code: string): string {
+  try {
+    const parts = new Intl.NumberFormat('en', { style: 'currency', currency: code }).formatToParts(0)
+    return parts.find((p) => p.type === 'currency')?.value ?? code
+  } catch {
+    return code
+  }
+}
+
+// Static — the supported currencies never change, so build the option labels
+// (each derives an Intl symbol) ONCE at module load, not per LocaleSection render.
+const currencyOptions = Currencies.map((code) => ({
+  value: code,
+  label: `${code} · ${currencySymbol(code)}`,
+}))
 
 type Identity = Pick<
   PublicRestaurant,
@@ -65,6 +91,7 @@ export function ThemeEditor({
   urlPrefix: string
 }) {
   const router = useRouter()
+  const tEditor = useTranslations('Settings')
   const initialIdentity: Identity = {
     name: restaurant.name,
     description: restaurant.description,
@@ -86,50 +113,49 @@ export function ThemeEditor({
     // fold. Card order in the settings column reads identity → content
     // → look → URL; the slug is last because changing it breaks every
     // bookmark to the old URL and the operator rarely needs it.
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-      <div className="order-2 space-y-4 lg:order-none">
-        <Card
-          className="block rounded-lg px-[18px] pt-[18px] pb-4 sm:px-[22px] sm:pt-5 sm:pb-[18px]"
-          data-test-id="settings-card-identity"
-        >
-          <IdentitySection
-            slug={slug}
-            defaultLanguage={initialLanguageSettings.defaultLanguage}
-            supportedLanguages={initialLanguageSettings.supportedLanguages}
-            initial={initialIdentity}
-            value={identity}
-            onChange={setIdentity}
-            onSaved={() => router.refresh()}
-          />
-        </Card>
-        <Card
-          className="block rounded-lg px-[18px] pt-[18px] pb-4 sm:px-[22px] sm:pt-5 sm:pb-[18px]"
-          data-test-id="settings-card-languages"
-        >
-          <LanguagesSection
-            slug={slug}
-            initial={initialLanguageSettings}
-            onSaved={() => router.refresh()}
-          />
-        </Card>
-        <Card
-          className="block rounded-lg px-[18px] pt-[18px] pb-4 sm:px-[22px] sm:pt-5 sm:pb-[18px]"
-          data-test-id="settings-card-theme"
-        >
-          <ThemeSection
-            slug={slug}
-            initial={initialTheme}
-            value={theme}
-            onChange={setTheme}
-            onSaved={() => router.refresh()}
-          />
-        </Card>
-        <Card
-          className="block rounded-lg px-[18px] pt-[18px] pb-4 sm:px-[22px] sm:pt-5 sm:pb-[18px]"
-          data-test-id="settings-card-url"
-        >
-          <SlugSection currentSlug={slug} urlPrefix={urlPrefix} />
-        </Card>
+    <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <div className="order-2 space-y-6 lg:order-none">
+        {/* SETTINGS group — the restaurant's configuration: who it is, what
+            language + currency the menu speaks, and its public URL. */}
+        <section className="space-y-3" data-test-id="settings-group">
+          <GroupLabel>{tEditor('groups.settings')}</GroupLabel>
+          <Panel data-test-id="settings-card-identity">
+            <IdentitySection
+              slug={slug}
+              defaultLanguage={initialLanguageSettings.defaultLanguage}
+              supportedLanguages={initialLanguageSettings.supportedLanguages}
+              initial={initialIdentity}
+              value={identity}
+              onChange={setIdentity}
+              onSaved={() => router.refresh()}
+            />
+          </Panel>
+          <Panel data-test-id="settings-card-locale">
+            <LocaleSection
+              slug={slug}
+              initial={initialLanguageSettings}
+              onSaved={() => router.refresh()}
+            />
+          </Panel>
+          <Panel data-test-id="settings-card-url">
+            <SlugSection currentSlug={slug} urlPrefix={urlPrefix} />
+          </Panel>
+        </section>
+
+        {/* THEME group — the visual look, picked as a whole-style preset plus a
+            single brand colour. */}
+        <section className="space-y-3" data-test-id="theme-group">
+          <GroupLabel>{tEditor('groups.theme')}</GroupLabel>
+          <Panel data-test-id="settings-card-theme">
+            <ThemeSection
+              slug={slug}
+              initial={initialTheme}
+              value={theme}
+              onChange={setTheme}
+              onSaved={() => router.refresh()}
+            />
+          </Panel>
+        </section>
       </div>
 
       <div className="order-1 lg:order-none lg:sticky lg:top-6 lg:h-fit">
@@ -159,7 +185,16 @@ function PreviewLabel() {
   )
 }
 
-function LanguagesSection({
+/** A divider heading that separates the two panel groups (Settings · Theme). */
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      {children}
+    </h2>
+  )
+}
+
+function LocaleSection({
   slug,
   initial,
   onSaved,
@@ -176,6 +211,7 @@ function LanguagesSection({
   const [supported, setSupported] = useState<Set<LanguageCode>>(
     () => new Set(initial.supportedLanguages),
   )
+  const [currency, setCurrency] = useState<string>(initial.defaultCurrency)
   const [pending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -211,6 +247,7 @@ function LanguagesSection({
 
   const dirty =
     defaultLang !== initial.defaultLanguage ||
+    currency !== initial.defaultCurrency ||
     supportedList.length !== initial.supportedLanguages.length ||
     supportedList.some((c, i) => c !== initial.supportedLanguages[i])
 
@@ -221,6 +258,7 @@ function LanguagesSection({
       const result = await updateLanguageSettings(slug, {
         defaultLanguage: defaultLang,
         supportedLanguages: supportedList,
+        defaultCurrency: currency,
       })
       if (!result.ok) {
         setError(result.error)
@@ -239,7 +277,7 @@ function LanguagesSection({
         onSave()
       }}
     >
-      <SectionHeader title={t('title')} hint={t('subtitle')} />
+      <PanelHeader title={t('localeTitle')} hint={t('localeSubtitle')} />
 
       {/* Single-column list of language rows. Each row: design-system
           Checkbox on the left (serif label + native name), then either
@@ -260,7 +298,7 @@ function LanguagesSection({
                   : 'border-border bg-card')
               }
             >
-              <label className="flex min-w-0 flex-1 items-center gap-3">
+              <label className="flex min-w-0 flex-1 items-center gap-2.5">
                 <Checkbox
                   checked={isSupported}
                   onCheckedChange={() => toggle(lang.code)}
@@ -268,8 +306,10 @@ function LanguagesSection({
                   data-test-id={`lang-supported-${lang.code}`}
                 />
                 <span className="min-w-0">
-                  <span className="truncate">{lang.name}</span>
-                  <span className="ml-2 text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <span className="block truncate text-[14px] font-medium text-foreground">
+                    {lang.name}
+                  </span>
+                  <span className="block truncate text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground">
                     {lang.nativeName}
                   </span>
                 </span>
@@ -278,6 +318,7 @@ function LanguagesSection({
                 <Badge
                   variant="default"
                   data-test-id={`lang-default-${lang.code}`}
+                  className="shrink-0"
                 >
                   {t('default')}
                 </Badge>
@@ -285,9 +326,10 @@ function LanguagesSection({
                 <Button
                   type="button"
                   variant="ghost"
+                  size="xs"
                   onClick={() => selectDefault(lang.code)}
                   data-test-id={`lang-default-${lang.code}`}
-                  className="whitespace-nowrap"
+                  className="shrink-0 whitespace-nowrap !rounded-full normal-case tracking-normal"
                 >
                   {t('makeDefault')}
                 </Button>
@@ -297,10 +339,32 @@ function LanguagesSection({
         })}
       </ul>
 
+      {/* Default currency — new dishes inherit it (existing dishes keep their
+          own currency). One control, the same Combobox family as the rest. */}
+      <Field>
+        <FieldLabel htmlFor="locale-currency">{t('currency')}</FieldLabel>
+        <Combobox
+          id="locale-currency"
+          data-test-id="locale-currency"
+          options={currencyOptions}
+          value={currency}
+          onChange={(v) => {
+            if (!v) return
+            setCurrency(v)
+            setSaved(false)
+            setError(null)
+          }}
+          clearable={false}
+          aria-label={t('currency')}
+        />
+        <FieldHint>{t('currencyHint')}</FieldHint>
+      </Field>
+
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button
           type="submit"
           variant="default"
+          className={PILL}
           disabled={!dirty || pending}
           data-test-id="languages-save"
         >
@@ -383,7 +447,7 @@ function IdentitySection({
         onSave()
       }}
     >
-      <SectionHeader title={t('title')} hint={t('subtitle')} />
+      <PanelHeader title={t('title')} hint={t('subtitle')} />
 
       <Field>
         <FieldLabel htmlFor="identity-name">{t('name')}</FieldLabel>
@@ -468,6 +532,7 @@ function IdentitySection({
         <Button
           type="submit"
           variant="default"
+          className={PILL}
           disabled={!dirty || !nameValid || pending}
           data-test-id="identity-save"
         >
@@ -535,7 +600,7 @@ function SlugSection({ currentSlug, urlPrefix }: { currentSlug: string; urlPrefi
         if (dirty && looksValid) onSave()
       }}
     >
-      <SectionHeader title={t('title')} hint={t('subtitle')} />
+      <PanelHeader title={t('title')} hint={t('subtitle')} />
 
       <Field>
         <FieldLabel htmlFor="slug-input">{t('label')}</FieldLabel>
@@ -569,6 +634,7 @@ function SlugSection({ currentSlug, urlPrefix }: { currentSlug: string; urlPrefi
         <Button
           type="submit"
           variant="default"
+          className={PILL}
           disabled={!dirty || !looksValid || pending}
           data-test-id="slug-save"
         >
@@ -616,8 +682,23 @@ function ThemeSection({
   const secondaryValid = HEX_PATTERN.test(value.secondaryColor)
   const canSave = dirty && primaryValid && secondaryValid && !pending
 
+  // The preset whose layout+font match the current theme (brand colour is an
+  // independent override, so a colour tweak doesn't drop the preset selection).
+  const activePreset = matchPreset(value)
+
   function patch<K extends keyof ResolvedTheme>(key: K, v: ResolvedTheme[K]) {
     onChange({ ...value, [key]: v })
+    setSaved(false)
+    setError(null)
+  }
+
+  function pickPreset(p: (typeof STYLE_PRESETS)[number]) {
+    onChange({
+      layout: p.layout,
+      font: p.font,
+      primaryColor: p.primaryColor,
+      secondaryColor: p.secondaryColor,
+    })
     setSaved(false)
     setError(null)
   }
@@ -644,75 +725,83 @@ function ThemeSection({
         onSave()
       }}
     >
-      <SectionHeader title={t('title')} hint={t('subtitle')} />
+      <PanelHeader title={t('title')} hint={t('subtitle')} />
 
+      {/* Style presets — each card adopts a whole look (layout + font +
+          palette). The selected one is whichever preset matches the current
+          layout+font; the brand colour below layers on top of it. Two columns
+          on a phone, three from `sm` — tap targets stay generous at 320px. */}
       <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm font-medium text-foreground">{t('layout')}</legend>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {LAYOUTS.map((l) => {
-            const selected = value.layout === l.id
+        <legend className="mb-1.5 text-sm font-medium text-foreground">{t('style')}</legend>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-test-id="theme-presets">
+          {STYLE_PRESETS.map((p) => {
+            const selected = activePreset?.id === p.id
             return (
               <button
-                key={l.id}
+                key={p.id}
                 type="button"
-                onClick={() => patch('layout', l.id)}
+                onClick={() => pickPreset(p)}
                 aria-pressed={selected}
-                data-test-id={`layout-${l.id}`}
+                data-test-id={`preset-${p.id}`}
                 className={
-                  'min-h-[72px] rounded-[12px] border p-3 text-left transition-colors ' +
+                  'flex flex-col gap-2 rounded-[14px] border p-2.5 text-left transition-colors ' +
                   (selected
-                    ? 'border-primary bg-primary/5'
+                    ? 'border-primary ring-2 ring-primary/20'
                     : 'border-border bg-card hover:border-primary/40')
                 }
               >
-                <div className="font-[family-name:var(--display)] text-base font-semibold">
-                  {l.name}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {l.description}
-                </div>
+                <span className="flex h-9 overflow-hidden rounded-[8px] border border-border" aria-hidden="true">
+                  <span className="flex-1" style={{ background: p.primaryColor }} />
+                  <span className="w-1/3" style={{ background: p.secondaryColor }} />
+                </span>
+                <span className="truncate text-[12.5px] font-semibold text-foreground">
+                  {t(`presets.${p.key}`)}
+                </span>
               </button>
             )
           })}
         </div>
       </fieldset>
 
-      <Field>
-        <FieldLabel htmlFor="theme-font">{t('font')}</FieldLabel>
-        <Combobox
-          id="theme-font"
-          data-test-id="theme-font"
-          options={FONTS.map((f) => ({ value: f.id, label: f.name }))}
-          value={value.font}
-          onChange={(v) =>
-            v && patch('font', v as ResolvedTheme['font'])
-          }
-          clearable={false}
-          aria-label={t('font')}
+      {/* Brand colour — one accent the owner can set on top of any preset.
+          Quick-pick swatches plus a full picker (the reused ColorField). */}
+      <div className="space-y-2">
+        <FieldLabel htmlFor="theme-primary-hex">{t('brandColor')}</FieldLabel>
+        <div className="flex flex-wrap gap-2" data-test-id="brand-swatches">
+          {BRAND_SWATCHES.map((hex) => {
+            const on = value.primaryColor.toLowerCase() === hex
+            return (
+              <button
+                key={hex}
+                type="button"
+                aria-label={hex}
+                aria-pressed={on}
+                data-test-id={`brand-swatch-${hex}`}
+                onClick={() => patch('primaryColor', hex)}
+                className={
+                  'size-8 rounded-full border transition-transform ' +
+                  (on ? 'border-foreground ring-2 ring-primary/30' : 'border-border hover:scale-110')
+                }
+                style={{ background: hex }}
+              />
+            )
+          })}
+        </div>
+        <ColorField
+          id="theme-primary"
+          label={t('brandColorCustom')}
+          hint={t('brandColorHint')}
+          value={value.primaryColor}
+          valid={primaryValid}
+          onChange={(v) => patch('primaryColor', v)}
         />
-      </Field>
-
-      <ColorField
-        id="theme-primary"
-        label={t('primary')}
-        hint={t('primaryHint')}
-        value={value.primaryColor}
-        valid={primaryValid}
-        onChange={(v) => patch('primaryColor', v)}
-      />
-      <ColorField
-        id="theme-secondary"
-        label={t('secondary')}
-        hint={t('secondaryHint')}
-        value={value.secondaryColor}
-        valid={secondaryValid}
-        onChange={(v) => patch('secondaryColor', v)}
-      />
+      </div>
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button
           type="submit"
           variant="default"
+          className={PILL}
           disabled={!canSave}
           data-test-id="theme-save"
         >
@@ -721,6 +810,7 @@ function ThemeSection({
         <Button
           type="button"
           variant="ghost"
+          className={PILL}
           onClick={() => {
             onChange(DEFAULT_THEME)
             setSaved(false)

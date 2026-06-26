@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useActionResult } from './use-action-result'
 import { Button } from '@iedora/ui/components/ui/button'
 import {
   Dialog,
@@ -39,8 +40,7 @@ export function AddSectionDialog({
   const t = useTranslations('Builder')
   const router = useRouter()
   const [name, setName] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const { pending, error, setError, run } = useActionResult()
   const nameInputId = 'add-section-name'
 
   // Reset on close inside the close-side of onOpenChange — see the
@@ -55,22 +55,19 @@ export function AddSectionDialog({
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(null)
     const trimmed = name.trim()
     if (!trimmed) {
       setError(t('addSectionNeedsName'))
       return
     }
-    startTransition(async () => {
-      const res = await createCategory(slug, menuId, trimmed)
-      if (res && 'error' in res) {
-        setError(res.error ?? t('addSectionFailed'))
-        return
-      }
-      router.refresh()
-      setName('')
-      const el = document.getElementById(nameInputId) as HTMLInputElement | null
-      el?.focus()
+    run(() => createCategory(slug, menuId, trimmed), {
+      fallback: t('addSectionFailed'),
+      onSuccess: () => {
+        router.refresh()
+        setName('')
+        const el = document.getElementById(nameInputId) as HTMLInputElement | null
+        el?.focus()
+      },
     })
   }
 

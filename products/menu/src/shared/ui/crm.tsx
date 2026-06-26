@@ -9,6 +9,48 @@ import { cn } from '@iedora/ui/lib/utils'
  * and tappable down to a 320px (iPhone 4) viewport.
  */
 
+/**
+ * A content panel — the CRM card chrome shared by every settings / form
+ * section (theme editor, account settings). Same `rounded-[18px]` card token
+ * as {@link StatCard}/{@link RecordCard}, with padding that tightens on a
+ * phone so a 320px viewport never overflows. Pass `bare` to drop the inner
+ * padding when the panel hosts full-bleed divided rows.
+ */
+export function Panel({
+  children,
+  className,
+  bare,
+  'data-test-id': testId,
+}: {
+  children: ReactNode
+  className?: string
+  bare?: boolean
+  'data-test-id'?: string
+}) {
+  return (
+    <section
+      data-test-id={testId}
+      className={cn(
+        'rounded-[18px] border border-border bg-card',
+        bare ? '' : 'p-4 sm:p-5',
+        className,
+      )}
+    >
+      {children}
+    </section>
+  )
+}
+
+/** A panel heading: bold title + optional hint, on the CRM type scale. */
+export function PanelHeader({ title, hint }: { title: ReactNode; hint?: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <h2 className="font-heading text-[16px] font-bold leading-tight text-foreground">{title}</h2>
+      {hint ? <p className="text-[13px] leading-[1.5] text-muted-foreground">{hint}</p> : null}
+    </div>
+  )
+}
+
 /** Headline metric — a quiet label over a big tabular number (+ optional caption). */
 export function StatCard({
   label,
@@ -93,6 +135,39 @@ export function RecordCard({
   )
 }
 
+/**
+ * Primary CTA rendered as a link — the header action on the owner dashboard
+ * (new restaurant / upgrade) and the "manage" action in settings all share
+ * this one pill so they never drift. `solid` is the filled brand button,
+ * `outline` the quieter bordered variant.
+ */
+export function ActionButton({
+  href,
+  variant = 'solid',
+  children,
+  'data-test-id': testId,
+}: {
+  href: string
+  variant?: 'solid' | 'outline'
+  children: ReactNode
+  'data-test-id'?: string
+}) {
+  return (
+    <Link
+      href={href}
+      data-test-id={testId}
+      className={cn(
+        'inline-flex shrink-0 items-center gap-2 rounded-full px-5 py-2 text-[13.5px] font-semibold no-underline transition-colors',
+        variant === 'solid'
+          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+          : 'border border-border text-foreground hover:border-primary hover:text-primary',
+      )}
+    >
+      {children}
+    </Link>
+  )
+}
+
 /** Quick-action button-link for a {@link RecordCard} footer — a big tap target. */
 export function RecordAction({
   href,
@@ -107,7 +182,7 @@ export function RecordAction({
     <Link
       href={href}
       data-test-id={testId}
-      className="rounded-[10px] border border-border px-2 py-2 text-center text-[13px] font-medium text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
+      className="rounded-full border border-border px-2 py-2 text-center text-[13px] font-medium text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
     >
       {children}
     </Link>

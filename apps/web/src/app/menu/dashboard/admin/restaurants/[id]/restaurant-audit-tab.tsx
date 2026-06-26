@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { AuditRecord } from '@iedora/product-menu/shared/api'
 import { loadRestaurantAuditAction } from '@iedora/product-menu/features/restaurant-identity/actions'
 import { Button } from '@iedora/ui/components/ui/button'
-import { AuditLog } from './audit-log'
+import { AuditLog } from '../../_components/audit-log'
 
 type State =
   | { status: 'loading' }

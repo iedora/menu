@@ -7,6 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./i18n/messages/*.json": "./src/i18n/messages/*.json",
+    "./features/account/actions": "./src/features/account/actions.ts",
+    "./features/account/guard": "./src/features/account/guard.ts",
     "./features/auth": "./src/features/auth/index.ts",
     "./features/auth/actions": "./src/features/auth/actions.ts",
     "./features/auth/schemas": "./src/features/auth/schemas.ts",
@@ -37,6 +39,7 @@
     "./features/restaurant-identity/ui/theme-editor": "./src/features/restaurant-identity/ui/theme-editor.tsx",
     "./shared/api": "./src/shared/api.ts",
     "./shared/auth-urls": "./src/shared/auth-urls.ts",
+    "./shared/device-label": "./src/shared/device-label.ts",
     "./shared/ui/crm": "./src/shared/ui/crm.tsx",
     "./shared/ui/dashboard-page": "./src/shared/ui/dashboard-page.tsx",
     "./shared/ui/editorial-list": "./src/shared/ui/editorial-list/index.ts",

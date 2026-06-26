@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Button } from '@iedora/ui/components/ui/button'
+import { parsePriceCents } from '../../../shared/format'
 import {
   Field,
   FieldHint,
@@ -179,12 +180,12 @@ export function cleanVariants(
   for (const v of raw) {
     const label = v.label.trim()
     if (label.length === 0) continue
-    const n = Number(v.priceText.replace(',', '.'))
-    if (!Number.isFinite(n) || n < 0) return { ok: false, label }
+    const cents = parsePriceCents(v.priceText)
+    if (cents === null) return { ok: false, label }
     variants.push({
       label,
       labelI18n: v.labelI18n,
-      priceCents: Math.round(n * 100),
+      priceCents: cents,
     })
   }
   return { ok: true, variants }

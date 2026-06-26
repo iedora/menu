@@ -2,6 +2,9 @@ import 'server-only'
 import { apiJson, ApiError, MENU_URL } from '@iedora/api-client'
 import { menu } from '@iedora/api-client/menu-rpc'
 import type {
+  AdminUser,
+  AdminUserDetail,
+  AdminUserSession,
   Analytics,
   AuditRecord,
   CategoryUpdate,
@@ -36,6 +39,9 @@ import type {
 // Re-exported so existing imports from this module keep resolving; the
 // definitions now live in @iedora/contracts (single source of truth).
 export type {
+  AdminUser,
+  AdminUserDetail,
+  AdminUserSession,
   Analytics,
   AuditRecord,
   CategoryNode,
@@ -100,6 +106,15 @@ export async function getMonthlyViews(): Promise<{ count: number }> {
   const res = await menu.api.views.month.$get()
   if (!res.ok) throw new ApiError(res.status, res.statusText)
   return res.json()
+}
+
+// One query-string builder for every endpoint: URLSearchParams handles
+// encoding; null/empty values are omitted; an empty result is '' (no `?`).
+function query(params: Record<string, string | undefined>): string {
+  const u = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) if (v != null && v !== '') u.set(k, v)
+  const s = u.toString()
+  return s ? `?${s}` : ''
 }
 
 // --- restaurant-scoped ---
@@ -250,7 +265,7 @@ export function clearUpload(slug: string, target: UploadTarget, itemId?: string)
 // --- public (unauthenticated; SSR of the guest menu page) ---
 
 export function getPublicMenu(slug: string, lang?: string, acceptLanguage?: string) {
-  const qs = lang ? `?lang=${encodeURIComponent(lang)}` : ''
+  const qs = query({ lang })
   return apiJson<PublicMenuPayload>(
     `${MENU_URL}/public/r/${encodeURIComponent(slug)}${qs}`,
     acceptLanguage ? { headers: { 'Accept-Language': acceptLanguage } } : {},
@@ -264,7 +279,7 @@ export function resolveQRCode(code: string) {
 // --- staff (cross-tenant; requires the staff role) ---
 
 export function staffDirectory(q?: string) {
-  const qs = q ? `?q=${encodeURIComponent(q)}` : ''
+  const qs = query({ q })
   return apiJson<{ restaurants: StaffRestaurantRow[] }>(`/api/staff/directory${qs}`)
 }
 
@@ -289,6 +304,57 @@ export function staffRestaurantDetail(id: string) {
 export function staffRestaurantAudit(id: string) {
   return apiJson<{ events: AuditRecord[] }>(
     `/api/staff/restaurants/${encodeURIComponent(id)}/audit`,
+  )
+}
+
+// --- staff: Users CRM (read-only) ---
+
+/** Search/list users for the staff Users directory. `q` matches email or name. */
+export function staffUsers(q?: string) {
+  const qs = query({ q })
+  return apiJson<{ users: AdminUser[] }>(`/api/staff/users${qs}`)
+}
+
+/** One user's profile (+ memberships) and device/session history. The activity
+ * timeline is NOT here — it loads lazily via `staffUserAudit` (Activity tab). */
+export function staffUserDetail(id: string) {
+  return apiJson<{ user: AdminUserDetail; sessions: AdminUserSession[] }>(
+    `/api/staff/users/${encodeURIComponent(id)}`,
+  )
+}
+
+/** Lazily-loaded activity timeline for one user: everything they did across
+ * tenants + domains (logins, failures, restaurants, plans, payments, edits). */
+export function staffUserAudit(id: string) {
+  return apiJson<{ events: AuditRecord[] }>(`/api/staff/users/${encodeURIComponent(id)}/audit`)
+}
+
+/** A user's login attempts only (success + failure, with IP + reason). */
+export function staffUserLoginAttempts(id: string) {
+  return apiJson<{ events: AuditRecord[] }>(`/api/staff/users/${encodeURIComponent(id)}/login-attempts`)
+}
+
+/** Force the user to set a new password at next login (also revokes sessions). */
+export function staffForcePasswordChange(id: string) {
+  return apiJson<{ ok: true }>(`/api/staff/users/${encodeURIComponent(id)}/force-password-change`, {
+    method: 'POST',
+    ...json({}),
+  })
+}
+
+/** Set a temporary password the user must change at next login. */
+export function staffSetUserPassword(id: string, password: string) {
+  return apiJson<{ ok: true }>(`/api/staff/users/${encodeURIComponent(id)}/set-password`, {
+    method: 'POST',
+    ...json({ password }),
+  })
+}
+
+/** Kick one of the user's devices (revoke that session family). */
+export function staffRevokeUserSession(id: string, family: string) {
+  return apiJson<{ ok: true }>(
+    `/api/staff/users/${encodeURIComponent(id)}/sessions/${encodeURIComponent(family)}/revoke`,
+    { method: 'POST', ...json({}) },
   )
 }
 
@@ -325,14 +391,14 @@ export function staffCreateRestaurant(input: {
  *  unique index is the real guard, so a slug can still be claimed before insert. */
 export function staffSlugPreview(slug: string) {
   return apiJson<{ valid: boolean; slug: string; available: boolean }>(
-    `/api/staff/restaurants/slug-preview?slug=${encodeURIComponent(slug)}`,
+    `/api/staff/restaurants/slug-preview${query({ slug })}`,
   )
 }
 
 /** Whether a target tenant can receive another restaurant under its plan. */
 export function staffTransferEligibility(tenantId: string) {
   return apiJson<{ eligible: boolean }>(
-    `/api/staff/transfer-eligibility?tenant=${encodeURIComponent(tenantId)}`,
+    `/api/staff/transfer-eligibility${query({ tenant: tenantId })}`,
   )
 }
 

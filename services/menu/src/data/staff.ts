@@ -52,16 +52,38 @@ function window30(now: Date): string {
 }
 
 // ROW_COLS is the directory projection shared by every staff list query:
-// identity + correlated content counts + 30-day reach (cutoff `since`).
-const ROW_COLS = (since: string) => sql`
+// identity + content counts + 30-day reach, read from the pre-aggregated
+// derived tables ROW_JOINS attaches (one GROUP BY pass each, not a correlated
+// subquery per row). Output column names are unchanged so toRow is untouched.
+const ROW_COLS = () => sql`
   r.id, r.tenant_id, r.name, r.slug,
-  (SELECT count(*)::int FROM menus m WHERE m.restaurant_id = r.id) AS menus,
-  (SELECT count(*)::int FROM items i WHERE i.restaurant_id = r.id) AS items,
-  (SELECT coalesce(sum(dv.count),0)::int FROM daily_view dv WHERE dv.restaurant_id = r.id AND dv.day >= ${since}) AS views30d,
+  coalesce(m.n, 0) AS menus,
+  coalesce(i.n, 0) AS items,
+  coalesce(v.n, 0) AS views30d,
   r.created_at`;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toRow(r: any): StaffRestaurantRow {
+// The three per-restaurant aggregates as derived tables joined once. Replaces
+// N correlated subqueries (3 per row) with 3 single grouped scans. Goes in each
+// query's FROM clause right after `restaurants r`.
+const ROW_JOINS = (since: string) => sql`
+  LEFT JOIN (SELECT restaurant_id, count(*)::int AS n FROM menus GROUP BY restaurant_id) m ON m.restaurant_id = r.id
+  LEFT JOIN (SELECT restaurant_id, count(*)::int AS n FROM items GROUP BY restaurant_id) i ON i.restaurant_id = r.id
+  LEFT JOIN (SELECT restaurant_id, sum(count)::int AS n FROM daily_view WHERE day >= ${since} GROUP BY restaurant_id) v ON v.restaurant_id = r.id`;
+
+// The raw shape ROW_COLS projects — typing the queries `sql<StaffRow>` makes a
+// rename in ROW_COLS a compile error instead of a silent runtime NaN.
+interface StaffRow {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string;
+  menus: number;
+  items: number;
+  views30d: number;
+  created_at: string | Date;
+}
+
+function toRow(r: StaffRow): StaffRestaurantRow {
   return {
     id: r.id,
     tenantId: r.tenant_id,
@@ -95,10 +117,9 @@ export async function staffOverview(db: DB, now: Date): Promise<StaffOverview> {
       (SELECT count(*)::int FROM qr_codes WHERE bound_at IS NULL) AS qr_unbound`.execute(db);
   const h = head.rows[0]!;
 
-  const top = await sql`
-    SELECT ${ROW_COLS(since)} FROM restaurants r
-    ORDER BY (SELECT coalesce(sum(dv.count),0) FROM daily_view dv WHERE dv.restaurant_id = r.id AND dv.day >= ${since}) DESC,
-      r.created_at DESC
+  const top = await sql<StaffRow>`
+    SELECT ${ROW_COLS()} FROM restaurants r ${ROW_JOINS(since)}
+    ORDER BY views30d DESC, r.created_at DESC
     LIMIT 5`.execute(db);
 
   return {
@@ -115,8 +136,8 @@ export async function staffOverview(db: DB, now: Date): Promise<StaffOverview> {
 
 export async function staffDirectory(db: DB, q: string, now: Date): Promise<StaffRestaurantRow[]> {
   const since = window30(now);
-  const rows = await sql`
-    SELECT ${ROW_COLS(since)} FROM restaurants r
+  const rows = await sql<StaffRow>`
+    SELECT ${ROW_COLS()} FROM restaurants r ${ROW_JOINS(since)}
     WHERE (${q} = '' OR r.name ILIKE '%'||${q}||'%' OR r.slug ILIKE '%'||${q}||'%')
     ORDER BY r.created_at DESC LIMIT 200`.execute(db);
   return rows.rows.map(toRow);
@@ -124,9 +145,9 @@ export async function staffDirectory(db: DB, q: string, now: Date): Promise<Staf
 
 export async function staffRestaurantById(db: DB, id: string, now: Date): Promise<StaffRestaurantDetail> {
   const since = window30(now);
-  const row = await sql`SELECT ${ROW_COLS(since)} FROM restaurants r WHERE r.id = ${id}`.execute(db);
+  const row = await sql<StaffRow>`SELECT ${ROW_COLS()} FROM restaurants r ${ROW_JOINS(since)} WHERE r.id = ${id}`.execute(db);
   if (row.rows.length === 0) throw notFound();
-  const restaurant = toRow(row.rows[0]);
+  const restaurant = toRow(row.rows[0]!);
 
   const menus = await menusWithCounts(db, id);
 
@@ -149,14 +170,14 @@ export async function staffAlerts(db: DB, now: Date): Promise<StaffAlerts> {
   const since = window30(now);
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const stale = await sql`
-    SELECT ${ROW_COLS(since)} FROM restaurants r
+  const stale = await sql<StaffRow>`
+    SELECT ${ROW_COLS()} FROM restaurants r ${ROW_JOINS(since)}
     WHERE r.created_at < ${weekAgo}
       AND NOT EXISTS (SELECT 1 FROM daily_view dv WHERE dv.restaurant_id = r.id AND dv.day >= ${since})
     ORDER BY r.created_at LIMIT 100`.execute(db);
 
-  const empty = await sql`
-    SELECT ${ROW_COLS(since)} FROM restaurants r
+  const empty = await sql<StaffRow>`
+    SELECT ${ROW_COLS()} FROM restaurants r ${ROW_JOINS(since)}
     WHERE NOT EXISTS (SELECT 1 FROM items i WHERE i.restaurant_id = r.id)
     ORDER BY r.created_at LIMIT 100`.execute(db);
 

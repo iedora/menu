@@ -15,6 +15,7 @@ export type AccessClaims = {
   sid?: string // session family id
   roles?: string[]
   email?: string
+  mcp?: boolean // must-change-password — lets the dashboard guard short-circuit locally
   exp: number // unix seconds
   typ: string // "access"
 }
