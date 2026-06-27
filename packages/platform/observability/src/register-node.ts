@@ -1,4 +1,5 @@
-import { metrics, trace, propagation } from "@opentelemetry/api";
+import { context, metrics, trace, propagation } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import {
@@ -49,7 +50,9 @@ import { defaultSampler } from "./signals/sampler";
  * container honours the orchestrator's sampling decision when
  * `TRACEPARENT` arrives via env). The W3C trace-context propagator is
  * registered as the global propagator so `propagation.extract(...)` /
- * `inject(...)` work with no extra wiring.
+ * `inject(...)` work with no extra wiring. The AsyncLocalStorage context
+ * manager keeps the active span across Bun/Hono async boundaries so child
+ * DB spans and outbound traceparent injection attach to the request span.
  *
  * Use for any short-lived Node script (migrations, one-shot CLIs,
  * cron-style jobs) that ships bundled. Pair with `shutdownIedoraOtel()`
@@ -126,6 +129,8 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
     ],
   });
   trace.setGlobalTracerProvider(tp);
+
+  context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 
   // Propagator — make traceparent/tracestate work both ways. The
   // orchestrator sets TRACEPARENT in the migrate container's env; the
