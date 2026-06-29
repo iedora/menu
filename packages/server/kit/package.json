@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",
+    "@opentelemetry/sdk-trace-base": "^2.8.0",
     "@types/bun": "catalog:",
     "@types/nodemailer": "^6.4.17",
     "eslint": "catalog:",

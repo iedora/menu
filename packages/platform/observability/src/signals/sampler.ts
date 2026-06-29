@@ -7,15 +7,13 @@ import {
   type SamplingResult,
 } from "@opentelemetry/sdk-trace-base";
 
-// Span-name patterns dropped BEFORE any sampling — pure infra noise, never
-// business signal: container healthchecks/probes, and the fire-and-forget view
-// beacon (already counted in daily_view, so tracing it would only add volume).
-// Matches the "[METHOD] [route]" span names emitted by Next ("/api/track/[slug]")
-// and the Hono services ("/up", "/public/track/:slug").
+// Span-name patterns dropped BEFORE any sampling — pure infra noise with no
+// business signal: container healthchecks + probes, hit every few seconds per
+// host. The view beacon (/track) is deliberately NOT here: it's a real guest
+// action we want full visibility into (failures, client IPs), so it's traced
+// like every other public request. Matches the "[METHOD] [route]" span names.
 export const NOISE_PATTERNS: RegExp[] = [
   /\s\/up$/,
-  /\s\/api\/track\//,
-  /\s\/public\/track\//,
   /\s\/api\/health$/,
   /\s\/api\/ready$/,
 ];

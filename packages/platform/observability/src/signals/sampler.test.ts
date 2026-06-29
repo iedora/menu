@@ -62,21 +62,19 @@ function callShouldSample(
 
 describe("NoiseFilteringSampler", () => {
   it("drops the patterns load-bearingly listed in NOISE_PATTERNS without consulting the inner sampler", () => {
-    // Real-world scenarios this protects:
-    //   - cloudflared + uptime probes hit /up once per second per replica —
-    //     that's 86,400 spans/host/day. At 10% sampling that's still
-    //     8,640 spans/day of pure health-check noise.
-    //   - /api/track/[slug] is the public-menu view beacon — fires
-    //     once per real visit, deduped at the DB level. Tracing it
-    //     adds nothing the view counter doesn't already show.
+    // Real-world scenario this protects: cloudflared + uptime probes hit /up
+    // (and the container health/ready probes) once every few seconds per
+    // replica — pure health-check noise that would otherwise dominate the
+    // trace stream now that we sample everything. The view beacon is NOT
+    // dropped (it's a real guest action we trace) — see the "allowed" test.
     const inner = new CountingSampler(RECORD_AND_SAMPLED);
     const sampler = new NoiseFilteringSampler(inner);
 
     const dropped = [
       "GET /up",
       "POST /up",
-      "GET /api/track/r-abc-123",
-      "GET /api/track/some-slug/sub",
+      "GET /api/health",
+      "GET /api/ready",
     ];
     for (const name of dropped) {
       expect(callShouldSample(sampler, name).decision).toBe(
@@ -100,8 +98,10 @@ describe("NoiseFilteringSampler", () => {
       // accidentally match. The `\s\/up$` anchor is what stops this.
       "GET /up-and-running",
       "GET /uppercase",
-      // `track` as a path segment unrelated to /api/track/ must pass.
-      "GET /dashboard/r/abc/menu/track-changes",
+      // The view beacon is a real guest action — traced, not filtered.
+      "GET /public/track/some-slug",
+      "POST /public/track/some-slug/session",
+      "GET /api/track/r-abc-123",
     ];
     for (const name of allowed) {
       expect(callShouldSample(sampler, name).decision).toBe(
@@ -131,18 +131,15 @@ describe("NoiseFilteringSampler", () => {
   });
 
   it("NOISE_PATTERNS is the pinned filter contract", () => {
-    // Load-bearing patterns for the trace budget — pure infra noise that would
-    // otherwise dominate volume now that we keep every business request:
-    //   - /up + container probes (every few seconds per host)
-    //   - the view beacon, on both the Next (/api/track/) and Hono
-    //     (/public/track/) sides — fire-and-forget, already counted in
-    //     daily_view. Pin to catch accidental removal.
-    expect(NOISE_PATTERNS).toHaveLength(5);
+    // Only pure infra noise — container probes hit every few seconds per host
+    // and would dominate volume now that we sample everything. The view beacon
+    // is intentionally absent (it's a traced guest action). Pin to catch drift.
+    expect(NOISE_PATTERNS).toHaveLength(3);
     expect(NOISE_PATTERNS.some((re) => re.test("GET /up"))).toBe(true);
-    expect(NOISE_PATTERNS.some((re) => re.test("GET /api/track/x"))).toBe(true);
-    expect(NOISE_PATTERNS.some((re) => re.test("GET /public/track/x"))).toBe(true);
     expect(NOISE_PATTERNS.some((re) => re.test("GET /api/health"))).toBe(true);
     expect(NOISE_PATTERNS.some((re) => re.test("GET /api/ready"))).toBe(true);
+    // The view beacon must NOT be filtered.
+    expect(NOISE_PATTERNS.some((re) => re.test("GET /public/track/x"))).toBe(false);
     // The `$` anchor keeps adjacent paths out: `/api/healthy` must not match.
     expect(NOISE_PATTERNS.some((re) => re.test("GET /api/healthy"))).toBe(false);
   });

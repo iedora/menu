@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import { ApiError } from '@iedora/api-client'
 import type { LanguageCode } from '../../i18n'
 import { getPublicMenu } from '../../../shared/api'
@@ -18,29 +19,28 @@ import { PublicMenuView, type PublicMenuLoaded } from './public-menu-view-ui'
 
 export { PublicMenuView, type PublicMenuLoaded }
 
-export async function loadPublicMenu(
+export const loadPublicMenu = cache(async function loadPublicMenu(
   slug: string,
   requestedLang: string | null | undefined,
   acceptLanguage: string | null | undefined,
 ): Promise<PublicMenuLoaded | null> {
-  let payload
   try {
-    payload = await getPublicMenu(
+    const payload = await getPublicMenu(
       slug,
       requestedLang ?? undefined,
       acceptLanguage ?? undefined,
     )
+
+    return {
+      restaurant: payload.restaurant,
+      menus: payload.menus,
+      theme: resolveTheme(payload.restaurant.theme),
+      defaultLanguage: payload.defaultLanguage as LanguageCode,
+      supportedLanguages: payload.supportedLanguages as LanguageCode[],
+      currentLanguage: payload.currentLanguage as LanguageCode,
+    }
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null
     throw err
   }
-
-  return {
-    restaurant: payload.restaurant,
-    menus: payload.menus,
-    theme: resolveTheme(payload.restaurant.theme),
-    defaultLanguage: payload.defaultLanguage as LanguageCode,
-    supportedLanguages: payload.supportedLanguages as LanguageCode[],
-    currentLanguage: payload.currentLanguage as LanguageCode,
-  }
-}
+})

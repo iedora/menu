@@ -20,13 +20,13 @@ const headerGetter = {
 };
 
 // The originating client IP behind Cloudflare + kamal-proxy. PII — only ever
-// goes on the SERVER span (never a metric label or db statement).
+// goes on the SERVER span (never a metric label or db statement). Trust
+// assumption: backend service ports are reachable only from that proxy boundary;
+// do not accept spoofable forwarding chains from direct clients here.
 function clientAddress(h: Headers): string | undefined {
-  const cf = h.get("cf-connecting-ip");
+  const cf = h.get("cf-connecting-ip")?.trim();
   if (cf) return cf;
-  const xff = h.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]?.trim() || undefined;
-  return h.get("x-real-ip") ?? undefined;
+  return undefined;
 }
 
 // One SERVER span per request. Bun.serve/Hono aren't auto-instrumented, so this
@@ -34,11 +34,13 @@ function clientAddress(h: Headers): string | undefined {
 // the span by the matched route (low cardinality), and stamp status + tenant.
 // All of OTel no-ops until registerIedoraOtelNode runs with an OTLP endpoint, so
 // this is free when observability is off.
-export function otelHttp<E extends Env>() {
+export function otelHttp<E extends Env>(opts?: { captureRequestHeaders?: string[]; captureResponseHeaders?: string[] }) {
   return createMiddleware<E>(async (c, next) => {
     const method = c.req.method;
-    const route = c.req.routePath || c.req.path;
+    let route = c.req.path;
     const parent = propagation.extract(context.active(), c.req.raw.headers, headerGetter);
+    const startTime = performance.now();
+    let hasErrorStatus = false;
     await context.with(parent, () =>
       tracer.startActiveSpan(`${method} ${route}`, { kind: SpanKind.SERVER }, async (span) => {
         span.setAttribute("http.request.method", method);
@@ -46,16 +48,39 @@ export function otelHttp<E extends Env>() {
         if (route) span.setAttribute("http.route", route);
         const ip = clientAddress(c.req.raw.headers);
         if (ip) span.setAttribute("client.address", ip);
+        for (const name of opts?.captureRequestHeaders ?? []) {
+          const value = c.req.header(name);
+          if (value) span.setAttribute(`http.request.header.${name}`, value);
+        }
         try {
           await next();
         } catch (err) {
           span.recordException(err as Error);
           span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
+          hasErrorStatus = true;
           throw err;
         } finally {
+          if (c.error && !hasErrorStatus) {
+            span.recordException(c.error);
+            span.setStatus({ code: SpanStatusCode.ERROR, message: String(c.error) });
+            hasErrorStatus = true;
+          }
           const status = c.res.status;
+          const matchedRoute = c.req.routePath;
+          if (matchedRoute && matchedRoute !== c.req.path) {
+            route = matchedRoute;
+            span.updateName(`${method} ${route}`);
+            span.setAttribute("http.route", route);
+          }
           span.setAttribute("http.response.status_code", status);
-          if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
+          span.setAttribute("http.duration", performance.now() - startTime);
+          const contentLength = c.res.headers.get("content-length");
+          if (contentLength) span.setAttribute("http.response.body.size", Number(contentLength));
+          for (const name of opts?.captureResponseHeaders ?? []) {
+            const value = c.res.headers.get(name);
+            if (value) span.setAttribute(`http.response.header.${name}`, value);
+          }
+          if (status >= 500 && !hasErrorStatus) span.setStatus({ code: SpanStatusCode.ERROR });
           // Tenant attribution — set by userAuth / the scoped middleware inside
           // next(), so it's available here. Read loosely: not every Env carries
           // these vars.
@@ -108,9 +133,11 @@ export interface ServiceEnv {
 // an HTTPException renders its own response; anything else is logged and becomes
 // a 500 JSON body. Generic over the Env so non-service apps (auth, menu — which
 // carry user/tenant variables) can supply their own while reusing onError.
-export function createServiceApp<E extends Env = ServiceEnv>(): Hono<E> {
+export function createServiceApp<E extends Env = ServiceEnv>(
+  otelOpts?: { captureRequestHeaders?: string[]; captureResponseHeaders?: string[] },
+): Hono<E> {
   const app = new Hono<E>();
-  app.use(otelHttp<E>()); // request tracing; no-op until OTel is configured
+  app.use(otelHttp<E>(otelOpts)); // request tracing; no-op until OTel is configured
   app.onError((err, c) => {
     if (err instanceof HTTPException) return err.getResponse();
     // Correlate the error log with its trace so a log line is a jump-off point

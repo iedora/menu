@@ -1,3 +1,4 @@
+import { trace } from "@iedora/observability";
 import { isInvalidUUID } from "@iedora/server-kit";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -37,6 +38,14 @@ export class RateLimitError extends HTTPException {
 export function handleError(err: Error, c: Context): Response {
   if (err instanceof HTTPException) return err.getResponse();
   if (isInvalidUUID(err)) return c.json({ error: "not found" }, 404);
-  console.error(JSON.stringify({ level: "error", msg: "unhandled error", err: String(err) }));
+  const sc = trace.getActiveSpan()?.spanContext();
+  console.error(
+    JSON.stringify({
+      level: "error",
+      msg: "unhandled error",
+      err: String(err),
+      ...(sc ? { trace_id: sc.traceId, span_id: sc.spanId } : {}),
+    }),
+  );
   return c.json({ error: "internal error" }, 500);
 }
