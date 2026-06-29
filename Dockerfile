@@ -145,9 +145,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 
 # OCI image metadata. VERSION is the deploy version (commit SHA) passed by Kamal.
 ARG VERSION
-LABEL org.opencontainers.image.title="iedora-frontend" \
-      org.opencontainers.image.description="iedora frontend — Next.js 16 web shell (apps/web)" \
-      org.opencontainers.image.source="https://github.com/iedora/frontend" \
+LABEL org.opencontainers.image.title="iedora-app" \
+      org.opencontainers.image.description="iedora app — Next.js 16 web shell (apps/web)" \
+      org.opencontainers.image.source="https://github.com/iedora/app" \
       org.opencontainers.image.version="${VERSION}"
 
 CMD ["node", "server.js"]

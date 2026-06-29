@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 env:
-  IMAGE: git.733113.xyz/iedora/frontend
+  IMAGE: git.733113.xyz/iedora/app
 
 jobs:
   publish:

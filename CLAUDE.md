@@ -1,4 +1,4 @@
-# iedora-frontend — working rules for Claude
+# iedora-app — working rules for Claude
 
 > Architecture, slice pattern, auth, and commands live in **[`AGENTS.md`](./AGENTS.md)** — read it.
 > This file adds the **design workflow** and the **UI-kit knowledge** that AGENTS.md doesn't cover.
