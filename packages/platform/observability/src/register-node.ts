@@ -9,7 +9,7 @@ import {
 import { resourceFromAttributes, defaultResource } from "@opentelemetry/resources";
 import {
   BasicTracerProvider,
-  BatchSpanProcessor,
+  SimpleSpanProcessor,
 } from "@opentelemetry/sdk-trace-base";
 import {
   MeterProvider,
@@ -105,9 +105,14 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
   if (process.env.HOST_NAME) attrs[ATTR_HOST_NAME] = process.env.HOST_NAME;
   const resource = defaultResource().merge(resourceFromAttributes(attrs));
 
-  // Tracer provider. BatchSpanProcessor only flushes periodically;
-  // shutdownIedoraOtel() flushes synchronously before process exit so
-  // short-lived scripts don't drop their tail of spans.
+  // Tracer provider. SimpleSpanProcessor (export each span synchronously on end),
+  // NOT BatchSpanProcessor: under production Bun, BatchSpanProcessor's flush is
+  // timer-driven and does NOT fire in a long-lived Bun.serve process — spans
+  // buffer forever and the live service exports nothing (a referenced
+  // setInterval+forceFlush worked under `bun --hot` but not under plain `bun run`).
+  // SimpleSpanProcessor has no timer dependency, so spans ship reliably. The cost
+  // is one OTLP request per span; if volume ever warrants batching, do it in an
+  // OpenTelemetry Collector in front of OpenObserve, not in-process under Bun.
   const otlpHeaders = parseOtlpHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS);
   const traceExporter = process.env.OTEL_EXPORTER_OTLP_ENDPOINT
     ? new OTLPTraceExporter({
@@ -125,7 +130,7 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
       // call into tenantContext, but free + consistent with the Next
       // app's pipeline.
       new TenantContextSpanProcessor(),
-      ...(traceExporter ? [new BatchSpanProcessor(traceExporter)] : []),
+      ...(traceExporter ? [new SimpleSpanProcessor(traceExporter)] : []),
     ],
   });
   const providerRegistered = trace.setGlobalTracerProvider(tp);
@@ -154,7 +159,17 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
   // normal, REFERENCED interval (do NOT unref — that is the bug). forceFlush is
   // cheap (no-op on an empty queue); shutdownOtel() still does the final flush.
   if (traceExporter) {
-    setInterval(() => void tp.forceFlush().catch(() => {}), 5_000);
+    // Startup export health check: create + flush one span so the service
+    // reports at boot whether its trace pipeline actually reaches the collector.
+    // recording=true + ok=true means the whole chain (provider → processor →
+    // exporter → collector) works; anything else is a loud, greppable boot error.
+    const probe = trace.getTracer("iedora").startSpan("otel.startup");
+    const recording = probe.isRecording();
+    probe.end();
+    void tp
+      .forceFlush()
+      .then(() => console.log(JSON.stringify({ level: "info", msg: "otel-startup-export", recording, ok: true })))
+      .catch((e) => console.log(JSON.stringify({ level: "error", msg: "otel-startup-export", recording, error: String(e) })));
   }
 
   // Meter provider. DELTA temporality is load-bearing — see register.ts
