@@ -9,10 +9,17 @@
 // backend entirely.
 import { trace, metrics } from "@opentelemetry/api";
 import { logs } from "@opentelemetry/api-logs";
-import {
-  AggregationTemporalityPreference,
-  OTLPMetricExporter,
-} from "@opentelemetry/exporter-metrics-otlp-http";
+// Proto here too, for consistency with the trace exporter below — not
+// because metrics-JSON was observed failing against OpenObserve (it wasn't;
+// tested clean in isolation). One serializer end-to-end reduces the surface
+// for a repeat of the trace-JSON deserializer bug turning up here later.
+// AggregationTemporalityPreference is a plain numeric enum (DELTA=0,
+// CUMULATIVE=1, LOWMEMORY=2) that only the -http package happens to export —
+// the -proto package re-exports just OTLPMetricExporter. Importing the enum
+// from -http has no runtime/transport implication; it's the same values
+// either way, so -http stays a dependency for this import alone.
+import { AggregationTemporalityPreference } from "@opentelemetry/exporter-metrics-otlp-http";
+import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { PinoInstrumentation } from "@opentelemetry/instrumentation-pino";
 import {

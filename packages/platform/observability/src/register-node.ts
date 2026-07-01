@@ -7,10 +7,17 @@ import { W3CTraceContextPropagator } from "@opentelemetry/core";
 // Protobuf is a different serializer end-to-end (and what the frontend already
 // uses against the same collector), so the spans ingest cleanly.
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import {
-  AggregationTemporalityPreference,
-  OTLPMetricExporter,
-} from "@opentelemetry/exporter-metrics-otlp-http";
+// Proto here too, for consistency with the trace exporter above — not
+// because metrics-JSON was observed failing against OpenObserve (it wasn't;
+// tested clean in isolation). One serializer end-to-end reduces the surface
+// for a repeat of the trace-JSON deserializer bug turning up here later.
+// AggregationTemporalityPreference is a plain numeric enum (DELTA=0,
+// CUMULATIVE=1, LOWMEMORY=2) that only the -http package happens to export —
+// the -proto package re-exports just OTLPMetricExporter. Importing the enum
+// from -http has no runtime/transport implication; it's the same values
+// either way, so -http stays a dependency for this import alone.
+import { AggregationTemporalityPreference } from "@opentelemetry/exporter-metrics-otlp-http";
+import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
 import { resourceFromAttributes, defaultResource } from "@opentelemetry/resources";
 import {
   BasicTracerProvider,

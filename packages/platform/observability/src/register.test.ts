@@ -520,10 +520,16 @@ describe("registerIedoraOtel", () => {
     // graph so the spy applies to the import chain register.ts uses.
     vi.resetModules();
     const exporterSpy = vi.fn();
-    vi.doMock("@opentelemetry/exporter-metrics-otlp-http", async () => {
+    // AggregationTemporalityPreference lives only in the -http package (see
+    // register.ts import comment) — the -proto module being mocked below
+    // doesn't export it, so pull the real enum from -http for the spy class.
+    const { AggregationTemporalityPreference } = await vi.importActual<
+      typeof import("@opentelemetry/exporter-metrics-otlp-http")
+    >("@opentelemetry/exporter-metrics-otlp-http");
+    vi.doMock("@opentelemetry/exporter-metrics-otlp-proto", async () => {
       const actual = await vi.importActual<
-        typeof import("@opentelemetry/exporter-metrics-otlp-http")
-      >("@opentelemetry/exporter-metrics-otlp-http");
+        typeof import("@opentelemetry/exporter-metrics-otlp-proto")
+      >("@opentelemetry/exporter-metrics-otlp-proto");
       return {
         ...actual,
         OTLPMetricExporter: class SpiedExporter {
@@ -539,11 +545,11 @@ describe("registerIedoraOtel", () => {
           shutdown(): Promise<void> {
             return Promise.resolve();
           }
-          selectAggregation(): typeof actual.AggregationTemporalityPreference {
-            return actual.AggregationTemporalityPreference;
+          selectAggregation(): typeof AggregationTemporalityPreference {
+            return AggregationTemporalityPreference;
           }
           selectAggregationTemporality(): unknown {
-            return actual.AggregationTemporalityPreference.DELTA;
+            return AggregationTemporalityPreference.DELTA;
           }
         },
       };
@@ -557,12 +563,12 @@ describe("registerIedoraOtel", () => {
         | { temporalityPreference?: number }
         | undefined;
       // AggregationTemporalityPreference.DELTA === 0 per the enum definition
-      // in @opentelemetry/exporter-metrics-otlp-http. We assert the value
+      // in @opentelemetry/exporter-metrics-otlp-proto. We assert the value
       // explicitly because importing the enum from the mocked module is
       // intentionally awkward; the numeric pin is the contract.
       expect(passedOptions?.temporalityPreference).toBe(0);
     } finally {
-      vi.doUnmock("@opentelemetry/exporter-metrics-otlp-http");
+      vi.doUnmock("@opentelemetry/exporter-metrics-otlp-proto");
       process.env.NODE_ENV = originalNodeEnv;
       if (originalEndpoint !== undefined) {
         process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalEndpoint;
