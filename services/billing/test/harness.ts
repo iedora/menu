@@ -1,5 +1,5 @@
-import { Database, OutboxWriter, newServiceVerifier } from "@iedora/server-kit";
-import { createScratchDatabase } from "@iedora/server-kit/testkit";
+import { Database, OutboxWriter, newServiceVerifier } from "@iedora/menu-kit";
+import { createScratchDatabase } from "@iedora/menu-kit/testkit";
 import { afterAll, beforeAll } from "bun:test";
 import { sql } from "kysely";
 import { SignJWT, generateKeyPair } from "jose";

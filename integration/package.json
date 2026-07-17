@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@iedora/contracts": "workspace:*",
-    "@iedora/server-kit": "workspace:*",
+    "@iedora/menu-kit": "workspace:*",
     "@iedora/service-billing": "workspace:*",
     "@iedora/service-menu": "workspace:*"
   },

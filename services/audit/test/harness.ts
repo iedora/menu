@@ -1,5 +1,5 @@
-import { Database, newServiceVerifier } from "@iedora/server-kit";
-import { createScratchDatabase } from "@iedora/server-kit/testkit";
+import { Database, newServiceVerifier } from "@iedora/menu-kit";
+import { createScratchDatabase } from "@iedora/menu-kit/testkit";
 import { SQL } from "bun";
 import { afterAll, beforeAll } from "bun:test";
 import { generateKeyPair, SignJWT } from "jose";

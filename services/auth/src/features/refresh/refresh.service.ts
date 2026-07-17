@@ -1,4 +1,4 @@
-import { hashRefreshToken } from "@iedora/server-kit";
+import { hashRefreshToken } from "@iedora/menu-kit";
 
 import {
   findByTokenHash,

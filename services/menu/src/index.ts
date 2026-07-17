@@ -4,7 +4,7 @@ import {
   newUserVerifier,
   parseEd25519PublicKey,
   runRelayService,
-} from "@iedora/server-kit";
+} from "@iedora/menu-kit";
 
 import { buildApp } from "./app";
 import { AuditHttpReader } from "./audit-read";

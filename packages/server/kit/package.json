@@ -1,5 +1,5 @@
 {
-  "name": "@iedora/server-kit",
+  "name": "@iedora/menu-kit",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -39,7 +39,8 @@
     "jose": "catalog:",
     "kysely": "catalog:",
     "kysely-postgres-js": "catalog:",
-    "nodemailer": "^6.10.1"
+    "nodemailer": "^6.10.1",
+    "@iedora/server-kit": "^0.2.0"
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",

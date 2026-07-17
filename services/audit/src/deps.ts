@@ -1,4 +1,4 @@
-import type { Database, ServiceVerifier } from "@iedora/server-kit";
+import type { Database, ServiceVerifier } from "@iedora/menu-kit";
 
 import type { AuditDB } from "./schema";
 

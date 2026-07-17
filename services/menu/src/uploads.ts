@@ -1,4 +1,4 @@
-import type { Database } from "@iedora/server-kit";
+import type { Database } from "@iedora/menu-kit";
 
 import type { BlobClient } from "./blob";
 import { itemInRestaurant, setItemImage, setRestaurantAsset } from "./data/assets";

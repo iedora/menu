@@ -1,4 +1,4 @@
-import { createServiceApp, healthRoutes } from "@iedora/server-kit";
+import { createServiceApp, healthRoutes } from "@iedora/menu-kit";
 
 import type { AuditDeps } from "./deps";
 import { eventsRoutes } from "./features/events/events.routes";

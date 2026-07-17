@@ -1,4 +1,4 @@
-import type { Auditor, Database, ServiceVerifier } from "@iedora/server-kit";
+import type { Auditor, Database, ServiceVerifier } from "@iedora/menu-kit";
 
 import type { BillingConfig } from "./config";
 import type { BillingDB } from "./schema";

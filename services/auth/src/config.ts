@@ -1,4 +1,4 @@
-import { durationMs, env, isProd, requireEnv, type SmtpConfig } from "@iedora/server-kit";
+import { durationMs, env, isProd, requireEnv, type SmtpConfig } from "@iedora/menu-kit";
 
 export interface AuthConfig {
   port: number;

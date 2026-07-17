@@ -20,7 +20,7 @@
   "dependencies": {
     "@iedora/contracts": "workspace:*",
     "@iedora/observability": "workspace:*",
-    "@iedora/server-kit": "workspace:*",
+    "@iedora/menu-kit": "workspace:*",
     "@hono/zod-validator": "catalog:",
     "hono": "catalog:",
     "kysely": "catalog:",

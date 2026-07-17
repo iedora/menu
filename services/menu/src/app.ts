@@ -1,4 +1,4 @@
-import { createServiceApp, healthRoutes, userAuth } from "@iedora/server-kit";
+import { createServiceApp, healthRoutes, userAuth } from "@iedora/menu-kit";
 import { Hono } from "hono";
 
 import type { MenuDeps } from "./deps";

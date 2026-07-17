@@ -1,5 +1,5 @@
 import type { AuditFilter, AuditQueryResponse, AuditRecord } from "@iedora/contracts";
-import { iso } from "@iedora/server-kit";
+import { iso } from "@iedora/menu-kit";
 import { type Kysely, sql } from "kysely";
 
 import type { AuditDB } from "../../schema";

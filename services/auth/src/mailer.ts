@@ -1,4 +1,4 @@
-import type { Mailer } from "@iedora/server-kit";
+import type { Mailer } from "@iedora/menu-kit";
 
 // Password-reset / account emails, formatted once and sent through the generic
 // {@link Mailer} contract (server-kit). The transport (MailHog, Resend, …) is

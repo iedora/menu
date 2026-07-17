@@ -1,4 +1,4 @@
-import type { Database } from "@iedora/server-kit";
+import type { Database } from "@iedora/menu-kit";
 
 import type { PlanSource } from "./billing";
 import { countRestaurants } from "./data/restaurants.write";

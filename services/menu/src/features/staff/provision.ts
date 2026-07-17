@@ -5,7 +5,7 @@ import {
   type ImportPayload,
   type StaffCreateRestaurant,
 } from "@iedora/contracts";
-import { ServiceClientError } from "@iedora/server-kit";
+import { ServiceClientError } from "@iedora/menu-kit";
 
 import { deleteAllMenus } from "../../data/builder";
 import { restaurantById } from "../../data/restaurants";

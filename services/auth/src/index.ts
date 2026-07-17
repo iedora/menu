@@ -11,7 +11,7 @@ import {
   parseClients,
   parseEd25519Seed,
   runRelayService,
-} from "@iedora/server-kit";
+} from "@iedora/menu-kit";
 
 import { buildApp } from "./app";
 import { loadConfig } from "./config";

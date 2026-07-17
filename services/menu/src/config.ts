@@ -1,4 +1,4 @@
-import { env, requireEnv, siblingUrl } from "@iedora/server-kit";
+import { env, requireEnv, siblingUrl } from "@iedora/menu-kit";
 
 import type { S3Config } from "./blob";
 

@@ -1,4 +1,4 @@
-import { type UserEnv, userAuth } from "@iedora/server-kit";
+import { type UserEnv, userAuth } from "@iedora/menu-kit";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 

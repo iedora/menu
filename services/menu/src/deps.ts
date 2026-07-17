@@ -1,4 +1,4 @@
-import type { Auditor, Database, UserVerifier } from "@iedora/server-kit";
+import type { Auditor, Database, UserVerifier } from "@iedora/menu-kit";
 
 import type { AuditReader } from "./audit-read";
 import type { TenantReader, UserReader } from "./auth-client";

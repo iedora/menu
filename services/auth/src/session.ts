@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { type AuditEvent, type Auditor, newRefreshToken } from "@iedora/server-kit";
+import { type AuditEvent, type Auditor, newRefreshToken } from "@iedora/menu-kit";
 import type { Context } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 

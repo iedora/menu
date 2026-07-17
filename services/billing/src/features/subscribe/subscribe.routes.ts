@@ -1,5 +1,5 @@
 import { subscribeRequest } from "@iedora/contracts";
-import { type ServiceEnv, serviceAuth } from "@iedora/server-kit";
+import { type ServiceEnv, serviceAuth } from "@iedora/menu-kit";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 

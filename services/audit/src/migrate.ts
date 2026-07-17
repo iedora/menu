@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { env, expandFileSecrets, requireEnv, runMigrations } from "@iedora/server-kit";
+import { env, expandFileSecrets, requireEnv, runMigrations } from "@iedora/menu-kit";
 
 // One-shot migrator: applies services/audit/migrations/*.sql to AUDIT_DATABASE_URL
 // (creating the database if missing), then exits. Mirrors `iedora audit migrate`.

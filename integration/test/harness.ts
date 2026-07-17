@@ -1,5 +1,5 @@
-import { Database, OutboxWriter, newServiceVerifier } from "@iedora/server-kit";
-import { createScratchDatabase } from "@iedora/server-kit/testkit";
+import { Database, OutboxWriter, newServiceVerifier } from "@iedora/menu-kit";
+import { createScratchDatabase } from "@iedora/menu-kit/testkit";
 import { buildApp as buildBillingApp } from "@iedora/service-billing/app";
 import type { BillingConfig } from "@iedora/service-billing/config";
 import type { BillingDB } from "@iedora/service-billing/schema";

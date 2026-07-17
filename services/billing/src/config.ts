@@ -1,4 +1,4 @@
-import { durationMs, env, requireEnv } from "@iedora/server-kit";
+import { durationMs, env, requireEnv } from "@iedora/menu-kit";
 
 export interface BillingConfig {
   port: number;

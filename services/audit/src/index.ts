@@ -6,7 +6,7 @@ import {
   parseEd25519PublicKey,
   requireEnv,
   serve,
-} from "@iedora/server-kit";
+} from "@iedora/menu-kit";
 
 import { buildApp } from "./app";
 import type { AuditDB } from "./schema";

@@ -1,4 +1,4 @@
-import { type UserPrincipal, hasRole } from "@iedora/server-kit";
+import { type UserPrincipal, hasRole } from "@iedora/menu-kit";
 import { createMiddleware } from "hono/factory";
 
 import { restaurantBySlug } from "./data/restaurants";

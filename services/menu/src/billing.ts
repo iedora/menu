@@ -3,7 +3,7 @@
 // caches it until shortly before expiry, and presents it as a Bearer to billing.
 
 import type { Invoice, Subscription } from "@iedora/contracts";
-import { ServiceClient, type TokenSource } from "@iedora/server-kit";
+import { ServiceClient, type TokenSource } from "@iedora/menu-kit";
 
 export interface PlanSource {
   // planCode resolves a tenant's active menu plan code; "" means unsubscribed.

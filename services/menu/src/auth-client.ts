@@ -5,7 +5,7 @@ import type {
   Tenant,
   TenantWithOwner,
 } from "@iedora/contracts";
-import { ServiceClient } from "@iedora/server-kit";
+import { ServiceClient } from "@iedora/menu-kit";
 
 import type { ServiceTokenSource } from "./billing";
 

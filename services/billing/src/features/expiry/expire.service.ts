@@ -1,4 +1,4 @@
-import type { Auditor, Database } from "@iedora/server-kit";
+import type { Auditor, Database } from "@iedora/menu-kit";
 import { sql } from "kysely";
 
 import type { BillingDB } from "../../schema";

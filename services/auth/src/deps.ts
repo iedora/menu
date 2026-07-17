@@ -5,7 +5,7 @@ import type {
   ServiceTokenIssuer,
   ServiceVerifier,
   UserVerifier,
-} from "@iedora/server-kit";
+} from "@iedora/menu-kit";
 
 import type { AuthConfig } from "./config";
 import type { ResetMailer } from "./mailer";
