@@ -13,7 +13,7 @@ import {
 } from "@iedora/billing";
 import Stripe from "stripe";
 
-import type { PaymentKind, RefundRequest, RefundResult, SettleInput, Settlement } from "./kinds";
+import type { PaymentKind, RefundRequest, RefundResult, SavedCardInfo, SettleInput, Settlement } from "./kinds";
 
 // The Stripe adapter — implements @iedora/billing's PaymentGateway against
 // Stripe PaymentIntents / SetupIntents / Refunds / Transfers. Lives in the
@@ -73,6 +73,22 @@ export class StripeGateway implements PaymentGateway {
       const si = await this.stripe.setupIntents.create({ customer, metadata: input.metadata });
       if (!si.client_secret) throw new PaymentError("provider_error", "stripe setup intent returned no client secret");
       return { clientSecret: si.client_secret, customer };
+    } catch (err) {
+      throw toPaymentError(err);
+    }
+  }
+
+  async getPaymentMethod(id: string): Promise<SavedCardInfo> {
+    try {
+      const pm = await this.stripe.paymentMethods.retrieve(id);
+      // Only the displayable bits — never the PAN (Stripe never returns it). A
+      // wallet/Link method has no `card`, so fall back to its type.
+      return {
+        brand: pm.card?.brand ?? pm.type,
+        last4: pm.card?.last4 ?? null,
+        expMonth: pm.card?.exp_month ?? null,
+        expYear: pm.card?.exp_year ?? null,
+      };
     } catch (err) {
       throw toPaymentError(err);
     }
@@ -159,6 +175,10 @@ export class StripeKind implements PaymentKind {
 
   setupPaymentMethod(input: SetupInput): Promise<Setup> {
     return this.gateway.setupPaymentMethod(input);
+  }
+
+  getPaymentMethod(id: string): Promise<SavedCardInfo> {
+    return this.gateway.getPaymentMethod(id);
   }
 }
 

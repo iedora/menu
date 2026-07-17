@@ -1,6 +1,7 @@
 import type { Setup } from "@iedora/billing";
 
 import type { BillingDeps } from "../../deps";
+import type { SavedCardInfo } from "../../kinds";
 
 // The "save a card" slice — begin a Stripe SetupIntent the client confirms to
 // attach a payment method for later off-session charges. Everything explicit:
@@ -64,4 +65,14 @@ export async function createSetup(
   });
 
   return setup;
+}
+
+/** Fetch a saved method's displayable bits (brand/last4/expiry) — only the
+ *  stripe kind has a processor to ask. Rejects when stripe is unconfigured. */
+export async function getPaymentMethod(deps: BillingDeps, id: string): Promise<SavedCardInfo> {
+  const kind = deps.kinds.stripe;
+  if (!kind?.getPaymentMethod) {
+    throw new SetupRejected("kind_unavailable", "payment kind not available: stripe");
+  }
+  return kind.getPaymentMethod(id);
 }
