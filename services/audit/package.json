@@ -21,7 +21,8 @@
     "@iedora/menu-kit": "workspace:*",
     "@hono/zod-validator": "catalog:",
     "hono": "catalog:",
-    "kysely": "catalog:"
+    "kysely": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",

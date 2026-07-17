@@ -1,5 +1,6 @@
 import { createAuditIngester } from "@iedora/audit";
 import { createDispatcher, createInbox, enqueue, type Handler } from "@iedora/messaging";
+import { ServiceClient } from "@iedora/server-kit";
 import type { Kysely } from "kysely";
 
 import { type AuditEvent, type Auditor, buildEnvelope } from "./audit";
@@ -14,8 +15,44 @@ import type { EmailMessage, Mailer } from "./mailer";
 // outbox_message. Menu's audit stays an ACTION event log (its own model) carried
 // as the topic payload — @iedora/messaging is transport, not the audit model.
 
-const AUDIT_TOPIC = "audit.events";
+export const AUDIT_TOPIC = "audit.events";
 const EMAIL_TOPIC = "email.send";
+
+/** A delivered audit envelope + its idempotency key (the outbox message id). */
+export interface AuditDelivery {
+  messageId: string;
+  payload: Record<string, unknown>;
+}
+
+/** Where the relay delivers audit events. HARD RULE: a producer never writes the
+ *  audit service's tables through the DB — it POSTs events over HTTP and the
+ *  audit service records them into its own schema. So this is an HTTP sink, not
+ *  a Kysely handle. */
+export interface AuditSink {
+  ingest(events: AuditDelivery[]): Promise<void>;
+}
+
+/** AuditSink over HTTP: posts a batch to the audit service's `POST /events`. The
+ *  messageId is the idempotency key — the audit service dedupes on it (its own
+ *  inbox), so the outbox's at-least-once redelivery records each event once. */
+export class AuditClient implements AuditSink {
+  constructor(private readonly svc: ServiceClient) {}
+  async ingest(events: AuditDelivery[]): Promise<void> {
+    if (events.length === 0) return;
+    await this.svc.post("/events", { events });
+  }
+}
+
+/** The audit SERVICE's side of ingestion: dedupe by messageId against its own
+ *  inbox and record into its own audit_log, in one transaction. Reuses the exact
+ *  ingester the relay used to run in-process; only the trigger moved from
+ *  draining a producer's outbox to an HTTP POST. `auditDb` is the audit
+ *  service's own pool — no other service is ever passed here. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createAuditReceiver(auditDb: Kysely<any>): (event: AuditDelivery) => Promise<void> {
+  const ingest = createAuditIngester(createInbox(auditDb));
+  return (event) => ingest({ id: event.messageId, topic: AUDIT_TOPIC, payload: event.payload, attempts: 0 });
+}
 
 /** Records audit events into the producer's own outbox within the caller's
  *  transaction (Database.db = active tx or pool), so the event is durable
@@ -66,16 +103,15 @@ export class OutboxMailer<DB> implements Mailer {
 }
 
 /** The relay handler set: audit always; email only when a transport is given.
- *  The audit handler is @iedora/audit's ingester, which dedupes through
- *  @iedora/messaging's inbox (in the audit DB) so the dispatcher's at-least-once
- *  redelivery records each event exactly once. */
+ *  The audit handler POSTs each event to the audit service via the AuditSink;
+ *  a delivery failure throws, so the dispatcher retries (at-least-once) and the
+ *  audit service's inbox makes the eventual record exactly-once. */
 export function relayHandlers(opts: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  audit: Kysely<any>;
+  audit: AuditSink;
   mailer?: Mailer;
 }): Record<string, Handler> {
   const handlers: Record<string, Handler> = {
-    [AUDIT_TOPIC]: createAuditIngester(createInbox(opts.audit)),
+    [AUDIT_TOPIC]: (msg) => opts.audit.ingest([{ messageId: msg.id, payload: msg.payload }]),
   };
   if (opts.mailer) {
     const mailer = opts.mailer;

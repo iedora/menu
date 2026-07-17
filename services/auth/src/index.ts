@@ -1,6 +1,8 @@
 import {
+  AuditClient,
   Database,
   JwtIssuer,
+  ServiceClient,
   ServiceTokenIssuer,
   expandFileSecrets,
   isProd,
@@ -21,7 +23,7 @@ import type { AuthDB } from "./schema";
 expandFileSecrets();
 const cfg = loadConfig();
 
-const db = new Database<AuthDB>(cfg.authDatabaseUrl, { schema: cfg.dbSchema });
+const db = new Database<AuthDB>(cfg.authDatabaseUrl);
 
 const keys = parseEd25519Seed(cfg.jwtSeed);
 const issuer = new JwtIssuer({
@@ -47,15 +49,21 @@ const serviceVerifier = newServiceVerifier(keys.publicKey, cfg.jwtIssuer, cfg.se
 const mailTransport = mailerFromConfig(cfg.smtp, { prod: isProd() });
 const resetMailer = makeResetMailer(new OutboxMailer(db));
 
-// runRelayService owns the audit DB + outbox writer/relay (audit + email) +
-// graceful shutdown.
+// Audit sink: auth POSTs events to the audit service (never its DB). Auth holds
+// the platform signing key, so it self-mints its own service token rather than
+// fetching one from itself.
+const audit = new AuditClient(
+  new ServiceClient(cfg.auditBaseUrl, { token: () => serviceIssuer.issue("auth") }, "audit"),
+);
+
+// runRelayService owns the outbox writer/relay (audit + email) + graceful
+// shutdown; audit is delivered over HTTP via the sink above.
 runRelayService({
   name: "iedora-auth",
   port: cfg.port,
   source: "auth",
   db,
-  auditDatabaseUrl: cfg.auditDatabaseUrl,
-  auditSchema: cfg.auditSchema,
+  audit,
   mailer: mailTransport,
   build: ({ auditor }) =>
     buildApp({ db, issuer, userVerifier, serviceIssuer, serviceVerifier, serviceClients: parseClients(cfg.serviceClients), auditor, resetMailer, cfg }),

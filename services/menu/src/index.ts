@@ -1,9 +1,11 @@
 import {
+  AuditClient,
   Database,
   expandFileSecrets,
   newUserVerifier,
   parseEd25519PublicKey,
   runRelayService,
+  ServiceClient,
 } from "@iedora/menu-kit";
 
 import { buildApp } from "./app";
@@ -20,7 +22,7 @@ import { Uploads } from "./uploads";
 expandFileSecrets();
 const cfg = loadConfig();
 
-const db = new Database<MenuDB>(cfg.menuDatabaseUrl, { schema: cfg.dbSchema });
+const db = new Database<MenuDB>(cfg.menuDatabaseUrl);
 
 const userVerifier = newUserVerifier(
   await parseEd25519PublicKey(cfg.apiJwtPublicKey),
@@ -36,14 +38,18 @@ const tenant = new AuthClient(cfg.authBaseUrl, tokens); // tenant + owner, via t
 const blob = makeBlobClient(cfg.s3); // null when S3 is unconfigured → uploads 503
 const uploads = blob ? new Uploads(db, blob) : null;
 
-// runRelayService owns the audit DB + outbox writer/relay + graceful shutdown.
+// Audit sink: the relay POSTs emitted events to the audit service (never its DB),
+// reusing menu's client-credentials token source.
+const auditSink = new AuditClient(new ServiceClient(cfg.auditBaseUrl, tokens, "audit"));
+
+// runRelayService owns the outbox writer/relay + graceful shutdown; audit events
+// are delivered over HTTP via the sink above.
 runRelayService({
   name: "iedora-menu",
   port: cfg.port,
   source: "menu",
   db,
-  auditDatabaseUrl: cfg.auditDatabaseUrl,
-  auditSchema: cfg.auditSchema,
+  audit: auditSink,
   build: ({ auditor }) =>
     buildApp({ db, limiter, userVerifier, auditor, plans, billing, audit, tenant, uploads, cfg }),
 });

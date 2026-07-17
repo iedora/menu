@@ -43,7 +43,7 @@ export async function createHarness(): Promise<Harness> {
   const cfg: AuthConfig = {
     port: 0,
     authDatabaseUrl: scratch.url,
-    auditDatabaseUrl: scratch.url, // audit events queue in this DB's outbox (relay not run here)
+    auditBaseUrl: "", // relay not run in tests; audit events just queue in the outbox
     jwtSeed: SEED,
     jwtKeyId: "k1",
     jwtIssuer: "https://api.iedora.com",

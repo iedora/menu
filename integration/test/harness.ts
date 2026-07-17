@@ -51,9 +51,12 @@ export async function createIntegration(): Promise<IntegrationHarness> {
   const cfg: BillingConfig = {
     port: 0,
     billingDatabaseUrl: scratch.url,
-    dbSchema: "", // scratch DB = its own database, use the default schema
-    auditSchema: "",
-    auditDatabaseUrl: scratch.url, // audit events queue in this DB's outbox (relay not run here)
+    // Audit is delivered over HTTP by the relay, which is not run in this harness
+    // (events just queue in the outbox); these are unused here.
+    auditBaseUrl: "",
+    authBaseUrl: "",
+    serviceClientId: "",
+    serviceClientSecret: "",
     serviceJwtPublicKey: "",
     serviceJwtIssuer: ISS,
     serviceAudience: AUD,
