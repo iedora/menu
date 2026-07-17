@@ -48,6 +48,14 @@ export interface RefundResult {
   status: RefundStatus;
 }
 
+/** Displayable, non-sensitive bits of a saved payment method (never the PAN). */
+export interface SavedCardInfo {
+  brand: string;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+}
+
 export interface PaymentKind {
   /** Validate the request for this kind. Return an error message to reject, or
    *  null to proceed. Enforces the explicit contract (no inference). */
@@ -59,6 +67,9 @@ export interface PaymentKind {
   /** Optional: begin saving a payment method for later off-session charges
    *  (a SetupIntent). Present only on kinds that support it (stripe). */
   setupPaymentMethod?(input: SetupInput): Promise<Setup>;
+  /** Optional: fetch a saved method's displayable bits (brand/last4/expiry).
+   *  Present only on kinds that have a processor (stripe). */
+  getPaymentMethod?(id: string): Promise<SavedCardInfo>;
 }
 
 /** kind name → handler. A name absent here is not configured (→ 400). */
