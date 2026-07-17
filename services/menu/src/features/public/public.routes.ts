@@ -6,7 +6,7 @@ import {
   tenantContext,
   trace,
   tracer,
-} from "@iedora/observability";
+} from "@iedora/menu-kit";
 import { type Context, Hono } from "hono";
 import { getConnInfo } from "hono/bun";
 import { getCookie, setCookie } from "hono/cookie";

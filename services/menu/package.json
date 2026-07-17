@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@iedora/contracts": "workspace:*",
-    "@iedora/observability": "workspace:*",
     "@iedora/menu-kit": "workspace:*",
     "@hono/zod-validator": "catalog:",
     "hono": "catalog:",

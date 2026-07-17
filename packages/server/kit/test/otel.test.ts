@@ -1,149 +1,52 @@
-import { describe, expect, it, beforeEach } from "bun:test";
-import {
-  BasicTracerProvider,
-  InMemorySpanExporter,
-  SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { Hono } from "hono";
+import { describe, expect, test } from "bun:test";
 
-import { otelHttp } from "../src/otel";
-import { createServiceApp } from "../src/http";
-import { SpanKind, SpanStatusCode, trace } from "@iedora/observability";
+import { emitLog, IEDORA_RESTAURANT_ID, IEDORA_TENANT_ID, tenantContext, traceIds } from "../src/otel";
 
-const exporter = new InMemorySpanExporter();
-const provider = new BasicTracerProvider({
-  spanProcessors: [new SimpleSpanProcessor(exporter)],
+// The OpenTelemetry SDK wiring now comes from @iedora/observability (NodeSDK) and
+// the HTTP span from @hono/otel — both tested upstream. What's menu-specific here
+// is the tenant AsyncLocalStorage + its stamping, and the log/trace helpers.
+
+describe("tenantContext (tenant AsyncLocalStorage)", () => {
+  test("run sets tenant inside the callback, restores after", () => {
+    expect(tenantContext.get()).toBeUndefined();
+    tenantContext.run({ restaurantId: "r1", tenantId: "t1" }, () => {
+      const t = tenantContext.get();
+      expect(t?.restaurantId).toBe("r1");
+      expect(t?.tenantId).toBe("t1");
+    });
+    expect(tenantContext.get()).toBeUndefined();
+  });
+
+  test("nested run shadows then restores", () => {
+    tenantContext.run({ restaurantId: "outer" }, () => {
+      tenantContext.run({ restaurantId: "inner" }, () => {
+        expect(tenantContext.get()?.restaurantId).toBe("inner");
+      });
+      expect(tenantContext.get()?.restaurantId).toBe("outer");
+    });
+  });
+
+  test("enterWith persists on the async chain (returns the previous)", () => {
+    tenantContext.run({ restaurantId: "base" }, () => {
+      const prev = tenantContext.enterWith({ restaurantId: "r2", tenantId: "t2" });
+      expect(prev?.restaurantId).toBe("base");
+      expect(tenantContext.get()?.restaurantId).toBe("r2");
+    });
+  });
 });
-trace.setGlobalTracerProvider(provider);
 
-describe("otelHttp", () => {
-  beforeEach(() => {
-    exporter.reset();
+describe("tenant attribute keys", () => {
+  test("are the pinned menu domain keys", () => {
+    expect(IEDORA_RESTAURANT_ID).toBe("tenant.restaurant_id");
+    expect(IEDORA_TENANT_ID).toBe("tenant.id");
   });
+});
 
-  it("emits a SERVER span with method, path, status, route, and duration", async () => {
-    const app = new Hono().use(otelHttp()).get("/ping", (c) => c.json({ ok: true }));
-    const res = await app.request("/ping");
-    expect(res.status).toBe(200);
-
-    const spans = exporter.getFinishedSpans();
-    expect(spans.length).toBe(1);
-    const [span] = spans;
-    expect(span.name).toBe("GET /ping");
-    expect(span.kind).toBe(SpanKind.SERVER);
-    expect(span.attributes["http.request.method"]).toBe("GET");
-    expect(span.attributes["url.path"]).toBe("/ping");
-    expect(span.attributes["http.response.status_code"]).toBe(200);
-    expect(span.attributes["http.route"]).toBe("/ping");
-    expect(typeof span.attributes["http.duration"]).toBe("number");
+describe("helpers (safe when OTel is off)", () => {
+  test("traceIds is undefined with no active span", () => {
+    expect(traceIds()).toBeUndefined();
   });
-
-  it("resolves :id param into the matched route pattern for low-cardinality naming", async () => {
-    const app = new Hono()
-      .use(otelHttp())
-      .get("/users/:id", (c) => c.json({ id: c.req.param("id") }));
-    const res = await app.request("/users/42");
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.name).toBe("GET /users/:id");
-    expect(span.attributes["http.route"]).toBe("/users/:id");
-  });
-
-  it("records the exception and marks ERROR when a handler throws", async () => {
-    const app = new Hono()
-      .use(otelHttp())
-      .onError((_, c) => c.text("fail", 500))
-      .get("/fail", () => {
-        throw new Error("boom");
-      });
-    const res = await app.request("/fail");
-    expect(res.status).toBe(500);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.status.code).toBe(SpanStatusCode.ERROR);
-    expect(span.events.length).toBe(1);
-    expect(span.events[0].name).toBe("exception");
-    expect(span.events[0].attributes?.["exception.message"]).toBe("boom");
-  });
-
-  it("marks ERROR status on 5xx responses without throwing", async () => {
-    const app = new Hono().use(otelHttp()).get("/oops", (c) => c.text("nope", 503));
-    const res = await app.request("/oops");
-    expect(res.status).toBe(503);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.status.code).toBe(SpanStatusCode.ERROR);
-    expect(span.attributes["http.response.status_code"]).toBe(503);
-  });
-
-  it("stamps http.request.header.* for each captureRequestHeaders entry", async () => {
-    const app = new Hono()
-      .use(otelHttp({ captureRequestHeaders: ["x-request-id", "authorization"] }))
-      .get("/test", (c) => c.text("ok"));
-    const res = await app.request("/test", {
-      headers: { "x-request-id": "req-123", authorization: "Bearer tok" },
-    });
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.attributes["http.request.header.x-request-id"]).toBe("req-123");
-    expect(span.attributes["http.request.header.authorization"]).toBe("Bearer tok");
-  });
-
-  it("stamps http.response.header.* for each captureResponseHeaders entry", async () => {
-    const app = new Hono()
-      .use(otelHttp({ captureResponseHeaders: ["x-request-id"] }))
-      .get("/test", (c) => {
-        c.header("x-request-id", "resp-456");
-        return c.text("ok");
-      });
-    const res = await app.request("/test");
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.attributes["http.response.header.x-request-id"]).toBe("resp-456");
-  });
-
-  it("sets http.response.body.size from the Content-Length header", async () => {
-    const app = new Hono().use(otelHttp()).get("/cl", (c) => {
-      c.header("content-length", "42");
-      return c.text("x".repeat(42));
-    });
-    const res = await app.request("/cl");
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.attributes["http.response.body.size"]).toBe(42);
-  });
-
-  it("omits http.response.body.size when Content-Length is not set", async () => {
-    const app = new Hono().use(otelHttp()).get("/no-cl", (c) => c.text("ok"));
-    const res = await app.request("/no-cl");
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect("http.response.body.size" in span.attributes).toBe(false);
-  });
-
-  it("reads client.address from cf-connecting-ip", async () => {
-    const app = new Hono().use(otelHttp()).get("/cf", (c) => c.text("ok"));
-    const res = await app.request("/cf", {
-      headers: { "cf-connecting-ip": "1.2.3.4" },
-    });
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.attributes["client.address"]).toBe("1.2.3.4");
-  });
-
-  it("createServiceApp includes otelHttp by default", async () => {
-    const app = createServiceApp().get("/up", (c) => c.json({ status: "ok" }));
-    const res = await app.request("/up");
-    expect(res.status).toBe(200);
-
-    const [span] = exporter.getFinishedSpans();
-    expect(span.name).toBe("GET /up");
-    expect(span.attributes["http.response.status_code"]).toBe(200);
+  test("emitLog does not throw", () => {
+    expect(() => emitLog("info", "hello", { k: "v" })).not.toThrow();
   });
 });

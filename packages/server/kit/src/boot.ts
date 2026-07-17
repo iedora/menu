@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 
-import { initOtel, shutdownOtel } from "./otel";
+import { emitLog, initOtel, shutdownOtel } from "./otel";
 
 export interface ServeOptions {
   name: string;
@@ -8,10 +8,6 @@ export interface ServeOptions {
   shutdownTimeoutMs?: number;
   /** Cleanup run during graceful shutdown — stop relays, close DB pools, etc. */
   onShutdown?: () => Promise<void> | void;
-}
-
-function log(msg: string, extra: Record<string, unknown> = {}): void {
-  console.log(JSON.stringify({ level: "info", msg, ...extra }));
 }
 
 /**
@@ -26,13 +22,13 @@ export function serve(app: Hono<any, any, any>, opts: ServeOptions) {
   initOtel(opts.name); // OTel for this service; no-ops in tests / when unconfigured
 
   const server = Bun.serve({ port: opts.port, fetch: app.fetch });
-  log("listening", { service: opts.name, port: opts.port });
+  emitLog("info", "listening", { service: opts.name, port: opts.port });
 
   let shuttingDown = false;
   const shutdown = async (signal: string): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
-    log("shutting down", { service: opts.name, signal });
+    emitLog("info", "shutting down", { service: opts.name, signal });
     const timer = setTimeout(() => process.exit(1), opts.shutdownTimeoutMs ?? 15_000);
     try {
       await server.stop();

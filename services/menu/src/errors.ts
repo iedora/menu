@@ -1,4 +1,4 @@
-import { trace } from "@iedora/observability";
+import { trace } from "@iedora/menu-kit";
 import { isInvalidUUID } from "@iedora/menu-kit";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";

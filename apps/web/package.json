@@ -22,7 +22,7 @@
     "@iedora/api-client": "workspace:*",
     "@iedora/brand": "workspace:*",
     "@iedora/contracts": "workspace:*",
-    "@iedora/observability": "workspace:*",
+    "@iedora/menu-observability": "workspace:*",
     "@iedora/product-menu": "workspace:*",
     "@iedora/ui": "workspace:*",
     "@lezer/highlight": "^1.2.3",
