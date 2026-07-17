@@ -12,6 +12,7 @@ import {
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { expireDueSubscriptions } from "./features/expiry/expire.service";
+import { ManualGateway, MANUAL_PROVIDER } from "./gateway";
 import type { BillingDB } from "./schema";
 
 const EXPIRY_SWEEP_MS = 60 * 60 * 1000; // hourly
@@ -52,6 +53,15 @@ runRelayService({
       );
     void sweep();
     setInterval(() => void sweep(), EXPIRY_SWEEP_MS).unref();
-    return buildApp({ db, verifier, auditor, cfg });
+    // Payment gateway: ManualGateway (cash/manual, instant-settle) is the default
+    // seam — a StripeGateway drops in here unchanged when real processing is wired.
+    return buildApp({
+      db,
+      verifier,
+      auditor,
+      gateway: new ManualGateway(),
+      gatewayProvider: MANUAL_PROVIDER,
+      cfg,
+    });
   },
 });

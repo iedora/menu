@@ -8,6 +8,7 @@
     "./app": "./src/app.ts",
     "./config": "./src/config.ts",
     "./expire": "./src/features/expiry/expire.service.ts",
+    "./gateway": "./src/gateway.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {
@@ -20,6 +21,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@iedora/billing": "^0.1.0",
     "@iedora/contracts": "workspace:*",
     "@iedora/menu-kit": "workspace:*",
     "@hono/zod-validator": "catalog:",
