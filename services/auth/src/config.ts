@@ -1,11 +1,13 @@
-import { durationMs, env, isProd, requireEnv, type SmtpConfig } from "@iedora/menu-kit";
+import { durationMs, env, isProd, requireEnv, siblingUrl, type SmtpConfig } from "@iedora/menu-kit";
+
+// Auth runs in Kamal's `web` role; siblingUrl reconstructs a sibling's versioned
+// URL from that. An explicit AUDIT_BASE_URL always wins (compose sets it).
+const SELF_ROLE = "web";
 
 export interface AuthConfig {
   port: number;
   authDatabaseUrl: string;
-  dbSchema: string;
-  auditSchema: string;
-  auditDatabaseUrl: string;
+  auditBaseUrl: string; // audit service base URL — events are POSTed, never DB-written
   jwtSeed: string;
   jwtKeyId: string;
   jwtIssuer: string;
@@ -91,9 +93,7 @@ export function loadConfig(): AuthConfig {
   return {
     port: Number(env("AUTH_PORT", "8080")),
     authDatabaseUrl: requireEnv("AUTH_DATABASE_URL"),
-    dbSchema: env("DB_SCHEMA", "auth"),
-    auditSchema: env("AUDIT_DB_SCHEMA", "audit"),
-    auditDatabaseUrl: requireEnv("AUDIT_DATABASE_URL"),
+    auditBaseUrl: env("AUDIT_BASE_URL", "") || siblingUrl("audit", 8081, SELF_ROLE),
     jwtSeed: requireEnv("API_JWT_PRIVATE_KEY"),
     jwtKeyId: env("API_JWT_KEY_ID", "k1"),
     jwtIssuer: requireEnv("API_JWT_ISSUER"),

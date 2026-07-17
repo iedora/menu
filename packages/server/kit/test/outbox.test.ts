@@ -2,11 +2,22 @@ import { SQL } from "bun";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 
 import { up as messagingUp } from "@iedora/messaging";
-import { Database, type EmailMessage, OutboxMailer, OutboxRelay, OutboxWriter, relayHandlers } from "../src";
+import {
+  type AuditSink,
+  createAuditReceiver,
+  Database,
+  type EmailMessage,
+  OutboxMailer,
+  OutboxRelay,
+  OutboxWriter,
+  relayHandlers,
+} from "../src";
 
 // Bun-runtime integration test against a real Postgres. Provisions two throwaway
 // DBs — a producer (outbox_message via @iedora/messaging) and the audit sink
-// (audit_log) — mirroring the separate-DB topology.
+// (audit_log). The relay delivers to the audit service over HTTP in prod; here
+// the sink calls the audit service's own receiver in-process (same ingester +
+// inbox dedup, minus the HTTP hop), so the end-to-end path is still exercised.
 const ADMIN_URL = process.env.TEST_DATABASE_URL ?? "postgres://iedora:iedora@localhost:55433/postgres";
 
 const tag = `${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
@@ -85,6 +96,13 @@ async function auditCount(): Promise<number> {
   return r[0]!.n;
 }
 
+// The audit service's ingestion, driven in-process (stands in for the HTTP POST
+// the AuditClient makes in prod): dedupe by messageId + record into audit_log.
+function localAuditSink(): AuditSink {
+  const receive = createAuditReceiver(audit.root);
+  return { ingest: async (events) => void (await Promise.all(events.map(receive))) };
+}
+
 test("writer + relay deliver an outbox event into audit_log (on @iedora/messaging)", async () => {
   const writer = new OutboxWriter(producer, "auth");
   await writer.recordSync({
@@ -93,7 +111,7 @@ test("writer + relay deliver an outbox event into audit_log (on @iedora/messagin
     actor: { type: "user", id: "u-1" },
   });
 
-  const relay = new OutboxRelay(producer, relayHandlers({ audit: audit.root }));
+  const relay = new OutboxRelay(producer, relayHandlers({ audit: localAuditSink() }));
   const published = await relay.drainOnce();
   expect(published).toBe(1);
   expect(await auditCount()).toBe(1);
@@ -113,7 +131,7 @@ test("OutboxMailer enqueues; the relay delivers it through the transport", async
   await new OutboxMailer(producer).send({ to: "u@example.com", subject: "hello", text: "hi", html: "<p>hi</p>" });
 
   const captureMailer = { send: async (m: EmailMessage) => void sent.push(m) };
-  const relay = new OutboxRelay(producer, relayHandlers({ audit: audit.root, mailer: captureMailer }));
+  const relay = new OutboxRelay(producer, relayHandlers({ audit: localAuditSink(), mailer: captureMailer }));
   await relay.drainOnce();
 
   expect(sent).toHaveLength(1);

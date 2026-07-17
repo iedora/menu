@@ -3,7 +3,10 @@
 // caches it until shortly before expiry, and presents it as a Bearer to billing.
 
 import type { Invoice, Subscription } from "@iedora/contracts";
-import { ServiceClient, type TokenSource } from "@iedora/menu-kit";
+import { ServiceClient, ServiceTokenSource, type TokenSource } from "@iedora/menu-kit";
+
+// Re-exported for existing local importers (audit-read, auth-client, index).
+export { ServiceTokenSource };
 
 export interface PlanSource {
   // planCode resolves a tenant's active menu plan code; "" means unsubscribed.
@@ -30,56 +33,6 @@ export interface RecordPaymentInput {
 }
 export interface BillingWriter {
   recordPayment(input: RecordPaymentInput): Promise<Invoice>;
-}
-
-// ServiceTokenSource mints + caches a client-credentials service token.
-export class ServiceTokenSource {
-  private cached = "";
-  private expiresAtMs = 0;
-  private inflight: Promise<string> | null = null; // de-dupes concurrent cold-cache mints
-
-  constructor(
-    private readonly authBaseUrl: string,
-    private readonly clientId: string,
-    private readonly clientSecret: string,
-  ) {}
-
-  async token(): Promise<string> {
-    // Refresh a minute before expiry to absorb clock skew + request latency.
-    if (this.cached && Date.now() < this.expiresAtMs - 60_000) return this.cached;
-    // The admin aggregation fires several reads at once; on a cold/expired cache
-    // they'd otherwise each mint a token. Share a single in-flight mint instead.
-    this.inflight ??= this.mint().finally(() => {
-      this.inflight = null;
-    });
-    return this.inflight;
-  }
-
-  private async mint(): Promise<string> {
-    const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
-    const res = await fetch(`${this.authBaseUrl}/auth/token`, {
-      method: "POST",
-      headers: { authorization: `Basic ${basic}` },
-    });
-    if (!res.ok) throw new Error(`auth: token endpoint returned ${res.status}`);
-    const body = (await res.json()) as { accessToken: string };
-    this.cached = body.accessToken;
-    this.expiresAtMs = jwtExpiryMs(body.accessToken) ?? Date.now() + 9 * 60_000;
-    return this.cached;
-  }
-}
-
-// jwtExpiryMs reads the `exp` claim (seconds) without verifying — we minted the
-// token, this only schedules the refresh.
-function jwtExpiryMs(token: string): number | undefined {
-  const part = token.split(".")[1];
-  if (!part) return undefined;
-  try {
-    const payload = JSON.parse(Buffer.from(part, "base64url").toString("utf8")) as { exp?: number };
-    return typeof payload.exp === "number" ? payload.exp * 1000 : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 // BillingClient reads the tenant's menu subscription from the billing service.

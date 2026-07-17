@@ -46,7 +46,11 @@ export async function createHarness(): Promise<Harness> {
   const cfg: BillingConfig = {
     port: 0,
     billingDatabaseUrl: url,
-    auditDatabaseUrl: url, // audit events queue in this DB's outbox (relay not run here)
+    // relay not run in tests; audit events just queue in the outbox.
+    auditBaseUrl: "",
+    authBaseUrl: "",
+    serviceClientId: "",
+    serviceClientSecret: "",
     serviceJwtPublicKey: "",
     serviceJwtIssuer: ISS,
     serviceAudience: AUD,

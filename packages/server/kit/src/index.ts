@@ -6,6 +6,7 @@
 export * from "@iedora/server-kit";
 
 export * from "./audit";
+export * from "./client-tokens";
 export * from "./dates";
 export * from "./env";
 export * from "./boot";

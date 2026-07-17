@@ -2,15 +2,21 @@ import { join } from "node:path";
 
 import { env, expandFileSecrets, requireEnv, runMigrations } from "@iedora/menu-kit";
 
-// One-shot migrator: applies services/menu/migrations/*.sql to MENU_DATABASE_URL
-// (creating the database if missing), then exits.
+// One-shot migrator: provisions menu's OWN database + isolated role (prod), then
+// applies services/menu/migrations/*.sql into it, then exits. Database per
+// service — the runtime connects to its own database (MENU_DATABASE_URL) only.
+// In prod ADMIN_DATABASE_URL (superuser on /postgres) creates the db + role; dev
+// leaves it unset and the shared superuser migrates its own db directly.
 expandFileSecrets();
 
 const applied = await runMigrations({
   url: requireEnv("MENU_DATABASE_URL"),
   dir: join(import.meta.dir, "..", "migrations"),
   createDatabase: true,
-  schema: env("DB_SCHEMA", "menu"),
+  adminUrl: env("ADMIN_DATABASE_URL", ""),
+  database: env("DB_NAME", "menu"),
+  role: env("DB_ROLE", "menu"),
+  rolePassword: env("DB_ROLE_PASSWORD", ""),
 });
 
 console.log(

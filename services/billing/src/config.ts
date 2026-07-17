@@ -1,11 +1,18 @@
-import { durationMs, env, requireEnv } from "@iedora/menu-kit";
+import { durationMs, env, requireEnv, siblingUrl } from "@iedora/menu-kit";
+
+// Billing's own Kamal role; siblingUrl reconstructs a sibling's versioned URL.
+// Explicit *_BASE_URL always wins (compose sets them). Auth runs in `web`.
+const SELF_ROLE = "billing";
 
 export interface BillingConfig {
   port: number;
   billingDatabaseUrl: string;
-  dbSchema: string;
-  auditSchema: string;
-  auditDatabaseUrl: string; // audit DB the outbox relay drains into
+  // Audit is delivered over HTTP (never the DB): billing mints a service token
+  // from auth and POSTs events to the audit service.
+  auditBaseUrl: string;
+  authBaseUrl: string;
+  serviceClientId: string;
+  serviceClientSecret: string;
   serviceJwtPublicKey: string; // base64 std raw Ed25519 (shared SERVICE_JWT_PUBLIC_KEY)
   serviceJwtIssuer: string;
   serviceAudience: string;
@@ -18,9 +25,10 @@ export function loadConfig(): BillingConfig {
   return {
     port: Number(env("BILLING_PORT", "8083")),
     billingDatabaseUrl: requireEnv("BILLING_DATABASE_URL"),
-    dbSchema: env("DB_SCHEMA", "billing"),
-    auditSchema: env("AUDIT_DB_SCHEMA", "audit"),
-    auditDatabaseUrl: requireEnv("AUDIT_DATABASE_URL"),
+    auditBaseUrl: env("AUDIT_BASE_URL", "") || siblingUrl("audit", 8081, SELF_ROLE),
+    authBaseUrl: env("AUTH_BASE_URL", "") || siblingUrl("web", 8080, SELF_ROLE),
+    serviceClientId: requireEnv("SERVICE_CLIENT_ID"),
+    serviceClientSecret: requireEnv("SERVICE_CLIENT_SECRET"),
     serviceJwtPublicKey: requireEnv("SERVICE_JWT_PUBLIC_KEY"),
     serviceJwtIssuer: requireEnv("SERVICE_JWT_ISSUER"),
     serviceAudience: env("SERVICE_AUDIENCE", "iedora-internal"),
