@@ -3,6 +3,7 @@ import { Hono } from "hono";
 
 import type { BillingDeps } from "./deps";
 import { cancelRoutes } from "./features/cancel/cancel.routes";
+import { chargeRoutes } from "./features/charge/charge.routes";
 import { invoicesRoutes } from "./features/invoices/invoices.routes";
 import { subscribeRoutes } from "./features/subscribe/subscribe.routes";
 import { subscriptionsRoutes } from "./features/subscriptions/subscriptions.routes";
@@ -15,7 +16,8 @@ export function buildApp(deps: BillingDeps) {
     .route("/", subscribeRoutes(deps))
     .route("/", cancelRoutes(deps))
     .route("/", subscriptionsRoutes(deps))
-    .route("/", invoicesRoutes(deps));
+    .route("/", invoicesRoutes(deps))
+    .route("/", chargeRoutes(deps));
 
   return createServiceApp()
     .route("/", healthRoutes(() => deps.db.ping()))

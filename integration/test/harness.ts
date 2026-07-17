@@ -2,6 +2,7 @@ import { Database, OutboxWriter, newServiceVerifier } from "@iedora/menu-kit";
 import { createScratchDatabase } from "@iedora/menu-kit/testkit";
 import { buildApp as buildBillingApp } from "@iedora/service-billing/app";
 import type { BillingConfig } from "@iedora/service-billing/config";
+import { ManualGateway } from "@iedora/service-billing/gateway";
 import type { BillingDB } from "@iedora/service-billing/schema";
 import { BillingClient } from "@iedora/service-menu/billing";
 import { afterAll, beforeAll } from "bun:test";
@@ -66,6 +67,8 @@ export async function createIntegration(): Promise<IntegrationHarness> {
     db: billingDb,
     verifier,
     auditor: new OutboxWriter(billingDb, "billing"),
+    gateway: new ManualGateway(),
+    gatewayProvider: "manual",
     cfg,
   });
 
