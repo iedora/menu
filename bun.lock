@@ -269,6 +269,8 @@
       "devDependencies": {
         "@iedora/eslint-config": "workspace:*",
         "@types/node": "^22.19.19",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
         "eslint": "catalog:",
         "next": "catalog:",
         "react": "catalog:",
@@ -277,6 +279,7 @@
       },
       "peerDependencies": {
         "next": "catalog:",
+        "react": "catalog:",
       },
     },
     "services/auth": {
