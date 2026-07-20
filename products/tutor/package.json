@@ -11,7 +11,11 @@
     "./domain/status": "./src/domain/status.ts",
     "./domain/time": "./src/domain/time.ts",
     "./contracts/*": "./src/contracts/*.ts",
-    "./api": "./src/api/index.ts"
+    "./api": "./src/api/index.ts",
+    "./api/session": "./src/api/session.ts",
+    "./auth": "./src/auth/index.ts",
+    "./auth/config": "./src/auth/config.ts",
+    "./auth/session": "./src/auth/session.ts"
   },
   "scripts": {
     "typecheck": "tsgo --build",
@@ -23,11 +27,14 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
-    "next": "catalog:"
+    "next": "catalog:",
+    "react": "catalog:"
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",
     "@types/node": "^22.19.19",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "eslint": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
