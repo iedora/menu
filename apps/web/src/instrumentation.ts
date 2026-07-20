@@ -9,7 +9,7 @@ import { registerIedoraOtel } from '@iedora/observability'
  * prod via Kamal env.clear, em dev via apps/web/.env.local). Sem endpoint
  * o registerIedoraOtel loga um warning e segue — app continua sem OTel.
  */
-export function register() {
+export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
-  registerIedoraOtel({ serviceName: 'iedora-web' })
+  await registerIedoraOtel({ serviceName: 'iedora-web' })
 }

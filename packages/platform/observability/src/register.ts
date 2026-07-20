@@ -143,7 +143,7 @@ export type RegisterOptions = {
  *     PinoInstrumentation bridging pino records to the global
  *     LoggerProvider (injects trace_id/span_id automatically).
  */
-export function registerIedoraOtel(opts: RegisterOptions): void {
+export async function registerIedoraOtel(opts: RegisterOptions): Promise<void> {
   if (process.env.NODE_ENV === "test") return;
 
   const globalKey = "__iedora_otel_registered" as const;
@@ -151,10 +151,11 @@ export function registerIedoraOtel(opts: RegisterOptions): void {
   if (g[globalKey]) return;
   g[globalKey] = true;
 
-  // Lazy require (see top-of-file note): only the frontend reaches this, so
-  // @vercel/otel + Next's compiled @opentelemetry/api load here, never at import.
-  const { OTLPHttpProtoTraceExporter, registerOTel } =
-    require("@vercel/otel") as typeof import("@vercel/otel");
+  // Lazy DYNAMIC IMPORT (see top-of-file note): only the frontend reaches this,
+  // so @vercel/otel + Next's compiled @opentelemetry/api load here, never at
+  // module import. `import()` (not `require()`) so it's the same lazy graph while
+  // staying mockable in tests.
+  const { OTLPHttpProtoTraceExporter, registerOTel } = await import("@vercel/otel");
 
   const environment =
     process.env.DEPLOYMENT_ENV ?? process.env.NODE_ENV ?? "development";

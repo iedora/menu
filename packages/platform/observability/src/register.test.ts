@@ -44,7 +44,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-missing-endpoint" });
+      await registerIedoraOtel({ serviceName: "iedora-test-missing-endpoint" });
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining("OTEL_EXPORTER_OTLP_ENDPOINT not set"),
       );
@@ -78,7 +78,7 @@ describe("registerIedoraOtel", () => {
         exporter: new InMemoryMetricExporter(AggregationTemporality.DELTA),
         exportIntervalMillis: 60_000,
       });
-      registerIedoraOtel({
+      await registerIedoraOtel({
         serviceName: "iedora-test-injected-reader",
         metricReaders: [reader],
       });
@@ -122,7 +122,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-resource" });
+      await registerIedoraOtel({ serviceName: "iedora-test-resource" });
       expect(registerOtelSpy).toHaveBeenCalledTimes(1);
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         serviceName: string;
@@ -191,7 +191,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-fallback" });
+      await registerIedoraOtel({ serviceName: "iedora-test-fallback" });
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         attributes: Record<string, string>;
       };
@@ -237,7 +237,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-min-env" });
+      await registerIedoraOtel({ serviceName: "iedora-test-min-env" });
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         attributes: Record<string, string>;
       };
@@ -289,7 +289,7 @@ describe("registerIedoraOtel", () => {
     try {
       const { registerIedoraOtel } = await import("./register");
       const { TenantContextSpanProcessor } = await import("./signals/processor");
-      registerIedoraOtel({ serviceName: "iedora-test-spanproc" });
+      await registerIedoraOtel({ serviceName: "iedora-test-spanproc" });
 
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         spanProcessors: unknown[];
@@ -338,7 +338,7 @@ describe("registerIedoraOtel", () => {
         forceFlush: () => Promise.resolve(),
         shutdown: () => Promise.resolve(),
       };
-      registerIedoraOtel({
+      await registerIedoraOtel({
         serviceName: "iedora-test-extra-procs",
         extraSpanProcessors: [extraProcessor],
       });
@@ -384,7 +384,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-logs" });
+      await registerIedoraOtel({ serviceName: "iedora-test-logs" });
 
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         logRecordProcessors: unknown[];
@@ -433,7 +433,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-no-logs" });
+      await registerIedoraOtel({ serviceName: "iedora-test-no-logs" });
 
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         logRecordProcessors: unknown[];
@@ -472,7 +472,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-pino" });
+      await registerIedoraOtel({ serviceName: "iedora-test-pino" });
 
       const config = registerOtelSpy.mock.calls[0]?.[0] as {
         instrumentations: unknown[];
@@ -557,7 +557,7 @@ describe("registerIedoraOtel", () => {
 
     try {
       const { registerIedoraOtel } = await import("./register");
-      registerIedoraOtel({ serviceName: "iedora-test-delta" });
+      await registerIedoraOtel({ serviceName: "iedora-test-delta" });
       expect(exporterSpy).toHaveBeenCalledTimes(1);
       const passedOptions = exporterSpy.mock.calls[0]?.[0] as
         | { temporalityPreference?: number }
