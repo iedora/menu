@@ -1,23 +1,24 @@
 import { context, metrics, trace, propagation, diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-// OTLP/protobuf (NOT /http JSON): OpenObserve's OTLP-JSON deserializer rejects
-// otherwise-valid SERVER spans with `400 invalid type: map, expected f64` (it
-// chokes on the float duration + exception-event combo), silently dropping them.
-// Protobuf is a different serializer end-to-end (and what the frontend already
-// uses against the same collector), so the spans ingest cleanly.
+// OTLP over http/protobuf for all three signals. Proto is the OTel-spec default
+// transport, runs over Bun's mature HTTP client (never node:http2/gRPC, which is
+// regression-prone under Bun), and matches the frontend so one serializer covers
+// the whole platform. Each exporter is constructed BARE: it reads
+// OTEL_EXPORTER_OTLP_ENDPOINT / _HEADERS / _TIMEOUT from the environment itself
+// and appends the /v1/{traces,metrics,logs} path — nothing hardcoded here, so
+// endpoint + auth are 100% env-driven (declarative). Metric temporality is env-
+// driven too: no `temporalityPreference` is passed, so the exporter honors
+// OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE and defaults to CUMULATIVE.
+// That default is load-bearing for Prometheus: the collector's
+// prometheusremotewrite exporter SILENTLY DROPS delta counters/histograms
+// ("⚠️ Non-cumulative monotonic, histogram, and summary OTLP metrics are dropped
+// by this exporter"). This replaced a hardcoded DELTA preference — a leftover
+// from the dead OpenObserve backend — that was dropping every app
+// histogram/counter in prod, leaving only gauges.
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-// Proto here too, for consistency with the trace exporter above — not
-// because metrics-JSON was observed failing against OpenObserve (it wasn't;
-// tested clean in isolation). One serializer end-to-end reduces the surface
-// for a repeat of the trace-JSON deserializer bug turning up here later.
-// AggregationTemporalityPreference is a plain numeric enum (DELTA=0,
-// CUMULATIVE=1, LOWMEMORY=2) that only the -http package happens to export —
-// the -proto package re-exports just OTLPMetricExporter. Importing the enum
-// from -http has no runtime/transport implication; it's the same values
-// either way, so -http stays a dependency for this import alone.
-import { AggregationTemporalityPreference } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
+import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-proto";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 // Standard Node.js runtime metrics (nodejs.eventloop.*, v8js.*) per
 // https://opentelemetry.io/docs/specs/semconv/runtime/nodejs-metrics/ — collected
@@ -38,6 +39,11 @@ import {
   PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
 import {
+  LoggerProvider,
+  BatchLogRecordProcessor,
+} from "@opentelemetry/sdk-logs";
+import { logs } from "@opentelemetry/api-logs";
+import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_NAMESPACE,
   ATTR_SERVICE_VERSION,
@@ -45,7 +51,6 @@ import {
 } from "@opentelemetry/semantic-conventions";
 import { ATTR_HOST_NAME } from "@opentelemetry/semantic-conventions/incubating";
 
-import { parseOtlpHeaders } from "./signals/otlp";
 import { TenantContextSpanProcessor } from "./signals/processor";
 import { defaultSampler } from "./signals/sampler";
 
@@ -59,16 +64,20 @@ import { defaultSampler } from "./signals/sampler";
  * / TDZ failure in the package's internal module graph that the
  * bundler can't statically reorder.
  *
- * This function wires the same OTel signals (traces + metrics) but
- * against the underlying SDKs directly:
+ * This function wires the same OTel signals (traces, metrics, and logs)
+ * but against the underlying SDKs directly:
  *
- *   - `BasicTracerProvider` + `BatchSpanProcessor` + `OTLPTraceExporter`
+ *   - `BasicTracerProvider` + `SimpleSpanProcessor` + `OTLPTraceExporter`
+ *     (Simple, not Batch: Batch's flush timer is unref'd and never fires
+ *     inside a long-lived `Bun.serve`, so spans buffer forever — see the
+ *     processor note in the body)
  *   - `MeterProvider` + `PeriodicExportingMetricReader` + `OTLPMetricExporter`
+ *   - `LoggerProvider` + `BatchLogRecordProcessor` + `OTLPLogExporter`
  *
  * Same Resource attrs (`service.name`, `service.namespace`,
- * `service.version`, `deployment.environment`, `host.name`), same
- * DELTA temporality (load-bearing for OpenObserve's `sum()` queries —
- * see register.ts notes), same parent-based sampling (so the migrate
+ * `service.version`, `deployment.environment`, `host.name`), CUMULATIVE
+ * metric temporality (Prometheus-native; the collector drops delta — see
+ * the import note), same parent-based sampling (so the migrate
  * container honours the orchestrator's sampling decision when
  * `TRACEPARENT` arrives via env). The W3C trace-context propagator is
  * registered as the global propagator so `propagation.extract(...)` /
@@ -134,14 +143,13 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
   // buffer forever and the live service exports nothing (a referenced
   // setInterval+forceFlush worked under `bun --hot` but not under plain `bun run`).
   // SimpleSpanProcessor has no timer dependency, so spans ship reliably. The cost
-  // is one OTLP request per span; if volume ever warrants batching, do it in an
-  // OpenTelemetry Collector in front of OpenObserve, not in-process under Bun.
-  const otlpHeaders = parseOtlpHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS);
+  // is one OTLP request per span; if volume ever warrants batching, do it in the
+  // OpenTelemetry Collector, not in-process under Bun.
+  // Bare exporter: reads OTEL_EXPORTER_OTLP_ENDPOINT (+ _HEADERS, _TIMEOUT) from
+  // the env and appends /v1/traces itself. Gated on the endpoint so the service
+  // ships dark — no exporter, no localhost:4318 fallback — when OTel is off.
   const traceExporter = process.env.OTEL_EXPORTER_OTLP_ENDPOINT
-    ? new OTLPTraceExporter({
-        url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT.replace(/\/$/, "")}/v1/traces`,
-        headers: otlpHeaders, // OpenObserve Basic auth (Authorization=Basic …)
-      })
+    ? new OTLPTraceExporter()
     : undefined;
 
   const tp = new BasicTracerProvider({
@@ -195,18 +203,15 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
       .catch((e) => console.log(JSON.stringify({ level: "error", msg: "otel-startup-export", recording, error: String(e) })));
   }
 
-  // Meter provider. DELTA temporality is load-bearing — see register.ts
-  // notes. Without it OpenObserve double-counts on every flush.
+  // Meter provider. CUMULATIVE temporality (the exporter's env-driven default —
+  // see the import note): Prometheus is cumulative-native and the collector drops
+  // delta counters/histograms outright.
   if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
     const mp = new MeterProvider({
       resource,
       readers: [
         new PeriodicExportingMetricReader({
-          exporter: new OTLPMetricExporter({
-            url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT.replace(/\/$/, "")}/v1/metrics`,
-            headers: otlpHeaders,
-            temporalityPreference: AggregationTemporalityPreference.DELTA,
-          }),
+          exporter: new OTLPMetricExporter(),
           exportIntervalMillis:
             opts.metricExportIntervalMs ?? DEFAULT_METRIC_EXPORT_INTERVAL_MS,
         }),
@@ -220,5 +225,17 @@ export function registerIedoraOtelNode(opts: RegisterNodeOptions): void {
     registerInstrumentations({
       instrumentations: [new RuntimeNodeInstrumentation()],
     });
+
+    // Logger provider → Loki. Register globally so the package's `logger` export
+    // (a ProxyLogger that re-resolves this provider at emit time) ships records
+    // over OTLP, with trace_id/span_id auto-stamped from the active span by the
+    // Logs SDK. Bun-safe by construction: this is the Logs SDK/API directly, NOT
+    // @opentelemetry/instrumentation-pino (module-patching, which doesn't fire
+    // under Bun). BatchLogRecordProcessor batches the write path off the request.
+    const lp = new LoggerProvider({
+      resource,
+      processors: [new BatchLogRecordProcessor(new OTLPLogExporter())],
+    });
+    logs.setGlobalLoggerProvider(lp);
   }
 }
