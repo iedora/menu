@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, MessageSquare, Pin } from "lucide-react"
 
-import { buttonVariants } from "@iedora/ui/components/ui/button"
+import { buttonVariants } from "@iedora/ui/components/ui/button-variants"
 import { cn } from "@iedora/ui/lib/utils"
 import { RatingSummary, TagCloud } from "@iedora/product-tutor/features/booking/components/reviews"
 import { Stars } from "@iedora/product-tutor/features/booking/components/stars"

@@ -11,7 +11,7 @@ import {
 } from "@iedora/product-tutor/domain/pricing"
 import { XP_SOURCES, type XpSource } from "@iedora/product-tutor/domain/status"
 
-import { buttonVariants } from "@iedora/ui/components/ui/button"
+import { buttonVariants } from "@iedora/ui/components/ui/button-variants"
 import { cn } from "@iedora/ui/lib/utils"
 import { MarketingCta, SiteFooter, SiteHeader } from "@iedora/product-tutor/features/marketing/site-chrome"
 import { TUTOR_ALTERNATIVES } from "@iedora/product-tutor/features/marketing/marketing.tutor-alternatives"

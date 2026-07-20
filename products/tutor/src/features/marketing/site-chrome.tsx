@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Bell, GraduationCap, LayoutDashboard, MessageSquare, ShieldCheck } from "lucide-react"
 
-import { buttonVariants } from "@iedora/ui/components/ui/button"
+import { buttonVariants } from "@iedora/ui/components/ui/button-variants"
 import { cn } from "@iedora/ui/lib/utils"
 import { getViewer } from "@iedora/product-tutor/auth/session"
 import { getUnreadCount } from "@iedora/product-tutor/api/chat"

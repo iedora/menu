@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 
 import type { TutorHighlight } from "@iedora/product-tutor/types"
-import { buttonVariants } from "@iedora/ui/components/ui/button"
+import { buttonVariants } from "@iedora/ui/components/ui/button-variants"
 import { cn } from "@iedora/ui/lib/utils"
 import { Stars } from "@iedora/product-tutor/features/booking/components/stars"
 import { TutorAvatar } from "@iedora/product-tutor/features/booking/components/tutor-identity"

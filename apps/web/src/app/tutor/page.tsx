@@ -10,7 +10,7 @@ import {
   Trophy,
 } from "lucide-react"
 
-import { buttonVariants } from "@iedora/ui/components/ui/button"
+import { buttonVariants } from "@iedora/ui/components/ui/button-variants"
 import { cn } from "@iedora/ui/lib/utils"
 import {
   BEST_KEEP_PCT,

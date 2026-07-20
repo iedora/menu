@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowRight, ArrowLeft, Check, GraduationCap, MessageSquare } from "lucide-react"
 
-import { buttonVariants } from "@iedora/ui/components/ui/button"
+import { buttonVariants } from "@iedora/ui/components/ui/button-variants"
 import { cn } from "@iedora/ui/lib/utils"
 import { MarketingCta, SiteFooter, SiteHeader } from "@iedora/product-tutor/features/marketing/site-chrome"
 import { COMPETITORS, US, getCompetitor } from "@iedora/product-tutor/features/marketing/marketing.competitors"
