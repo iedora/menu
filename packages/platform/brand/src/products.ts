@@ -54,6 +54,7 @@ export function surfaceHost(envUrl: string | undefined, prodHost: string): strin
  */
 export const PRODUCTS = {
   menu: 'menu',
+  tutor: 'tutor',
 } as const
 
 export type ProductId = (typeof PRODUCTS)[keyof typeof PRODUCTS]
@@ -62,5 +63,7 @@ export function productUrl(id: ProductId): string {
   switch (id) {
     case PRODUCTS.menu:
       return process.env.MENU_SURFACE_URL ?? `https://menu.${BRAND_DOMAIN}`
+    case PRODUCTS.tutor:
+      return process.env.TUTOR_SURFACE_URL ?? `https://tutor.${BRAND_DOMAIN}`
   }
 }
