@@ -1,18 +1,16 @@
 /**
- * Server-to-server calls against the auth service. Each token-minting
- * call returns the parsed JSON body plus the raw Set-Cookie headers so
- * the caller can re-issue the refresh cookie (see cookies.ts).
+ * Server-to-server calls against the auth service. Token-minting calls return
+ * the parsed JSON body — which now carries the refresh token (auth-sdk
+ * TokenBundle style); the BFF owns the cookies (see cookies.ts).
  */
 import type { AdminUserSession } from '@iedora/contracts'
 
 import { AUTH_URL } from './config'
 import type { TokenResponse } from './cookies'
-import { REFRESH_COOKIE } from './cookies'
 import { ApiError, errorMessageFromResponse } from './error'
 
 export type AuthResult = {
   tokens: TokenResponse
-  setCookies: string[]
 }
 
 async function tokenCall(path: string, init: RequestInit): Promise<AuthResult> {
@@ -20,10 +18,7 @@ async function tokenCall(path: string, init: RequestInit): Promise<AuthResult> {
   if (!res.ok) {
     throw new ApiError(res.status, await errorMessageFromResponse(res))
   }
-  return {
-    tokens: (await res.json()) as TokenResponse,
-    setCookies: res.headers.getSetCookie(),
-  }
+  return { tokens: (await res.json()) as TokenResponse }
 }
 
 /** fetch against the auth service that throws ApiError on non-2xx and decodes
@@ -59,7 +54,8 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult | 
   try {
     return await tokenCall('/auth/refresh', {
       method: 'POST',
-      headers: { Cookie: `${REFRESH_COOKIE}=${refreshToken}` },
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
     })
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null
@@ -71,7 +67,8 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResult | 
 export async function logout(refreshToken: string): Promise<void> {
   await fetch(`${AUTH_URL}/auth/logout`, {
     method: 'POST',
-    headers: { Cookie: `${REFRESH_COOKIE}=${refreshToken}` },
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
     cache: 'no-store',
   })
 }

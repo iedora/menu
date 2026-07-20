@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { bearer, registerUser, useHarness, withCookie } from "./harness";
+import { bearer, registerUser, useHarness, withRefresh } from "./harness";
 
 const h = useHarness();
 
@@ -22,7 +22,7 @@ test("create a tenant, then refresh picks up the tid; whoami reflects identity",
   expect(((await created.json()) as { name: string }).name).toBe("Acme");
 
   // refresh now mints a tenant-scoped token (the onboarding flow)
-  const refreshed = await h.app.request("/auth/refresh", withCookie(cookie!));
+  const refreshed = await h.app.request("/auth/refresh", withRefresh(cookie!));
   expect(refreshed.status).toBe(200);
   expect(((await refreshed.json()) as { tenantId?: string }).tenantId).toBeTruthy();
 });

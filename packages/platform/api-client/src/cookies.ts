@@ -40,27 +40,23 @@ const baseOptions = {
 } as const
 
 /**
- * Builds the cookie writes for a successful auth response: the access
- * token (expiring with the JWT) and the refresh token extracted from
- * the auth-service `Set-Cookie` header (keeping its expiry, swapping the path).
+ * Builds the cookie writes for a successful auth response: the access token
+ * (expiring with the JWT) and the refresh token — both read from the JSON body
+ * (auth-sdk TokenBundle style). The BFF owns the cookies under `Path=/`.
  */
-export function authCookies(tokens: TokenResponse, setCookieHeaders: string[]): CookieWrite[] {
-  const writes: CookieWrite[] = [
+export function authCookies(tokens: TokenResponse): CookieWrite[] {
+  return [
     {
       name: ACCESS_COOKIE,
       value: tokens.accessToken,
       options: { ...baseOptions, expires: new Date(tokens.expiresAt) },
     },
-  ]
-  const refresh = parseRefreshCookie(setCookieHeaders)
-  if (refresh) {
-    writes.push({
+    {
       name: REFRESH_COOKIE,
-      value: refresh.value,
-      options: { ...baseOptions, expires: refresh.expires },
-    })
-  }
-  return writes
+      value: tokens.refreshToken,
+      options: { ...baseOptions, expires: new Date(tokens.refreshExpiresAt) },
+    },
+  ]
 }
 
 /** Cookie writes that delete both auth cookies (sign-out / dead refresh). */
@@ -72,25 +68,3 @@ export function clearedAuthCookies(): CookieWrite[] {
   }))
 }
 
-/** Pulls the refresh token value + expiry out of the auth-service Set-Cookie headers. */
-function parseRefreshCookie(headers: string[]): { value: string; expires?: Date } | null {
-  for (const header of headers) {
-    const [pair, ...attrs] = header.split(';')
-    const eq = (pair ?? '').indexOf('=')
-    if (eq < 0) continue
-    const name = pair!.slice(0, eq).trim()
-    if (name !== REFRESH_COOKIE) continue
-    const value = pair!.slice(eq + 1).trim()
-    if (!value) return null // cleared cookie
-    let expires: Date | undefined
-    for (const attr of attrs) {
-      const [k, v] = attr.split('=')
-      if (k?.trim().toLowerCase() === 'expires' && v) {
-        const d = new Date(v)
-        if (!Number.isNaN(d.getTime())) expires = d
-      }
-    }
-    return { value, expires }
-  }
-  return null
-}

@@ -70,7 +70,7 @@ async function tryRefresh(): Promise<string | null> {
   const result = await refreshTokens(refreshToken)
   if (!result) return null
   try {
-    for (const c of authCookies(result.tokens, result.setCookies)) {
+    for (const c of authCookies(result.tokens)) {
       writeCookie(store, c)
     }
   } catch {

@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import { type AuditEvent, type Auditor, newRefreshToken } from "@iedora/menu-kit";
 import type { Context } from "hono";
-import { deleteCookie, setCookie } from "hono/cookie";
 
 import type { AuthConfig } from "./config";
 import type { NewSession, Session } from "./data/sessions";
@@ -142,6 +141,8 @@ export async function mintTokens(
 export function tokenJson(t: Tokens): {
   accessToken: string;
   expiresAt: string;
+  refreshToken: string;
+  refreshExpiresAt: string;
   userId: string;
   tenantId?: string;
   mustChangePassword?: boolean;
@@ -149,23 +150,12 @@ export function tokenJson(t: Tokens): {
   return {
     accessToken: t.accessToken,
     expiresAt: t.accessExpiresAt.toISOString(),
+    // Refresh token in the body (auth-sdk TokenBundle style); the BFF owns the cookie.
+    refreshToken: t.refreshToken,
+    refreshExpiresAt: t.refreshExpiresAt.toISOString(),
     userId: t.userId,
     ...(t.tenantId ? { tenantId: t.tenantId } : {}),
     ...(t.mustChangePassword ? { mustChangePassword: true } : {}),
   };
 }
 
-export function setRefreshCookie(c: Context, cfg: AuthConfig, token: string, expires: Date): void {
-  setCookie(c, cfg.refreshCookieName, token, {
-    path: "/auth",
-    httpOnly: true,
-    secure: cfg.cookieSecure,
-    sameSite: "Lax",
-    domain: cfg.cookieDomain || undefined,
-    expires,
-  });
-}
-
-export function clearRefreshCookie(c: Context, cfg: AuthConfig): void {
-  deleteCookie(c, cfg.refreshCookieName, { path: "/auth", domain: cfg.cookieDomain || undefined });
-}

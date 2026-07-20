@@ -44,7 +44,7 @@ export async function resolveAuth(req: NextRequest): Promise<ResolvedAuth> {
     return { session: null, cookieWrites: clearedAuthCookies() }
   }
 
-  const writes = authCookies(result.tokens, result.setCookies)
+  const writes = authCookies(result.tokens)
   return {
     session: sessionFromToken(result.tokens.accessToken),
     cookieWrites: writes,

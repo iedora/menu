@@ -131,7 +131,7 @@ export async function signOutAction(next?: string): Promise<void> {
 
 async function persistAuth(result: AuthResult): Promise<void> {
   const store = await cookies()
-  for (const c of authCookies(result.tokens, result.setCookies)) {
+  for (const c of authCookies(result.tokens)) {
     store.set(c.name, c.value, c.options)
   }
 }
