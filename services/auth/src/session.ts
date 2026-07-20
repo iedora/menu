@@ -119,7 +119,10 @@ export async function mintTokens(
   const accessToken = await deps.issuer.issueAccess({
     userId: user.id,
     email: user.email,
-    tenantId: tenantId ?? undefined,
+    // auth-sdk claim vocabulary: `tenant` = the product slug, `org` = the active
+    // organization (menu's restaurant tenant).
+    tenant: "menu",
+    org: tenantId ?? undefined,
     sessionId: familyId,
     roles: user.role ? [user.role] : [],
     mustChangePassword: user.must_change_password,

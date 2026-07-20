@@ -187,7 +187,8 @@ export type ServiceTokenResponse = z.infer<typeof serviceTokenResponse>;
 // Access-token claims (EdDSA).
 export const accessClaims = z.object({
   sub: z.string(),
-  tid: z.string().optional(),
+  tenant: z.string().optional(),
+  org: z.string().optional(),
   sid: z.string().optional(),
   roles: z.array(z.string()).default([]),
   email: z.string().optional(),

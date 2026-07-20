@@ -24,7 +24,7 @@ export function sessionFromToken(token: string): Session | null {
   if (claims.exp * 1000 <= Date.now()) return null
   return {
     userId: claims.sub,
-    tenantId: claims.tid ?? null,
+    tenantId: claims.org ?? null,
     roles: claims.roles ?? [],
     email: claims.email ?? null,
     mustChangePassword: claims.mcp === true,

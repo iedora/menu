@@ -14,7 +14,7 @@ export function whoamiRoutes(deps: AuthDeps) {
     const row = await findUserById(deps.db.db, u.userId);
     return c.json({
       userId: u.userId,
-      tenantId: u.tenantId,
+      tenantId: u.org,
       roles: u.roles,
       email: u.email,
       mustChangePassword: row?.must_change_password ?? false,
