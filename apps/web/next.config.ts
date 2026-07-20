@@ -13,8 +13,14 @@ const nextConfig: NextConfig = {
   // traces only inside apps/web/, missing the per-product packages.
   outputFileTracingRoot: path.join(here, '..', '..'),
   transpilePackages: [
+    // Published @iedora/* SDKs ship .ts source, so Turbopack must transpile them.
+    '@iedora/audit-sdk',
+    '@iedora/auth-sdk',
+    '@iedora/auth-sdk-nextjs',
+    '@iedora/email-sdk',
     '@iedora/observability',
     '@iedora/product-menu',
+    '@iedora/product-tutor',
     '@iedora/ui',
   ],
   // Version skew protection — forces hard navigation when the client
