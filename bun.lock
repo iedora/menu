@@ -261,12 +261,22 @@
     "products/tutor": {
       "name": "@iedora/product-tutor",
       "version": "0.1.0",
+      "dependencies": {
+        "@iedora/auth-sdk-nextjs": "^0.3.0",
+        "server-only": "^0.0.1",
+        "zod": "catalog:",
+      },
       "devDependencies": {
         "@iedora/eslint-config": "workspace:*",
         "@types/node": "^22.19.19",
         "eslint": "catalog:",
+        "next": "catalog:",
+        "react": "catalog:",
         "typescript": "catalog:",
         "typescript-eslint": "catalog:",
+      },
+      "peerDependencies": {
+        "next": "catalog:",
       },
     },
     "services/auth": {
