@@ -4,18 +4,16 @@
 // security-relevant: reset-token emails must never be written to stdout in prod,
 // so we do NOT fall through to @iedora/email's dev json-transport logger in
 // production.
-import { createMailer } from "@iedora/email";
+import { createMailer, type EmailMessage } from "@iedora/email";
 
-/** One outbound email. `text` is the required plain-text body/fallback; `html`
- *  is an optional rich body. */
-export interface EmailMessage {
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
-}
+/** One outbound email — the @iedora/email shape (to/subject/html/text), re-exported
+ *  so menu code has a single import surface. */
+export type { EmailMessage };
 
-/** The mail contract services depend on — one transport-agnostic method. */
+/** The mail contract menu services depend on: a send-only transport. Deliberately
+ *  NARROWER than @iedora/email's Mailer (which couples a messaging `handler`): menu
+ *  fulfils it with an OutboxMailer (enqueue), an SMTP mailer, or a noop/logging
+ *  fallback, so the abstraction can't be the SMTP-specific one. */
 export interface Mailer {
   send(msg: EmailMessage): Promise<void>;
 }
