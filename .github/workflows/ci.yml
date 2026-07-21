@@ -99,14 +99,12 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('bun.lock', 'turbo.json', '.oxlintrc.json') }}-
             turbo-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # Tests run BEFORE typecheck/lint: bun:sql connects to the Postgres fine
-      # right after install (verified), but the DB harnesses got Connection
-      # closed once the CPU-heavy tsgo+eslint sweep ran first — the Postgres
-      # container was starved/killed under load. Run the DB work while the box is
-      # idle, then the heavy static analysis.
-      - run: bunx turbo run test --concurrency=1
       - run: bun run typecheck
       - run: bun run lint
+      # DB integration harnesses each CREATE a scratch DB on the one CI Postgres;
+      # serialize so they don't contend. TEST_DATABASE_URL reaches them via
+      # turbo.json passThroughEnv (turbo strips undeclared env by default).
+      - run: bunx turbo run test --concurrency=1
 
   security:
     runs-on: ubuntu-latest
