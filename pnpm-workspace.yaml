@@ -1,0 +1,78 @@
+packages:
+  - "products/*/*"
+  - "services/*"
+  - "packages/framework/*"
+  - "packages/sdk/*"
+  - "packages/*"
+  - "apps/*"
+
+catalog:
+  zod: "^4.4.3"
+  eslint: "^9.39.5"
+  typescript: "^6.0.3"
+  typescript-eslint: "^8.65.0"
+  vitest: "5.0.0-beta.6"
+  next: "16.2.11"
+  next-intl: "^4.13.3"
+  react: "19.2.8"
+  react-dom: "19.2.8"
+  "@types/react": "^19.2.17"
+  "@types/react-dom": "^19.2.3"
+  "@types/node": "^24.13.3"
+  "@types/bun": "^1.3.14"
+  hono: "^4.12.31"
+  "@hono/otel": "^1.1.2"
+  "@hono/zod-validator": "^0.9.0"
+  kysely-codegen: "^0.20.0"
+  pg: "^8.22.0"
+  kysely: "^0.29.4"
+  kysely-postgres-js: "^3.0.0"
+  jose: "^6.2.3"
+  "@node-rs/argon2": "^2.0.2"
+  "@opentelemetry/sdk-node": "^0.220.0"
+  "@opentelemetry/exporter-trace-otlp-http": "^0.220.0"
+  jsdom: "^29.1.1"
+  eslint-plugin-oxlint: "^1.73.0"
+  "@opentelemetry/api": "^1.9.1"
+  "@opentelemetry/api-logs": "^0.220.0"
+  "@opentelemetry/context-async-hooks": "^2.9.0"
+  "@opentelemetry/core": "^2.9.0"
+  "@opentelemetry/exporter-logs-otlp-http": "^0.220.0"
+  "@opentelemetry/exporter-logs-otlp-proto": "^0.220.0"
+  "@opentelemetry/exporter-metrics-otlp-http": "^0.220.0"
+  "@opentelemetry/exporter-metrics-otlp-proto": "^0.220.0"
+  "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0"
+  "@opentelemetry/instrumentation": "^0.220.0"
+  "@opentelemetry/instrumentation-pino": "^0.66.0"
+  "@opentelemetry/instrumentation-runtime-node": "^0.33.0"
+  "@opentelemetry/resources": "^2.9.0"
+  "@opentelemetry/sdk-logs": "^0.220.0"
+  "@opentelemetry/sdk-metrics": "^2.9.0"
+  "@opentelemetry/sdk-trace-base": "^2.9.0"
+  "@opentelemetry/semantic-conventions": "^1.43.0"
+  "@opentelemetry/baggage-span-processor": "^0.5.0"
+  "@vercel/otel": "^2.1.3"
+  "@hono/node-server": "^2.0.11"
+  aws4fetch: "^1.0.20"
+
+overrides:
+  esbuild: "^0.28.1"
+  postcss: "^8.5.14"
+  js-yaml: "^4.3.0"
+  next: "16.2.11"
+  react: "19.2.8"
+  react-dom: "19.2.8"
+  "@hono/node-server": "^2.0.11"
+
+allowBuilds:
+  "@parcel/watcher": true
+  "@swc/core": true
+  esbuild: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+  "@node-rs/argon2": true
+
+nodeLinker: hoisted
+
+minimumReleaseAge: 0
