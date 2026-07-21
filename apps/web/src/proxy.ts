@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publicUrl } from '@iedora/product-menu/shared/url'
-import { resolveRefresh, applyCookieWrites } from '@iedora/auth-sdk-nextjs/middleware'
+import { resolveRefresh, applyCookieWrites } from '@iedora/auth-sdk/next/middleware'
 import { surfaces, surfaceByHost } from './generated/surfaces'
 import { surfaceAuthFor, surfaceSignInUrl } from './surface-auth'
 

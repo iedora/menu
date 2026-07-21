@@ -1,4 +1,4 @@
-import type { AuthNextConfig } from "@iedora/auth-sdk-nextjs"
+import type { AuthNextConfig } from "@iedora/auth-sdk/next"
 
 /** Tutor's wiring to the shared iedora auth service. Used by the server
  *  integration (lib/auth) and the refresh middleware. */

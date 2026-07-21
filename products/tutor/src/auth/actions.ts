@@ -1,6 +1,6 @@
 "use server"
 
-import type { AuthResult } from "@iedora/auth-sdk-nextjs"
+import type { AuthResult } from "@iedora/auth-sdk/next"
 
 import { authNext } from "./index"
 

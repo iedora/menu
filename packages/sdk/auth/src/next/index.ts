@@ -15,3 +15,18 @@ export {
   DEFAULT_ACCESS_MAX_AGE,
   DEFAULT_REFRESH_MAX_AGE,
 } from "./config"
+// The centralized, pre-wired-for-the-iedora-realm integration every product uses.
+export {
+  type Account,
+  authClient,
+  authConfig,
+  authNext,
+  completeOAuth,
+  forgotPassword,
+  getAccount,
+  getClaims,
+  login,
+  logout,
+  register,
+  resetPassword,
+} from "./integration"

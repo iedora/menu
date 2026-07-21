@@ -1,4 +1,4 @@
-import type { AuthNextConfig } from "@iedora/auth-sdk-nextjs"
+import type { AuthNextConfig } from "@iedora/auth-sdk/next"
 import { PRODUCTS, type ProductId, productUrl } from "@iedora/brand"
 
 // Per-surface auth. Every surface authenticates against the same auth service but
@@ -6,7 +6,7 @@ import { PRODUCTS, type ProductId, productUrl } from "@iedora/brand"
 // separate user pools, so they never share a session. The one proxy middleware
 // runs the right surface's refresh (via resolveRefresh) using its config here.
 //
-// One auth convention for all surfaces: @iedora/auth-sdk-nextjs + an AuthNextConfig.
+// One auth convention for all surfaces: @iedora/auth-sdk/next + an AuthNextConfig.
 
 // Each surface can target a DIFFERENT auth service — menu authenticates against
 // the menu backend's auth role (AUTH_URL, tenant "auth", cookie iedora_access);

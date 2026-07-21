@@ -1,4 +1,4 @@
-import { type AuthClaims, type AuthSession, createAuthClient, createAuthVerifier } from "@iedora/auth-sdk"
+import { type AuthClaims, type AuthSession, createAuthClient, createAuthVerifier } from "../index"
 import { cookies } from "next/headers"
 
 import {

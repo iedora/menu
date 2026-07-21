@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
     // Published @iedora/* SDKs ship .ts source, so Turbopack must transpile them.
     '@iedora/audit-sdk',
     '@iedora/auth-sdk',
-    '@iedora/auth-sdk-nextjs',
+    '@iedora/auth-sdk/next',
     '@iedora/email-sdk',
     '@iedora/observability',
     '@iedora/product-menu',

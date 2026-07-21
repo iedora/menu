@@ -1,4 +1,4 @@
-import { createAuthClient } from "@iedora/auth-sdk"
+import { createAuthClient } from "../index"
 import { type NextRequest, NextResponse } from "next/server"
 
 import {

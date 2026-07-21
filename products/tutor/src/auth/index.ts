@@ -1,4 +1,4 @@
-import { type AuthNext, createAuthNext } from "@iedora/auth-sdk-nextjs"
+import { type AuthNext, createAuthNext } from "@iedora/auth-sdk/next"
 
 import { authConfig } from "./config"
 
