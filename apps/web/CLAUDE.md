@@ -103,6 +103,6 @@ Real tests live with the products and the services:
 
 ## Deployable artefact
 
-Image built by CI from `apps/web/Dockerfile`; deploy is owned by the
+Image built by CI from the root `Dockerfile`; deploy is owned by the
 `iedora-infra` repo (Docker Swarm + Ansible). See
 `docs/runbook.deploy.md`.

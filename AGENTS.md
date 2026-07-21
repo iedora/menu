@@ -11,15 +11,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 > host-routed **surface** through `src/proxy.ts` + `src/generated/surfaces.ts`:
 > `menu.iedora.com` (menu app, incl. sign-in/up/out), `iedora.com` (house
 > landing), and `tutor.iedora.com` (tutoring marketplace). ALL data, auth and
-> business rules live in the backend services (`services/`) — menu in this repo,
-> tutor in the separate `tutor-marketplace` repo. The frontend talks to them
-> over HTTP, server-side only.
+> business rules live in the backends — menu at `products/menu/api`, tutor at
+> `products/tutor/api`, plus the shared services under `services/`. The frontend
+> talks to them over HTTP, server-side only.
 
 ## What this is
 
 - **Menu** (menu.iedora.com — `apps/web/`) — SaaS multi-tenant restaurant menu builder, including the auth pages (`/sign-in|/sign-up|/sign-out` over the auth service). UI in `products/menu/`.
 - **House** (iedora.com — `apps/web/src/app/house/`) — brand landing page.
-- **Tutor** (tutor.iedora.com — `apps/web/src/app/tutor/`) — tutoring marketplace surface; UI in `products/tutor/`, a UI-only BFF over the `iedora-tutor-api` service (separate `tutor-marketplace` repo). Its own auth tenant (`tutor`, cookie `tutor_access`). Includes the `/tutor/vantage` platform-admin console.
+- **Tutor** (tutor.iedora.com — `apps/web/src/app/tutor/`) — tutoring marketplace surface; UI in `products/tutor/web`, a UI-only BFF over the `tutor-api` backend (`products/tutor/api`). Its own auth tenant (`tutor`, cookie `tutor_access`). Includes the `/tutor/vantage` platform-admin console.
 - **Admin** (admin.iedora.com) — staff console; lives inside the Next.js app (`apps/web/src/app/menu/dashboard/admin/`), gated by the staff role.
 
 **Identity is the auth service** (`services/auth`): email+password,
@@ -35,10 +35,10 @@ every API call. The browser NEVER calls the services directly.
 - **Backend services** (`services/`) — Bun + Hono, Kysely on Bun's native `SQL`, jose for EdDSA JWTs. Postgres 18, one database per service, migrations owned by each service. See [`services/AGENTS.md`](./services/AGENTS.md).
 - **Next.js 16** (App Router, Turbopack default) — UI only: RSC reads via `serverFetch`, mutations via server actions.
 - **TypeScript** strict, every workspace.
-- **`@iedora/ui`** + Tailwind v4 — shadcn/ui on Base UI primitives (style `base-sera`), phosphor icons. Components at `@iedora/ui/components/ui/*` plus editorial drop-ins (`card`, `combobox`, `field`, `section-header`). **Design every UI change in the Pencil files (`iedora.pen` / `iedora.lib.pen`) FIRST — see [`CLAUDE.md`](./CLAUDE.md).**
+- **`@iedora/ui`** + Tailwind v4 — shadcn/ui on Base UI primitives (style `base-sera`), phosphor icons. Components at `@iedora/ui/components/ui/*` plus editorial drop-ins (`card`, `combobox`, `field`, `section-header`). **Design every UI change in the Pencil files (`design/iedora.pen` / `design/iedora.lib.pen`) FIRST — see [`CLAUDE.md`](./CLAUDE.md).**
 - **@dnd-kit** — menu's drag-and-drop builder.
 - **Bun** — package manager, test runner, dev orchestrator. **Production runtime is Node** — `bun + next build` is unstable as of 2026 (oven-sh/bun#23944).
-- **Deploy** — owned by the `iedora-infra` repo (Kamal 2 + OpenTofu, one Proxmox VM). This repo ships images: `apps/web/Dockerfile` (the `iedora-web` UI, all surfaces) and `services/Dockerfile` (the `iedora-api` backend services).
+- **Deploy** — owned by the `iedora-infra` repo (Kamal 2 + OpenTofu, one Proxmox VM). This repo ships images: root `Dockerfile` (the `iedora-web` UI, all surfaces — Kamal builds from the repo root) and `services/Dockerfile` (the `iedora-api` backend services).
 
 ## File layout
 
@@ -47,6 +47,8 @@ iedora/
   bun.lock
   package.json                           workspaces: products/*/* + services/* + packages/framework/* + packages/sdk/* + packages/* + apps/*
   compose.yaml                           FULL local backend: services + Postgres
+  Dockerfile                             Multi-stage Node build for apps/web (iedora/web image; Kamal builds from root)
+  design/                                iedora.pen + iedora.lib.pen — Pencil design source (screens + UI kit)
 
   products/                              Per-product cohesion — a product's web + backend (+ db/contracts) live together
     menu/
@@ -81,7 +83,6 @@ iedora/
       generated/surfaces.ts              host-to-surface topology (hand-maintained)
       surface-auth.ts                    per-surface protected paths (ONE shared authConfig)
       proxy.ts                           Host rewrite + per-surface auth gate + token refresh
-    Dockerfile                           Multi-stage, Node runtime (iedora/web image)
 ```
 
 ## apps/web — the Next.js shell

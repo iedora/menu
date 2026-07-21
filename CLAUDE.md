@@ -9,13 +9,13 @@
 
 **Every UI / design change is designed in the Pencil files before it is written in code.** No exceptions.
 
-- The design source of truth is **`iedora.pen`** (all product screens) and **`iedora.lib.pen`** (the shared UI Kit / design system), at the repo root. They are `.pen` files (encrypted) — edit them **only** through the **Pencil MCP** tools (`mcp__pencil__*`), never with Read/Grep/Edit.
+- The design source of truth is **`design/iedora.pen`** (all product screens) and **`design/iedora.lib.pen`** (the shared UI Kit / design system), in `design/`. They are `.pen` files (encrypted) — edit them **only** through the **Pencil MCP** tools (`mcp__pencil__*`), never with Read/Grep/Edit.
 - Workflow for any visual change:
-  1. **Design it in Pencil first** — add/modify the screen or component in `iedora.pen` (or the kit in `iedora.lib.pen`). Verify with `get_screenshot` / `snapshot_layout`.
+  1. **Design it in Pencil first** — add/modify the screen or component in `design/iedora.pen` (or the kit in `design/iedora.lib.pen`). Verify with `get_screenshot` / `snapshot_layout`.
   2. **Then implement in code** — translate that exact design (same labels, spacing, icons, radius, colors) into React using the existing design system.
   3. **Verify** — `bun run typecheck`, run `bun run dev`, confirm it matches the Pencil design.
-- **Do NOT invent UI directly in code.** If a screen/component isn't in Pencil yet, design it there first. If asked to "build screen X", and X isn't in `iedora.pen`, design it in Pencil before coding.
-- The Pencil MCP edits **the currently-open `.pen` editor**, ignoring `filePath`. To edit the library, the user must open `iedora.lib.pen`; to edit screens, `iedora.pen`. Library components appear `J:`-prefixed inside `iedora.pen`.
+- **Do NOT invent UI directly in code.** If a screen/component isn't in Pencil yet, design it there first. If asked to "build screen X", and X isn't in `design/iedora.pen`, design it in Pencil before coding.
+- The Pencil MCP edits **the currently-open `.pen` editor**, ignoring `filePath`. To edit the library, the user must open `design/iedora.lib.pen`; to edit screens, `design/iedora.pen`. Library components appear `J:`-prefixed inside `design/iedora.pen`.
 - Canvas is organized: screens in left-aligned labeled rows (APP / GUEST / ADMIN / ONBOARDING …, desktop step 1560px, mobile 450px, 200px between rows); components on the **Components** board / **iedora UI Kit** board grouped atomically (ATOMS / FORM CONTROLS / COMPOSITES / APP SHELL / GUEST). Keep it that way — new screens slot into the matching row.
 
 ---
