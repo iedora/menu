@@ -50,6 +50,7 @@ jobs:
               - '**/eslint.config.*'
               - '.oxlintrc.json'
               - 'turbo.json'
+              - '.github/workflows/**'
             docker:
               - '**/Dockerfile'
 
