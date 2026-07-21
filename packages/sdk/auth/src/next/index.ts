@@ -10,6 +10,7 @@ export {
 // (createRefreshMiddleware stays on the `/middleware` subpath: it's edge-runtime
 // code kept out of the root/server import graph.)
 export {
+  authConfig,
   cookieNames,
   cookieOptions,
   DEFAULT_ACCESS_MAX_AGE,
@@ -19,7 +20,6 @@ export {
 export {
   type Account,
   authClient,
-  authConfig,
   authNext,
   completeOAuth,
   forgotPassword,

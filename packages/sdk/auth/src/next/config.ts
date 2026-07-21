@@ -37,3 +37,15 @@ export function cookieOptions(config: AuthNextConfig) {
 
 export const DEFAULT_ACCESS_MAX_AGE = 60 * 15
 export const DEFAULT_REFRESH_MAX_AGE = 60 * 60 * 24 * 30
+
+// THE one auth realm for every product (menu, tutor, house): tenant "iedora",
+// audience "iedora". AUTH_COOKIE_DOMAIN (".iedora.com" in prod) puts the session
+// cookie on the shared parent domain so one sign-in is SSO everywhere. This is
+// pure config (no next/headers), so it's safe to import from the edge middleware.
+export const authConfig: AuthNextConfig = {
+  baseUrl: process.env.AUTH_BASE_URL ?? "http://localhost:4000",
+  tenant: process.env.AUTH_TENANT ?? "iedora",
+  audience: process.env.AUTH_AUDIENCE ?? "iedora",
+  cookiePrefix: "iedora",
+  cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+}

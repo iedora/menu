@@ -1,22 +1,14 @@
 import { cookies } from "next/headers"
 
 import { type AuthClaims, createAuthClient } from "../index"
-import { type AuthNextConfig, cookieNames } from "./config"
+import { authConfig, cookieNames } from "./config"
 import { type AuthResult, createAuthNext } from "./server"
 
 // ── THE centralized auth integration ─────────────────────────────────────────
 // Every product (menu, tutor, house) imports the session + operations from HERE —
-// no product re-runs createAuthNext, no per-product config. One shared realm:
-// tenant "iedora", audience "iedora"; AUTH_COOKIE_DOMAIN (".iedora.com" in prod)
-// puts the session cookie on the shared parent domain so one sign-in is SSO
-// everywhere. Unset in dev = host-only cookie on localhost.
-export const authConfig: AuthNextConfig = {
-  baseUrl: process.env.AUTH_BASE_URL ?? "http://localhost:4000",
-  tenant: process.env.AUTH_TENANT ?? "iedora",
-  audience: process.env.AUTH_AUDIENCE ?? "iedora",
-  cookiePrefix: "iedora",
-  cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
-}
+// no product re-runs createAuthNext, no per-product config. The shared-realm
+// authConfig lives in ./config (edge-safe); this module adds the server session +
+// operations on top of it.
 
 /** authNext owns the httpOnly cookie session + JWKS verify + register/login/logout.
  *  authClient covers the rest (forgot/reset password, sessions, organizations). */

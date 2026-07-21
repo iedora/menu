@@ -122,3 +122,7 @@ export function createRefreshMiddleware(config: AuthNextConfig) {
     return applyCookieWrites(res, r.cookieWrites)
   }
 }
+
+// Edge-safe re-export of the shared realm config (pure data, no next/headers) so
+// the proxy middleware runs the ONE shared refresh.
+export { authConfig } from "./config"
