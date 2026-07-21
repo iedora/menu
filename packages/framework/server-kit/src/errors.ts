@@ -4,12 +4,17 @@ import type { ContentfulStatusCode } from "hono/utils/http-status"
 /** Throw from a handler/middleware to return a clean JSON error with a status.
  *  `code` is a stable machine string; `message` is human-readable. */
 export class HttpError extends Error {
+  public status: number;
+  public code: string;
+
   constructor(
-    public status: number,
-    public code: string,
+    status: number,
+    code: string,
     message?: string,
   ) {
     super(message ?? code)
+    this.status = status;
+    this.code = code;
     this.name = "HttpError"
   }
 }

@@ -14,26 +14,36 @@ export type HeaderTransform = (headers: Record<string, string>) => Record<string
 
 /** Thrown on a non-2xx service response; carries the upstream `status`. */
 export class ServiceClientError extends Error {
+  readonly status: number;
+
   constructor(
     service: string,
     path: string,
-    readonly status: number,
+    status: number,
   ) {
     super(`${service}: ${path} returned ${status}`)
+    this.status = status;
     this.name = "ServiceClientError"
   }
 }
 
 export class ServiceClient {
   private readonly headers: HeaderTransform
+  private readonly base: string;
+  private readonly tokens: TokenSource;
+  private readonly name: string;
+
   constructor(
-    private readonly base: string,
-    private readonly tokens: TokenSource,
+    base: string,
+    tokens: TokenSource,
     /** Service name, used in thrown error messages (e.g. "billing"). */
-    private readonly name: string,
+    name: string,
     /** Optional outbound-header transform (e.g. traceparent injection). */
     headers?: HeaderTransform,
   ) {
+    this.base = base;
+    this.tokens = tokens;
+    this.name = name;
     this.headers = headers ?? ((h) => h)
   }
 

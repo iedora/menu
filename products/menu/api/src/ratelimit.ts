@@ -39,12 +39,18 @@ export class Limiter {
   // is exact; the security/cost-critical failClosed policies stay on Postgres.
   private readonly windows = new Map<string, number[]>(); // key -> in-window timestamps (ms, ascending)
   private lastSweep = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Kysely is invariant in its DB param
+  private readonly database: Database<any>;
+  private readonly disabled: boolean;
 
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly database: Database<any>,
-    private readonly disabled = false,
-  ) {}
+    database: Database<any>,
+    disabled = false,
+  ) {
+    this.database = database;
+    this.disabled = disabled;
+  }
 
   // allow records one event for `policy:scope`; resolves when within the limit,
   // throws RateLimitError when over it. Backend failures follow failClosed.

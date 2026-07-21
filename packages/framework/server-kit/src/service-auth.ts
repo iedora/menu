@@ -55,7 +55,11 @@ export interface ServiceIssuerConfig {
 
 /** Mints internal service tokens (EdDSA, typ="service") for client-credentials. */
 export class ServiceTokenIssuer {
-  constructor(private readonly cfg: ServiceIssuerConfig) {}
+  private readonly cfg: ServiceIssuerConfig;
+
+  constructor(cfg: ServiceIssuerConfig) {
+    this.cfg = cfg;
+  }
 
   issue(clientId: string): Promise<string> {
     return new SignJWT({ typ: "service" })

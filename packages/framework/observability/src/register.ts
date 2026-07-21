@@ -84,7 +84,11 @@ function isProbe(spanName: string, attrs: Attributes): boolean {
 
 /** Wraps a delegate sampler and drops health-probe spans before they're recorded. */
 class ProbeFilteringSampler implements Sampler {
-  constructor(private readonly delegate: Sampler) {}
+  private readonly delegate: Sampler;
+
+  constructor(delegate: Sampler) {
+    this.delegate = delegate;
+  }
   shouldSample(
     context: Context,
     traceId: string,

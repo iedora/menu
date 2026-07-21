@@ -11,11 +11,14 @@ import type { BillingDeps } from "../../deps.ts";
 
 /** A payout request the service rejects. The route maps this to 400. */
 export class PayoutRejected extends Error {
+  readonly code: "invalid_request";
+
   constructor(
-    readonly code: "invalid_request",
+    code: "invalid_request",
     message: string,
   ) {
     super(message);
+    this.code = code;
     this.name = "PayoutRejected";
   }
 }

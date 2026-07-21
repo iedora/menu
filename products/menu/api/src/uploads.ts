@@ -56,10 +56,16 @@ export interface PresignedUpload {
 }
 
 export class Uploads {
+  private readonly db: Database<MenuDB>;
+  private readonly blob: BlobClient;
+
   constructor(
-    private readonly db: Database<MenuDB>,
-    private readonly blob: BlobClient,
-  ) {}
+    db: Database<MenuDB>,
+    blob: BlobClient,
+  ) {
+    this.db = db;
+    this.blob = blob;
+  }
 
   // presign authorizes one upload. For item photos, itemId must belong to the
   // restaurant (verified against the DB, not trusted from the client).
