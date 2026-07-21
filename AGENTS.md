@@ -264,9 +264,15 @@ App env vive em `apps/web/`:
 ## CI
 
 GitHub Actions, [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
-path-filtered correctness (typecheck + lint + test), the backend
-service pipeline (test + build/push), and security (gitleaks + hadolint +
-osv-scanner).
+path-filtered **correctness** (`typecheck` + `lint` + `test`, all routed through
+Turborepo so unchanged packages are cache hits — `.turbo` is persisted across
+runs) and **security** (gitleaks + hadolint on both images + osv-scanner), behind
+a `ci-ok` fan-in gate. `lint` runs the **oxlint** correctness pre-pass before the
+per-package ESLint. Image build / push / deploy live in the `iedora-infra` repo.
+
+Task orchestration is [`turbo.json`](./turbo.json) — `bun run typecheck|lint|test`
+= `turbo run …`. `scripts/run-parallel.mjs` is kept as a no-cache fallback
+(`bun run typecheck:parallel`).
 
 ## Where to look when unsure
 
