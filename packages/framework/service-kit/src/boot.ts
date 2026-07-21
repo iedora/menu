@@ -1,3 +1,4 @@
+import { serve as nodeServe } from "@hono/node-server";
 import type { Hono } from "hono";
 
 import { emitLog, initOtel, shutdownOtel } from "./otel";
@@ -11,17 +12,18 @@ export interface ServeOptions {
 }
 
 /**
- * serve starts a Hono app under Bun.serve and wires SIGTERM/SIGINT graceful
- * shutdown: stop accepting connections + drain in-flight requests, run
- * onShutdown, then exit — bounded by a hard timeout. Accepts any Hono
- * regardless of its Env/Schema generics (an RPC-typed app carries a route
- * schema in its type).
+ * serve starts a Hono app on the Node HTTP server (@hono/node-server) and wires
+ * SIGTERM/SIGINT graceful shutdown: stop accepting connections + drain in-flight
+ * requests, run onShutdown, then exit — bounded by a hard timeout. Node is the
+ * production runtime; @hono/node-server runs on Node (and on Bun via node:http).
+ * Accepts any Hono regardless of its Env/Schema generics (an RPC-typed app
+ * carries a route schema in its type).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function serve(app: Hono<any, any, any>, opts: ServeOptions) {
   initOtel(opts.name); // OTel for this service; no-ops in tests / when unconfigured
 
-  const server = Bun.serve({ port: opts.port, fetch: app.fetch });
+  const server = nodeServe({ fetch: app.fetch, port: opts.port });
   emitLog("info", "listening", { service: opts.name, port: opts.port });
 
   let shuttingDown = false;
@@ -31,7 +33,9 @@ export function serve(app: Hono<any, any, any>, opts: ServeOptions) {
     emitLog("info", "shutting down", { service: opts.name, signal });
     const timer = setTimeout(() => process.exit(1), opts.shutdownTimeoutMs ?? 15_000);
     try {
-      await server.stop();
+      await new Promise<void>((resolve, reject) =>
+        server.close((err) => (err ? reject(err) : resolve())),
+      );
       await opts.onShutdown?.();
       await shutdownOtel(); // flush any buffered spans/metrics before exit
     } finally {

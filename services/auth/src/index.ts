@@ -1,3 +1,4 @@
+import { serve } from "@hono/node-server";
 import { Hono } from "hono"
 
 import { accountRoutes } from "./features/account/account.routes"
@@ -47,7 +48,7 @@ tenant.route("/", organizationRoutes)
 tenant.route("/", oauthRoutes)
 app.route("/:tenant", tenant)
 
-Bun.serve({ port: config.port, fetch: app.fetch })
+serve({ fetch: app.fetch, port: config.port })
 
 // One outbox dispatcher delivers every queued message over the SDK: email to the
 // email service, audit events to the audit service (both idempotent — the sink
