@@ -29,7 +29,7 @@
     "@iedora/service-kit": "workspace:*",
     "@iedora/server-kit": "workspace:*",
     "@iedora/observability": "workspace:*",
-    "@hono/otel": "^1.1.2",
+    "@hono/otel": "catalog:",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/sdk-trace-base": "^2.9.0"
   },

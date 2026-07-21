@@ -13,22 +13,22 @@
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
   },
   "dependencies": {
-    "@hono/zod-validator": "^0.9.0",
+    "@hono/zod-validator": "catalog:",
     "@iedora/sdk": "workspace:*",
     "@iedora/db": "workspace:*",
     "@iedora/messaging": "workspace:*",
     "@iedora/server-kit": "workspace:*",
-    "hono": "^4.12.30",
-    "jose": "^5.9.6",
-    "kysely": "^0.29.3",
-    "pg": "^8.13.1",
-    "zod": "^4.4.3"
+    "hono": "catalog:",
+    "jose": "catalog:",
+    "kysely": "catalog:",
+    "pg": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.14",
+    "@types/bun": "catalog:",
     "@types/pg": "^8.11.10",
-    "@types/node": "^22.19.19",
-    "typescript": "^5.9.3",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
     "@iedora/eslint-config": "workspace:*",
     "eslint": "catalog:",
     "typescript-eslint": "catalog:"

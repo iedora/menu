@@ -114,7 +114,7 @@
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",
-    "@types/node": "^22.19.19",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/luxon": "^3.7.2",
     "@types/react-dom": "catalog:",
