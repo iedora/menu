@@ -1,4 +1,4 @@
-export { changedFields } from "./diff"
-export { createAuditIngester, eventFromPayload } from "./ingest"
-export { type AuditEvent, record } from "./record"
-export { type AuditLogDB, type AuditLogTable, type AuditRecord } from "./schema"
+// The store's public surface. Everything else (record, diff, schema types,
+// eventFromPayload) is used internally by ./ingest via direct imports — no need
+// to re-export it here.
+export { createAuditIngester } from "./ingest"
