@@ -1,3 +1,4 @@
+import type { webcrypto } from "node:crypto"
 import type { KeyObject } from "node:crypto"
 
 import { jwtVerify } from "jose"
@@ -20,7 +21,7 @@ export interface UserPrincipal {
 }
 
 export interface UserVerifier {
-  key: CryptoKey | Uint8Array | KeyObject
+  key: webcrypto.CryptoKey | Uint8Array | KeyObject
   issuer: string
   audience: string
 }
@@ -30,7 +31,7 @@ export interface UserEnv {
 }
 
 export function newUserVerifier(
-  key: CryptoKey | Uint8Array | KeyObject,
+  key: webcrypto.CryptoKey | Uint8Array | KeyObject,
   issuer: string,
   audience: string,
 ): UserVerifier {

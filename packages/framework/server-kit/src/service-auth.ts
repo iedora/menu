@@ -1,3 +1,4 @@
+import type { webcrypto } from "node:crypto"
 import type { KeyObject } from "node:crypto"
 
 import { createMiddleware } from "hono/factory"
@@ -13,20 +14,20 @@ export interface ServiceEnv {
 }
 
 export interface ServiceVerifier {
-  key: CryptoKey | Uint8Array | KeyObject
+  key: webcrypto.CryptoKey | Uint8Array | KeyObject
   issuer: string
   audience: string
 }
 
 /** Import a shared Ed25519 public key from its base64 (std) raw 32-byte form. */
-export async function parseEd25519PublicKey(base64Std: string): Promise<CryptoKey | Uint8Array> {
+export async function parseEd25519PublicKey(base64Std: string): Promise<webcrypto.CryptoKey | Uint8Array> {
   const raw = Buffer.from(base64Std, "base64")
   const x = Buffer.from(raw).toString("base64url")
   return importJWK({ kty: "OKP", crv: "Ed25519", x, alg: "EdDSA" }, "EdDSA")
 }
 
 export function newServiceVerifier(
-  key: CryptoKey | Uint8Array | KeyObject,
+  key: webcrypto.CryptoKey | Uint8Array | KeyObject,
   issuer: string,
   audience: string,
 ): ServiceVerifier {
@@ -46,7 +47,7 @@ export async function verifyServiceToken(v: ServiceVerifier, token: string): Pro
 }
 
 export interface ServiceIssuerConfig {
-  privateKey: CryptoKey | KeyObject
+  privateKey: webcrypto.CryptoKey | KeyObject
   kid: string
   issuer: string
   audience: string

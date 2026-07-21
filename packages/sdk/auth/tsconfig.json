@@ -13,7 +13,7 @@
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["bun"]
+    "types": ["node"]
   },
   "include": ["src"]
 }

@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Billing service (Hono/Bun): subscriptions + the append-only invoice ledger over a code-defined plan registry, Stripe/manual payment kinds, and marketplace payouts/refunds. Standalone, framework-direct (@iedora/service-kit); owns its money math (src/money); audit crosses the wire via @iedora/sdk/audit.",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
-    "migrate": "bun run src/migrate.ts",
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "migrate": "node src/migrate.ts",
     "typecheck": "tsgo --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
@@ -26,7 +26,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "^8.11.10",
     "jose": "catalog:",

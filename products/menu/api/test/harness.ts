@@ -1,3 +1,4 @@
+import type { webcrypto } from "node:crypto"
 import type {
   AdminUser,
   AdminUserDetail,
@@ -10,7 +11,7 @@ import type {
 import { Database, OutboxWriter, ServiceClientError, newUserVerifier } from "@iedora/service-runtime";
 import { createScratchDatabase } from "@iedora/service-runtime/testkit";
 import { afterAll, beforeAll } from "vitest";
-import { type CryptoKey, SignJWT, generateKeyPair } from "jose";
+import { SignJWT, generateKeyPair } from "jose";
 import { sql } from "kysely";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,7 +39,7 @@ export const USER = "33333333-3333-3333-3333-333333333333";
 export interface Harness {
   app: ReturnType<typeof buildApp>;
   db: Database<MenuDB>;
-  privateKey: CryptoKey;
+  privateKey: webcrypto.CryptoKey;
   planStub: { code: string }; // mutable so a test can flip the tenant's effective plan
   /** Mutable billing/audit/tenant fakes for the staff aggregation endpoint. */
   billingStub: { subscriptions: Subscription[]; invoices: Invoice[] };

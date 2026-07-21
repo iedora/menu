@@ -25,7 +25,7 @@
     "next": "^16.2.6"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "next": "catalog:",
     "typescript": "catalog:",
     "@iedora/eslint-config": "workspace:*",
