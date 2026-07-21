@@ -31,7 +31,7 @@
     "postgres": "^3.4.0"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "kysely": "catalog:",
     "postgres": "^3.4.5",
     "tsx": "^4.19.2",

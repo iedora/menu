@@ -36,7 +36,7 @@
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",
     "@opentelemetry/sdk-trace-base": "catalog:",
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",

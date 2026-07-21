@@ -9,9 +9,9 @@
     "./billing": "./src/billing.ts"
   },
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
-    "migrate": "bun run src/migrate.ts",
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "migrate": "node src/migrate.ts",
     "db:codegen": "kysely-codegen --dialect postgres --url ${MENU_DATABASE_URL:-postgres://iedora:iedora@localhost:55433/menu} --exclude-pattern '(schema_migrations)' --out-file src/db.generated.ts",
     "typecheck": "tsgo --noEmit",
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache",
@@ -27,11 +27,12 @@
     "hono": "catalog:",
     "kysely": "catalog:",
     "zod": "catalog:",
-    "aws4fetch": "catalog:"
+    "aws4fetch": "catalog:",
+    "@hono/node-server": "catalog:"
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "jose": "catalog:",
     "kysely-codegen": "catalog:",

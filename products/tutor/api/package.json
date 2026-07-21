@@ -13,8 +13,8 @@
     "#contracts/*": "./src/contracts/*.ts"
   },
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
     "typecheck": "tsgo --noEmit",
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
   },
@@ -30,7 +30,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "@types/luxon": "^3.7.2",
     "@types/node": "catalog:",
     "typescript": "catalog:",

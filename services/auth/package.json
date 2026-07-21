@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Multi-tenant authentication service. Provider-agnostic (email/password + any OAuth2/OIDC), issues Ed25519 JWTs with JWKS + OIDC discovery. Shared across iedora services and usable by any external domain.",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
+    "dev": "node --watch src/index.ts",
     "start": "bun src/index.ts",
     "migrate": "bun src/platform/migrate.ts",
     "typecheck": "tsgo --noEmit",
@@ -27,7 +27,7 @@
     "@node-rs/argon2": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "@types/pg": "^8.11.10",
     "@types/node": "catalog:",
     "typescript": "catalog:",

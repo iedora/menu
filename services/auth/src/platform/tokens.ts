@@ -1,3 +1,4 @@
+import type { webcrypto } from "node:crypto"
 import crypto from "node:crypto"
 import {
   calculateJwkThumbprint,
@@ -13,12 +14,12 @@ import type { Tenant, User } from "./schema.ts"
 
 type SigningKey = {
   kid: string
-  privateKey: CryptoKey
+  privateKey: webcrypto.CryptoKey
   publicJwk: JWK
 }
 
 // Ed25519 PKCS8 DER prefix; prepend to a 32-byte seed to import a key
-// deterministically via Web Crypto (jose in Bun works with CryptoKey, not KeyObject).
+// deterministically via Web Crypto (jose in Bun works with webcrypto.CryptoKey, not KeyObject).
 const ED25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex")
 const subtle = crypto.webcrypto.subtle
 
@@ -32,7 +33,7 @@ async function keyFromSeed(seedB64url: string): Promise<SigningKey> {
     { name: "Ed25519" },
     true,
     ["sign"],
-  )) as unknown as CryptoKey
+  )) as unknown as webcrypto.CryptoKey
 
   // Public jwk = private jwk without `d`.
   const { d: _priv, ...publicJwk } = (await exportJWK(privateKey)) as JWK

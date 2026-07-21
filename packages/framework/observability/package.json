@@ -43,7 +43,7 @@
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "typescript": "catalog:",
     "@iedora/eslint-config": "workspace:*",
     "eslint": "catalog:",

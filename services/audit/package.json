@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Audit service (Hono/Bun): ingests audit events from every producer over HTTP and serves the read/query API over the append-only audit_log. Standalone, framework-direct (@iedora/service-kit + @iedora/audit).",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
-    "migrate": "bun run src/migrate.ts",
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "migrate": "node src/migrate.ts",
     "typecheck": "tsgo --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
@@ -23,7 +23,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "^8.11.10",
     "jose": "catalog:",

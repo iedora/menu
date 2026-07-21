@@ -2,7 +2,7 @@ import type { PublicPayload } from "@iedora/contracts";
 import { SpanStatusCode, trace, tracer } from "@iedora/service-runtime";
 import { IEDORA_RESTAURANT_ID, IEDORA_TENANT_ID, tenantContext } from "@iedora/menu-observability";
 import { type Context, Hono } from "hono";
-import { getConnInfo } from "hono/bun";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { getCookie, setCookie } from "hono/cookie";
 import type { Kysely } from "kysely";
 
