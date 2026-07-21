@@ -17,7 +17,7 @@ export const MENU_URL = process.env.MENU_URL ?? 'http://localhost:8184'
  * service-relative (e.g. `/api/restaurants`); absolute URLs pass through. On a
  * 401 with a live refresh cookie, `authedFetch` refreshes once and retries.
  */
-export async function serverFetch(path: string, init: RequestInit = {}): Promise<Response> {
+async function serverFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const url = path.startsWith('http') ? path : `${MENU_URL}${path}`
   return authedFetch(url, init)
 }

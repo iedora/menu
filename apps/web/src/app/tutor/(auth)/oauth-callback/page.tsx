@@ -4,7 +4,7 @@ import { GraduationCap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
-import { completeOAuthAction } from "../actions"
+import { completeOAuthAction } from "@iedora/product-tutor/auth/actions"
 
 /**
  * Where the auth service redirects after an OAuth provider (Google, …) sign-in.
