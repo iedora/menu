@@ -4,7 +4,6 @@ import {
   exportJWK,
   importJWK,
   type JWK,
-  type KeyLike,
   jwtVerify,
   SignJWT,
 } from "jose"
@@ -14,7 +13,7 @@ import type { Tenant, User } from "./schema"
 
 type SigningKey = {
   kid: string
-  privateKey: KeyLike
+  privateKey: CryptoKey
   publicJwk: JWK
 }
 
@@ -33,7 +32,7 @@ async function keyFromSeed(seedB64url: string): Promise<SigningKey> {
     { name: "Ed25519" },
     true,
     ["sign"],
-  )) as unknown as KeyLike
+  )) as unknown as CryptoKey
 
   // Public jwk = private jwk without `d`.
   const { d: _priv, ...publicJwk } = (await exportJWK(privateKey)) as JWK

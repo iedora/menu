@@ -19,7 +19,7 @@
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
   },
   "dependencies": {
-    "jose": "^5.9.6"
+    "jose": "catalog:"
   },
   "peerDependencies": {
     "next": "^16.2.6"

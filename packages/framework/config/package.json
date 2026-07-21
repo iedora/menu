@@ -24,7 +24,7 @@
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.14",
+    "@types/bun": "catalog:",
     "typescript": "catalog:",
     "@iedora/eslint-config": "workspace:*",
     "eslint": "catalog:",

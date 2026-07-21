@@ -27,9 +27,9 @@
     "kysely": ">=0.27"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.14",
-    "kysely": "^0.29.3",
-    "kysely-postgres-js": "^3.0.0",
+    "@types/bun": "catalog:",
+    "kysely": "catalog:",
+    "kysely-postgres-js": "catalog:",
     "typescript": "catalog:",
     "@iedora/eslint-config": "workspace:*",
     "eslint": "catalog:",

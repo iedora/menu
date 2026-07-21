@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@types/bun": "catalog:",
-    "@types/node": "^22",
+    "@types/node": "catalog:",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.11.10",
     "typescript": "catalog:",
