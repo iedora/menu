@@ -95,11 +95,14 @@ export interface AuditQueryResponse {
 
 /** Thrown by the client on a non-2xx response. */
 export class AuditError extends Error {
+  public status: number;
+
   constructor(
-    public status: number,
+    status: number,
     message?: string,
   ) {
     super(message ?? `audit: ${status}`)
+    this.status = status;
     this.name = "AuditError"
   }
 }

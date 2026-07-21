@@ -12,11 +12,14 @@ import type { SettleInput } from "../../kinds.ts";
 /** A kind the service isn't configured for, or a request the kind rejects. The
  *  route maps both to 400. `reason` is the kind's validation message when present. */
 export class ChargeRejected extends Error {
+  readonly code: "kind_unavailable" | "invalid_for_kind";
+
   constructor(
-    readonly code: "kind_unavailable" | "invalid_for_kind",
+    code: "kind_unavailable" | "invalid_for_kind",
     message: string,
   ) {
     super(message);
+    this.code = code;
     this.name = "ChargeRejected";
   }
 }

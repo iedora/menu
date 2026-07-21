@@ -26,10 +26,16 @@ export const PlanRegistry: Record<string, PlanLimits> = {
 export const DefaultPlan = PlanRegistry.menu_free!;
 
 export class Plans {
+  private readonly source: PlanSource;
+  private readonly db: Database<MenuDB>;
+
   constructor(
-    private readonly source: PlanSource,
-    private readonly db: Database<MenuDB>,
-  ) {}
+    source: PlanSource,
+    db: Database<MenuDB>,
+  ) {
+    this.source = source;
+    this.db = db;
+  }
 
   // plan resolves the tenant's effective entitlements (fail-open to default).
   async plan(tenantId: string): Promise<PlanLimits> {

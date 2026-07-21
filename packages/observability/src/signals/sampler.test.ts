@@ -27,7 +27,11 @@ import {
  */
 class CountingSampler implements Sampler {
   calls = 0;
-  constructor(private readonly result: SamplingResult) {}
+  private readonly result: SamplingResult;
+
+  constructor(result: SamplingResult) {
+    this.result = result;
+  }
   shouldSample(): SamplingResult {
     this.calls += 1;
     return this.result;

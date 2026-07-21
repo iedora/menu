@@ -13,11 +13,14 @@ import type { SavedCardInfo } from "../../kinds.ts";
  *  or the resolved kind doesn't expose the setup capability. The route maps this
  *  to 400 (mirrors ChargeRejected's kind_unavailable). */
 export class SetupRejected extends Error {
+  readonly code: "kind_unavailable";
+
   constructor(
-    readonly code: "kind_unavailable",
+    code: "kind_unavailable",
     message: string,
   ) {
     super(message);
+    this.code = code;
     this.name = "SetupRejected";
   }
 }

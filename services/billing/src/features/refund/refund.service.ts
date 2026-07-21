@@ -15,8 +15,14 @@ import { insertRefund, type RefundRecord } from "./refunds.data.ts";
 /** A refund the service can't perform. The route maps `charge_not_found` to 404
  *  and everything else to 400. `reason` carries the specific message. */
 export class RefundRejected extends Error {
+  readonly code: | "charge_not_found" // no charge with that id (404)
+          | "kind_unavailable" // the charge's kind is no longer configured (400)
+          | "refund_not_supported" // the kind exists but has no refund capability (400)
+          | "not_refundable" // the charge isn't in a refundable (paid) state (400)
+          | "invalid_amount";
+
   constructor(
-    readonly code:
+    code:
       | "charge_not_found" // no charge with that id (404)
       | "kind_unavailable" // the charge's kind is no longer configured (400)
       | "refund_not_supported" // the kind exists but has no refund capability (400)
@@ -25,6 +31,7 @@ export class RefundRejected extends Error {
     message: string,
   ) {
     super(message);
+    this.code = code;
     this.name = "RefundRejected";
   }
 }

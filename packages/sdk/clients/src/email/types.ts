@@ -63,11 +63,14 @@ export interface EmailQueryResponse {
 
 /** Thrown by the client on a non-2xx response. */
 export class EmailError extends Error {
+  public status: number;
+
   constructor(
-    public status: number,
+    status: number,
     message?: string,
   ) {
     super(message ?? `email: ${status}`)
+    this.status = status;
     this.name = "EmailError"
   }
 }

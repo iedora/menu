@@ -25,7 +25,11 @@ export const NOISE_PATTERNS: RegExp[] = [
  * so both register.ts and register-node.ts can share it.
  */
 export class NoiseFilteringSampler implements Sampler {
-  constructor(private readonly inner: Sampler) {}
+  private readonly inner: Sampler;
+
+  constructor(inner: Sampler) {
+    this.inner = inner;
+  }
 
   shouldSample(
     context: Context,

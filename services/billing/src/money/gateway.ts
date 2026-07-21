@@ -97,12 +97,15 @@ export interface PaymentGateway {
 /** Thrown by adapters for a provider error, carrying a stable code the caller can
  *  branch on without importing a provider SDK's error types. */
 export class PaymentError extends Error {
+  readonly code: PaymentErrorCode;
+
   constructor(
-    readonly code: PaymentErrorCode,
+    code: PaymentErrorCode,
     message: string,
     options?: { cause?: unknown },
   ) {
     super(message, options)
+    this.code = code;
     this.name = "PaymentError"
   }
 }

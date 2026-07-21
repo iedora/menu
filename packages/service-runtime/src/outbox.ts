@@ -36,7 +36,11 @@ export interface AuditSink {
  *  messageId is the idempotency key — the audit service dedupes on it (its own
  *  inbox), so the outbox's at-least-once redelivery records each event once. */
 export class AuditClient implements AuditSink {
-  constructor(private readonly svc: ServiceClient) {}
+  private readonly svc: ServiceClient;
+
+  constructor(svc: ServiceClient) {
+    this.svc = svc;
+  }
   async ingest(events: AuditDelivery[]): Promise<void> {
     if (events.length === 0) return;
     await this.svc.post("/events", { events });
@@ -47,10 +51,16 @@ export class AuditClient implements AuditSink {
  *  transaction (Database.db = active tx or pool), so the event is durable
  *  exactly when the business change commits. */
 export class OutboxWriter<DB> implements Auditor {
+  private readonly database: Database<DB>;
+  private readonly source: string;
+
   constructor(
-    private readonly database: Database<DB>,
-    private readonly source: string,
-  ) {}
+    database: Database<DB>,
+    source: string,
+  ) {
+    this.database = database;
+    this.source = source;
+  }
 
   async record(event: AuditEvent): Promise<void> {
     try {
@@ -82,7 +92,11 @@ export class OutboxWriter<DB> implements Auditor {
  *  change and the relay delivers it later via @iedora/email's handler. The enqueue
  *  side isn't an @iedora/email Mailer (no SMTP transport); it just needs `send`. */
 export class OutboxMailer<DB> {
-  constructor(private readonly database: Database<DB>) {}
+  private readonly database: Database<DB>;
+
+  constructor(database: Database<DB>) {
+    this.database = database;
+  }
 
   async send(msg: EmailMessage): Promise<void> {
     await enqueue(this.database.db as unknown as Kysely<unknown>, {

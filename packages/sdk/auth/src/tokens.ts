@@ -18,16 +18,25 @@ export class ServiceTokenSource implements TokenSource {
   private cached = ""
   private expiresAtMs = 0
   private inflight: Promise<string> | null = null // de-dupes concurrent cold-cache mints
+  private readonly authBaseUrl: string;
+  private readonly clientId: string;
+  private readonly clientSecret: string;
+  private readonly tokenPath: string;
 
   constructor(
-    private readonly authBaseUrl: string,
-    private readonly clientId: string,
-    private readonly clientSecret: string,
+    authBaseUrl: string,
+    clientId: string,
+    clientSecret: string,
     // The client-credentials grant is root-mounted at POST /token (auth
     // src/index.ts). Must match `mintServiceToken` in client.ts, or cached
     // callers (billing-sdk, audit-sdk, tutor→billing) 404 on mint.
-    private readonly tokenPath = "/token",
-  ) {}
+    tokenPath = "/token",
+  ) {
+    this.authBaseUrl = authBaseUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.tokenPath = tokenPath;
+  }
 
   async token(): Promise<string> {
     // Refresh a minute before expiry to absorb clock skew + request latency.

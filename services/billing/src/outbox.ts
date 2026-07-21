@@ -23,10 +23,16 @@ import type { Kysely } from "kysely"
  *  transaction (Database.db = active tx or pool), so the event is durable
  *  exactly when the business change commits. */
 export class OutboxWriter<DB> implements Auditor {
+  private readonly database: Database<DB>;
+  private readonly source: string;
+
   constructor(
-    private readonly database: Database<DB>,
-    private readonly source: string,
-  ) {}
+    database: Database<DB>,
+    source: string,
+  ) {
+    this.database = database;
+    this.source = source;
+  }
 
   async record(event: AuditEvent): Promise<void> {
     try {

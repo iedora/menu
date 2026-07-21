@@ -21,7 +21,11 @@ import type { PaymentKind, RefundRequest, RefundResult, SavedCardInfo, SettleInp
 // types past this file. Amounts are Money minor units; currency lower-cased for
 // Stripe. All errors are normalized to PaymentError.
 export class StripeGateway implements PaymentGateway {
-  constructor(private readonly stripe: Stripe) {}
+  private readonly stripe: Stripe;
+
+  constructor(stripe: Stripe) {
+    this.stripe = stripe;
+  }
 
   async charge(input: ChargeInput): Promise<Charge> {
     try {
@@ -130,7 +134,11 @@ export function createStripeGateway(cfg: StripeConfig): StripeGateway | null {
 // The `stripe` payment KIND — the explicit `mode` contract over the processor.
 // No inference: `mode` is required, and the paymentMethod combo is validated.
 export class StripeKind implements PaymentKind {
-  constructor(private readonly gateway: StripeGateway) {}
+  private readonly gateway: StripeGateway;
+
+  constructor(gateway: StripeGateway) {
+    this.gateway = gateway;
+  }
 
   validate(input: SettleInput): string | null {
     if (input.mode !== "charge" && input.mode !== "intent") {

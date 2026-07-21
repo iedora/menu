@@ -113,12 +113,17 @@ export type ServiceTokenResponse = { accessToken: string; tokenType: "Bearer"; e
 
 /** Thrown by the client on a non-2xx response, carrying the service's error code. */
 export class AuthError extends Error {
+  public status: number;
+  public code: string;
+
   constructor(
-    public status: number,
-    public code: string,
+    status: number,
+    code: string,
     message?: string,
   ) {
     super(message ?? code)
+    this.status = status;
+    this.code = code;
     this.name = "AuthError"
   }
 }

@@ -60,7 +60,11 @@ export interface Jwk {
 
 /** Mints access tokens (typ="access") and serves the JWKS. */
 export class JwtIssuer {
-  constructor(private readonly cfg: JwtIssuerConfig) {}
+  private readonly cfg: JwtIssuerConfig;
+
+  constructor(cfg: JwtIssuerConfig) {
+    this.cfg = cfg;
+  }
 
   issueAccess(input: AccessTokenInput): Promise<string> {
     return new SignJWT({
