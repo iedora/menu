@@ -8,11 +8,20 @@ name: ci
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# One run per ref. A new push to a PR cancels the superseded run (saves
+# free-tier minutes); main runs are never cancelled. github.workflow scopes the
+# group so other workflows aren't affected. Pairing `push: [main]` with
+# `pull_request` also means a PR gets ONE run, not the push+PR double-run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -96,6 +105,13 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-${{ hashFiles('bun.lock', 'turbo.json', '.oxlintrc.json') }}-
             turbo-${{ runner.os }}-
+      # Cache Bun's global module store so `bun install` links from disk instead
+      # of re-downloading every package. Keyed on the lockfile.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run lint
