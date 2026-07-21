@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 // Corre um script em todos os workspaces em paralelo, com cap igual ao
 // número de cores disponíveis. `bun run --workspaces <task>` corre em
 // série (8 cores parados a olhar para um a fazer trabalho); spawn de
@@ -55,7 +55,7 @@ const t0 = Date.now();
 function runOne(w) {
 	return new Promise((resolve) => {
 		const chunks = [];
-		const child = spawn("bun", ["run", task], {
+		const child = spawn("pnpm", ["run", task], {
 			cwd: w.dir,
 			stdio: ["ignore", "pipe", "pipe"],
 			env: { ...process.env, FORCE_COLOR: "1" },
