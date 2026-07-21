@@ -26,7 +26,8 @@
     "@hono/zod-validator": "catalog:",
     "hono": "catalog:",
     "kysely": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "aws4fetch": "catalog:"
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",

@@ -88,7 +88,7 @@ export class FakeBlob
     const prefix = `${this.base}/`;
     return url.startsWith(prefix) ? url.slice(prefix.length) : "";
   }
-  presignPut(key: string): string {
+  async presignPut(key: string): Promise<string> {
     return `${this.base}/_put/${key}`;
   }
   /** Test helper — pretend the browser PUT the object to `key`. */

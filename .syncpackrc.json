@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/syncpack/dist/schema.json",
+  "versionGroups": [
+    {
+      "label": "Internal workspace packages — not versioned",
+      "dependencies": ["@iedora/**"],
+      "isIgnored": true
+    },
+    {
+      "label": "Every external prod/dev dependency lives in the catalog (single-version policy)",
+      "dependencyTypes": ["prod", "dev"],
+      "policy": "catalog"
+    }
+  ]
+}

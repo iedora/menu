@@ -80,7 +80,7 @@ export class Uploads {
     }
     const key = `r/${r.id}/${dir}/${randomSlug()}.${ext}`;
     return {
-      uploadUrl: this.blob.presignPut(key, PRESIGN_TTL_SECONDS, contentType),
+      uploadUrl: await this.blob.presignPut(key, PRESIGN_TTL_SECONDS, contentType),
       publicUrl: this.blob.publicURL(key),
       key,
       expiresInSeconds: PRESIGN_TTL_SECONDS,

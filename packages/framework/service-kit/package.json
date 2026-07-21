@@ -31,7 +31,8 @@
     "@iedora/server-kit": "workspace:*",
     "@hono/otel": "catalog:",
     "@opentelemetry/api": "catalog:",
-    "@opentelemetry/sdk-trace-base": "catalog:"
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@hono/node-server": "catalog:"
   },
   "peerDependencies": {
     "hono": ">=4",
