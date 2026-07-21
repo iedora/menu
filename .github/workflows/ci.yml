@@ -99,6 +99,20 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('bun.lock', 'turbo.json', '.oxlintrc.json') }}-
             turbo-${{ runner.os }}-
       - run: bun install --frozen-lockfile
+      - name: Debug DB connectivity
+        run: |
+          echo "=== psql (known-good client, from host) ==="
+          docker exec ci-postgres psql -U iedora -h 127.0.0.1 -d postgres -c "select version();" || echo "psql via docker exec FAILED"
+          echo "=== bun:sql minimal, from the runner host ==="
+          cat > /tmp/t.ts <<'TS'
+          import { SQL } from "bun"
+          const sql = new SQL("postgres://iedora:iedora@127.0.0.1:5432/postgres?sslmode=disable", { max: 1 })
+          try { console.log("query ->", await sql`select 1 as ok`) }
+          catch (e) { console.error("BUN SQL ERR:", e) }
+          await sql.end()
+          TS
+          bun /tmp/t.ts || echo "bun script exit $?"
+        continue-on-error: true
       - run: bun run typecheck
       - run: bun run lint
       # Serialize the test lane: the DB integration harnesses each CREATE a
