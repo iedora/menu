@@ -11,21 +11,21 @@ This version has breaking changes — APIs, conventions, and file structure may 
 > host-routed **surface** through `src/proxy.ts` + `src/generated/surfaces.ts`:
 > `menu.iedora.com` (menu app, incl. sign-in/up/out), `iedora.com` (house
 > landing), and `tutor.iedora.com` (tutoring marketplace). ALL data, auth and
-> business rules live in the backend services (`services/`) — menu in this repo,
-> tutor in the separate `tutor-marketplace` repo. The frontend talks to them
-> over HTTP, server-side only.
+> business rules live in the backends — menu at `products/menu/api`, tutor at
+> `products/tutor/api`, plus the shared services under `services/`. The frontend
+> talks to them over HTTP, server-side only.
 
 ## What this is
 
 - **Menu** (menu.iedora.com — `apps/web/`) — SaaS multi-tenant restaurant menu builder, including the auth pages (`/sign-in|/sign-up|/sign-out` over the auth service). UI in `products/menu/`.
 - **House** (iedora.com — `apps/web/src/app/house/`) — brand landing page.
-- **Tutor** (tutor.iedora.com — `apps/web/src/app/tutor/`) — tutoring marketplace surface; UI in `products/tutor/`, a UI-only BFF over the `iedora-tutor-api` service (separate `tutor-marketplace` repo). Its own auth tenant (`tutor`, cookie `tutor_access`). Includes the `/tutor/vantage` platform-admin console.
+- **Tutor** (tutor.iedora.com — `apps/web/src/app/tutor/`) — tutoring marketplace surface; UI in `products/tutor/web`, a UI-only BFF over the `tutor-api` backend (`products/tutor/api`). Its own auth tenant (`tutor`, cookie `tutor_access`). Includes the `/tutor/vantage` platform-admin console.
 - **Admin** (admin.iedora.com) — staff console; lives inside the Next.js app (`apps/web/src/app/menu/dashboard/admin/`), gated by the staff role.
 
 **Identity is the auth service** (`services/auth`): email+password,
 EdDSA access JWTs (15 min) + rotating refresh cookie, tenants/memberships.
 The Next side is BFF-lite (`@iedora/api-client`): auth server actions
-(`products/menu/src/features/auth/actions.ts`) mirror
+(`products/menu/web/src/features/auth/actions.ts`) mirror
 the access token into the HttpOnly `iedora_access` cookie, `src/proxy.ts`
 refreshes it for protected routes, and `serverFetch` attaches the Bearer on
 every API call. The browser NEVER calls the services directly.
@@ -35,40 +35,54 @@ every API call. The browser NEVER calls the services directly.
 - **Backend services** (`services/`) — Bun + Hono, Kysely on Bun's native `SQL`, jose for EdDSA JWTs. Postgres 18, one database per service, migrations owned by each service. See [`services/AGENTS.md`](./services/AGENTS.md).
 - **Next.js 16** (App Router, Turbopack default) — UI only: RSC reads via `serverFetch`, mutations via server actions.
 - **TypeScript** strict, every workspace.
-- **`@iedora/ui`** + Tailwind v4 — shadcn/ui on Base UI primitives (style `base-sera`), phosphor icons. Components at `@iedora/ui/components/ui/*` plus editorial drop-ins (`card`, `combobox`, `field`, `section-header`). **Design every UI change in the Pencil files (`iedora.pen` / `iedora.lib.pen`) FIRST — see [`CLAUDE.md`](./CLAUDE.md).**
+- **`@iedora/ui`** + Tailwind v4 — shadcn/ui on Base UI primitives (style `base-sera`), phosphor icons. Components at `@iedora/ui/components/ui/*` plus editorial drop-ins (`card`, `combobox`, `field`, `section-header`). **Design every UI change in the Pencil files (`design/iedora.pen` / `design/iedora.lib.pen`) FIRST — see [`CLAUDE.md`](./CLAUDE.md).**
 - **@dnd-kit** — menu's drag-and-drop builder.
 - **Bun** — package manager, test runner, dev orchestrator. **Production runtime is Node** — `bun + next build` is unstable as of 2026 (oven-sh/bun#23944).
-- **Deploy** — owned by the `iedora-infra` repo (Kamal 2 + OpenTofu, one Proxmox VM). This repo ships images: `apps/web/Dockerfile` (the `iedora-web` UI, all surfaces) and `services/Dockerfile` (the `iedora-api` backend services).
+- **Deploy** — owned by the `iedora-infra` repo (Kamal 2 + OpenTofu, one Proxmox VM). This repo ships images: root `Dockerfile` (the `iedora-web` UI, all surfaces — Kamal builds from the repo root) and `services/Dockerfile` (the `iedora-api` backend services).
 
 ## File layout
 
 ```
 iedora/
   bun.lock
-  package.json                           workspaces: packages/* + products/* + apps/*
-  services/                              Backend services (Bun + Hono) — auth + menu
-                                         (audit/billing/email/tutor-api are their own repos now)
-    <svc>/src/                           per-service source + migrations
+  package.json                           workspaces: products/*/* + services/* + packages/framework/* + packages/sdk/* + packages/* + apps/*
   compose.yaml                           FULL local backend: services + Postgres
+  Dockerfile                             Multi-stage Node build for apps/web (iedora/web image; Kamal builds from root)
+  design/                                iedora.pen + iedora.lib.pen — Pencil design source (screens + UI kit)
 
-  packages/platform/                     Foundation tier — zero product knowledge
-    api-client/                          @iedora/api-client — backend HTTP client: cookies, session, serverFetch, middleware refresh
+  products/                              Per-product cohesion — a product's web + backend (+ db/contracts) live together
+    menu/
+      web/                               @iedora/product-menu — menu UI slices (incl. auth) + typed API client
+      api/                               @iedora/service-menu — menu backend (Bun + Hono): public menu, staff, plans, uploads
+    tutor/
+      web/                               @iedora/product-tutor — tutor UI slices + BFF wrappers + vantage
+      api/                               @iedora/service-tutor — tutor backend (Bun + Hono, internal): bookings, lessons, admin
+      db/                                @iedora/tutor-db — tutor Kysely schema + migrations
+      contracts/                         @iedora/tutor-contracts — shared tutor zod contracts
+
+  services/                              Standalone shared backends (Bun + Hono) — SSO-style microservices
+    auth/                                @iedora/service-auth — multi-tenant OIDC/JWKS; the shared `iedora` realm (SSO)
+    audit/ billing/ email/               @iedora/service-{audit,billing,email} — internal, over container DNS
+    Dockerfile                           ONE iedora/api image (--filter @iedora/service-*); entrypoint migrates-then-serves
+
+  packages/                              Shared libraries
+    framework/                           Pure runtime for every backend — @iedora/{config,db,messaging,observability,server-kit,service-kit}
+    sdk/auth/                            @iedora/auth-sdk — auth realm client + centralized Next SSO integration (./next)
+    sdk/clients/                         @iedora/sdk — service clients (/audit /billing /email)
+    api-client/                          @iedora/api-client — BFF fetch: ApiError + authedFetch
     brand/                               @iedora/brand — brand strings, product registry, URL validators
+    contracts/                           @iedora/contracts — shared zod data shapes
     ui/                                  @iedora/ui — shadcn/ui on Base UI primitives + phosphor
+    observability/                       @iedora/menu-observability — menu OTel tenant context (restaurant/tenant)
+    service-runtime/                     @iedora/service-runtime — shared backend server runtime
     eslint-config/                       @iedora/eslint-config — shared ESLint config
-    observability/                       @iedora/observability — OTel wiring (Next side)
 
-  apps/web/                              Next.js 16 — serves all surfaces, UI only
+  apps/web/                              Next.js — serves all surfaces (house/menu/tutor), UI only
     src/
       app/                               Routes: menu incl. (auth), house, tutor/*, up
       generated/surfaces.ts              host-to-surface topology (hand-maintained)
-      surface-auth.ts                    per-surface auth config (tenant, cookie, protected paths)
+      surface-auth.ts                    per-surface protected paths (ONE shared authConfig)
       proxy.ts                           Host rewrite + per-surface auth gate + token refresh
-    Dockerfile                           Multi-stage, Node runtime
-
-  products/
-    menu/                                @iedora/product-menu — menu UI slices (incl. auth) + typed API client
-    tutor/                               @iedora/product-tutor — tutor UI slices + BFF wrappers + vantage
 ```
 
 ## apps/web — the Next.js shell
@@ -232,6 +246,6 @@ osv-scanner).
 
 1. `node_modules/next/dist/docs/` — bundled, version-matched Next.js docs.
 2. `services/AGENTS.md` — the backend services' architecture + conventions.
-3. `products/menu/src/shared/api.ts` — the typed contract the UI consumes.
-4. `products/menu/src/features/` — the menu slices (`products/tutor/src/features/` for tutor).
+3. `products/menu/web/src/shared/api.ts` — the typed contract the UI consumes.
+4. `products/menu/web/src/features/` — the menu slices (`products/tutor/web/src/features/` for tutor).
 5. `.agents/skills/` — project-specific skills (add-language, add-template, reorder-positions, etc.)

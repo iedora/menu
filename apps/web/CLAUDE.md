@@ -18,7 +18,7 @@ Repo-level conventions: [`../../AGENTS.md`](../../AGENTS.md).
   from `@iedora/product-menu` and other workspace packages.
 - **It is not** where slices, typed API clients, or backend logic
   live. UI slices belong to their workspace package
-  (`products/menu/src/features/`); backend logic belongs to the
+  (`products/menu/web/src/features/`); backend logic belongs to the
   services (`services/`). Never reintroduce databases, ORMs, S3
   clients or AI SDKs here.
 
@@ -103,6 +103,6 @@ Real tests live with the products and the services:
 
 ## Deployable artefact
 
-Image built by CI from `apps/web/Dockerfile`; deploy is owned by the
+Image built by CI from the root `Dockerfile`; deploy is owned by the
 `iedora-infra` repo (Docker Swarm + Ansible). See
 `docs/runbook.deploy.md`.
