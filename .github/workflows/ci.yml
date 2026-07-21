@@ -54,10 +54,30 @@ jobs:
     # TURBO_TEAM / TURBO_API repo variables and the whole team + CI share one
     # cache. Empty here = turbo falls back to the actions/cache step below, so CI
     # works today with no extra infra.
+    # Test Postgres: the integration harnesses (billing/auth/server-kit) call
+    # createScratchDatabase(), which CREATE DATABASEs a throwaway DB per suite on
+    # this server and migrates it — no pre-provisioned schemas needed, just a
+    # superuser. TEST_DATABASE_URL points ADMIN_URL at it. DATABASE_URL stays
+    # unset, so the HAS_DB-gated framework/db suites skip (as they do locally).
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: iedora
+          POSTGRES_PASSWORD: iedora
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
       TURBO_API: ${{ vars.TURBO_API }}
+      TEST_DATABASE_URL: postgres://iedora:iedora@localhost:5432/postgres
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
