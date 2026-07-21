@@ -7,6 +7,7 @@
     "packages/server/*",
     "packages/framework/*",
     "packages/sdk/*",
+    "packages/tutor/*",
     "products/*",
     "services/*",
     "apps/*"
