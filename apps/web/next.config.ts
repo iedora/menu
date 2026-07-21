@@ -14,10 +14,10 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(here, '..', '..'),
   transpilePackages: [
     // Published @iedora/* SDKs ship .ts source, so Turbopack must transpile them.
-    '@iedora/audit-sdk',
+    '@iedora/sdk/audit',
     '@iedora/auth-sdk',
     '@iedora/auth-sdk/next',
-    '@iedora/email-sdk',
+    '@iedora/sdk/email',
     '@iedora/observability',
     '@iedora/product-menu',
     '@iedora/product-tutor',

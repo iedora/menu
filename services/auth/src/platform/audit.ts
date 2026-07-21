@@ -1,4 +1,4 @@
-import { type AuditFilter, type AuditRecord, AuditClient } from "@iedora/audit-sdk"
+import { type AuditFilter, type AuditRecord, AuditClient } from "@iedora/sdk/audit"
 import { type DeliveredMessage, enqueue } from "@iedora/messaging"
 import type { Kysely } from "kysely"
 

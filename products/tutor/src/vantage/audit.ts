@@ -1,4 +1,4 @@
-import { buildEnvelope } from "@iedora/audit-sdk"
+import { buildEnvelope } from "@iedora/sdk/audit"
 
 import { authNext } from "@iedora/auth-sdk/next"
 

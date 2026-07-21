@@ -1,4 +1,4 @@
-import { EmailClient } from "@iedora/email-sdk"
+import { EmailClient } from "@iedora/sdk/email"
 import { type DeliveredMessage, enqueue } from "@iedora/messaging"
 import type { Kysely } from "kysely"
 

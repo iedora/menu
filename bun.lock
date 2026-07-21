@@ -294,14 +294,6 @@
         "react-dom": "^19.2.0",
       },
     },
-    "packages/sdk/audit": {
-      "name": "@iedora/audit-sdk",
-      "version": "0.3.0",
-      "devDependencies": {
-        "@types/bun": "^1.1.14",
-        "typescript": "^5.9.3",
-      },
-    },
     "packages/sdk/auth": {
       "name": "@iedora/auth-sdk",
       "version": "0.2.0",
@@ -317,20 +309,12 @@
         "next": "^16.2.6",
       },
     },
-    "packages/sdk/billing": {
-      "name": "@iedora/billing-sdk",
-      "version": "0.4.0",
+    "packages/sdk/clients": {
+      "name": "@iedora/sdk",
+      "version": "0.1.0",
       "devDependencies": {
-        "@types/bun": "^1.1.14",
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/sdk/email": {
-      "name": "@iedora/email-sdk",
-      "version": "0.2.0",
-      "devDependencies": {
-        "@types/bun": "^1.1.14",
-        "typescript": "^5.9.3",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
       },
     },
     "packages/server/kit": {
@@ -338,12 +322,11 @@
       "version": "0.1.0",
       "dependencies": {
         "@hono/otel": "^1.1.2",
-        "@iedora/audit-sdk": "workspace:*",
         "@iedora/config": "workspace:*",
         "@iedora/db": "workspace:*",
-        "@iedora/email-sdk": "workspace:*",
         "@iedora/messaging": "workspace:*",
         "@iedora/observability": "workspace:*",
+        "@iedora/sdk": "workspace:*",
         "@iedora/server-kit": "workspace:*",
         "@iedora/service-kit": "workspace:*",
         "@node-rs/argon2": "catalog:",
@@ -443,9 +426,8 @@
       "name": "@iedora/product-tutor",
       "version": "0.1.0",
       "dependencies": {
-        "@iedora/audit-sdk": "workspace:*",
         "@iedora/auth-sdk": "workspace:*",
-        "@iedora/email-sdk": "workspace:*",
+        "@iedora/sdk": "workspace:*",
         "@iedora/ui": "workspace:*",
         "@stripe/react-stripe-js": "^6.7.0",
         "@stripe/stripe-js": "^9.10.0",
@@ -501,10 +483,9 @@
       "version": "0.1.0",
       "dependencies": {
         "@hono/zod-validator": "^0.9.0",
-        "@iedora/audit-sdk": "workspace:*",
         "@iedora/db": "workspace:*",
-        "@iedora/email-sdk": "workspace:*",
         "@iedora/messaging": "workspace:*",
+        "@iedora/sdk": "workspace:*",
         "@iedora/server-kit": "workspace:*",
         "hono": "^4.12.30",
         "jose": "^5.9.6",
@@ -524,11 +505,10 @@
       "version": "0.1.0",
       "dependencies": {
         "@hono/zod-validator": "^0.9.0",
-        "@iedora/audit-sdk": "workspace:*",
         "@iedora/auth-sdk": "workspace:*",
         "@iedora/db": "workspace:*",
-        "@iedora/email-sdk": "workspace:*",
         "@iedora/messaging": "workspace:*",
+        "@iedora/sdk": "workspace:*",
         "@iedora/service-kit": "workspace:*",
         "hono": "^4.12.30",
         "kysely": "^0.29.3",
@@ -572,8 +552,8 @@
       "dependencies": {
         "@hono/zod-validator": "catalog:",
         "@iedora/auth-sdk": "workspace:*",
-        "@iedora/billing-sdk": "workspace:*",
         "@iedora/contracts": "workspace:*",
+        "@iedora/sdk": "workspace:*",
         "@iedora/service-runtime": "workspace:*",
         "hono": "catalog:",
         "kysely": "catalog:",
@@ -595,7 +575,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@iedora/auth-sdk": "workspace:*",
-        "@iedora/billing-sdk": "workspace:*",
+        "@iedora/sdk": "workspace:*",
         "@iedora/service-kit": "workspace:*",
         "@iedora/tutor-contracts": "workspace:*",
         "@iedora/tutor-db": "workspace:*",
@@ -868,11 +848,7 @@
 
     "@iedora/api-client": ["@iedora/api-client@workspace:packages/platform/api-client"],
 
-    "@iedora/audit-sdk": ["@iedora/audit-sdk@workspace:packages/sdk/audit"],
-
     "@iedora/auth-sdk": ["@iedora/auth-sdk@workspace:packages/sdk/auth"],
-
-    "@iedora/billing-sdk": ["@iedora/billing-sdk@workspace:packages/sdk/billing"],
 
     "@iedora/brand": ["@iedora/brand@workspace:packages/platform/brand"],
 
@@ -881,8 +857,6 @@
     "@iedora/contracts": ["@iedora/contracts@workspace:packages/platform/contracts"],
 
     "@iedora/db": ["@iedora/db@workspace:packages/framework/db"],
-
-    "@iedora/email-sdk": ["@iedora/email-sdk@workspace:packages/sdk/email"],
 
     "@iedora/eslint-config": ["@iedora/eslint-config@workspace:packages/platform/eslint-config"],
 
@@ -895,6 +869,8 @@
     "@iedora/product-menu": ["@iedora/product-menu@workspace:products/menu"],
 
     "@iedora/product-tutor": ["@iedora/product-tutor@workspace:products/tutor"],
+
+    "@iedora/sdk": ["@iedora/sdk@workspace:packages/sdk/clients"],
 
     "@iedora/server-kit": ["@iedora/server-kit@workspace:packages/framework/server-kit"],
 
@@ -2762,13 +2738,7 @@
 
     "@iedora/api-client/next": ["next@16.2.6", "", { "dependencies": { "@next/env": "16.2.6", "@swc/helpers": "0.5.15", "baseline-browser-mapping": "^2.9.19", "caniuse-lite": "^1.0.30001579", "postcss": "8.4.31", "styled-jsx": "5.1.6" }, "optionalDependencies": { "@next/swc-darwin-arm64": "16.2.6", "@next/swc-darwin-x64": "16.2.6", "@next/swc-linux-arm64-gnu": "16.2.6", "@next/swc-linux-arm64-musl": "16.2.6", "@next/swc-linux-x64-gnu": "16.2.6", "@next/swc-linux-x64-musl": "16.2.6", "@next/swc-win32-arm64-msvc": "16.2.6", "@next/swc-win32-x64-msvc": "16.2.6", "sharp": "^0.34.5" }, "peerDependencies": { "@opentelemetry/api": "^1.1.0", "@playwright/test": "^1.51.1", "babel-plugin-react-compiler": "*", "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "sass": "^1.3.0" }, "optionalPeers": ["@opentelemetry/api", "@playwright/test", "babel-plugin-react-compiler", "sass"], "bin": { "next": "dist/bin/next" } }, "sha512-qOVgKJg1+At15NpeUP+eJgCHvTCgXsogweq87Ri/Ix7PkqQHg4sdaXmSFqKlgaIXE4kW0g25LE68W87UANlHtw=="],
 
-    "@iedora/audit-sdk/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
     "@iedora/auth-sdk/next": ["next@16.2.6", "", { "dependencies": { "@next/env": "16.2.6", "@swc/helpers": "0.5.15", "baseline-browser-mapping": "^2.9.19", "caniuse-lite": "^1.0.30001579", "postcss": "8.4.31", "styled-jsx": "5.1.6" }, "optionalDependencies": { "@next/swc-darwin-arm64": "16.2.6", "@next/swc-darwin-x64": "16.2.6", "@next/swc-linux-arm64-gnu": "16.2.6", "@next/swc-linux-arm64-musl": "16.2.6", "@next/swc-linux-x64-gnu": "16.2.6", "@next/swc-linux-x64-musl": "16.2.6", "@next/swc-win32-arm64-msvc": "16.2.6", "@next/swc-win32-x64-msvc": "16.2.6", "sharp": "^0.34.5" }, "peerDependencies": { "@opentelemetry/api": "^1.1.0", "@playwright/test": "^1.51.1", "babel-plugin-react-compiler": "*", "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "sass": "^1.3.0" }, "optionalPeers": ["@opentelemetry/api", "@playwright/test", "babel-plugin-react-compiler", "sass"], "bin": { "next": "dist/bin/next" } }, "sha512-qOVgKJg1+At15NpeUP+eJgCHvTCgXsogweq87Ri/Ix7PkqQHg4sdaXmSFqKlgaIXE4kW0g25LE68W87UANlHtw=="],
-
-    "@iedora/billing-sdk/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
-    "@iedora/email-sdk/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@iedora/observability/@opentelemetry/api-logs": ["@opentelemetry/api-logs@0.220.0", "", { "dependencies": { "@opentelemetry/api": "^1.3.0" } }, "sha512-CmVa4ImJ+ynfrPMNaAXHET6Bhb44SwzmfyVJFq9ni2jgXJR/l7C6gfVFddNmHP+ZOkP9cf4f9DBe68qVLTHc9w=="],
 

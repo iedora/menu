@@ -1,4 +1,4 @@
-import type { AuditRecord } from "@iedora/audit-sdk"
+import type { AuditRecord } from "@iedora/sdk/audit"
 
 import { queryAudit } from "../../platform/audit"
 import {
