@@ -1,1 +1,2 @@
-export { default, metadata, dynamic } from '@iedora/product-vantage/audit'
+export { default, metadata } from '@iedora/product-vantage/audit'
+export const dynamic = 'force-dynamic'

@@ -1,1 +1,2 @@
-export { default, dynamic } from '@iedora/product-vantage/page'
+export { default } from '@iedora/product-vantage/page'
+export const dynamic = 'force-dynamic'
