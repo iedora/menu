@@ -28,18 +28,16 @@ const userVerifier = newUserVerifier(
   cfg.apiJwtAudience,
 )
 
-// `jobs` needs `deps` (handlers open rooms, charge, release) and `deps` needs
-// `jobs` — wire jobs first against a forward reference the runner only reads at
-// poll time, then finalize deps.
-let deps: TutorDeps
-const jobs = createTutorJobs(cfg.tutorDatabaseUrl, () => deps)
-deps = {
+// The job runner's handlers close over `deps` (to open rooms, charge, release)
+// and `deps` holds the runner — mutually referential. The `() => deps` thunk is
+// only invoked at poll time, after `deps` is initialized, so it is safe.
+const deps: TutorDeps = {
   db,
   userVerifier,
   cfg,
   billing: makeBilling(cfg),
   launchSpace: makeLessonspace(cfg.lessonspaceApiKey),
-  jobs,
+  jobs: createTutorJobs(cfg.tutorDatabaseUrl, () => deps),
 }
 
 const app = buildApp(deps)
@@ -51,6 +49,6 @@ const app = buildApp(deps)
 serve(app, {
   name: "iedora-tutor-api",
   port: cfg.port,
-  workers: [jobs],
+  workers: [deps.jobs],
   onShutdown: () => db.close(),
 })
