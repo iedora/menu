@@ -11,6 +11,10 @@ export type SurfaceAuth = {
   productId: ProductId
   /** Internal-path prefixes that require a session. */
   protectedPrefixes: string[]
+  /** What an anonymous visitor to a protected path gets. "redirect" (default)
+   *  bounces to this surface's sign-in; "notFound" returns 404 so the surface
+   *  stays invisible (it has no public sign-in page of its own). */
+  onUnauthed?: "redirect" | "notFound"
 }
 
 export const SURFACE_AUTH: Record<string, SurfaceAuth> = {
@@ -30,10 +34,14 @@ export const SURFACE_AUTH: Record<string, SurfaceAuth> = {
   },
   [PRODUCTS.vantage]: {
     productId: PRODUCTS.vantage,
-    // The whole vantage surface is the platform super-admin console: a session is
-    // required, then the proxy's platform:admin pre-filter (and the layout's
-    // JWKS-verified requireSuperAdmin) 404s non-admins.
+    // The whole vantage surface is the platform super-admin console. It has no
+    // sign-in page of its own, so an anonymous visit 404s (invisible console)
+    // rather than redirecting into a self-gated /sign-in loop. Admins sign in on
+    // their normal product; the shared .iedora.com session (SSO) then carries
+    // here, where the platform:admin pre-filter + the layout's JWKS-verified
+    // requireSuperAdmin admit only super-admins.
     protectedPrefixes: ["/vantage"],
+    onUnauthed: "notFound",
   },
 }
 

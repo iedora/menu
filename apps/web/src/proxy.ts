@@ -110,7 +110,12 @@ export default async function proxy(req: NextRequest) {
 
   const auth = await resolveRefresh(authConfig, req)
   if (!auth.access) {
-    // No session → the surface's sign-in, with `next` (an absolute URL on THIS
+    // No session. A surface with no sign-in page of its own (vantage) stays
+    // invisible — 404 — instead of bouncing into a self-gated /sign-in loop.
+    if (sa.onUnauthed === "notFound") {
+      return applyCookieWrites(new NextResponse("Not Found", { status: 404 }), auth.cookieWrites)
+    }
+    // Otherwise → the surface's sign-in, with `next` (an absolute URL on THIS
     // host) so after auth the user lands back on the route they tried to reach.
     const res = NextResponse.redirect(surfaceSignInUrl(sa, publicUrl(path).toString()))
     return applyCookieWrites(res, auth.cookieWrites) // also clears dead cookies
