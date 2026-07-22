@@ -24,7 +24,7 @@ import { TutorAvatar } from "@iedora/product-tutor/features/booking/components/t
 import { TeachingSchedule } from "@iedora/product-tutor/features/booking/components/teaching-schedule"
 import type { TutorBooking, TutorReview } from "@iedora/product-tutor/features/booking/booking.queries"
 import { getTutorBooking, getTutorIdBySlug, getTutorReviews } from "@iedora/product-tutor/api/tutor-profile"
-import { ThemeToggle } from "@iedora/product-tutor/components/theme-toggle"
+import { ThemeToggle } from "@iedora/ui/components/theme-toggle"
 import { getViewer } from "@iedora/product-tutor/auth/session"
 
 async function load(slug: string) {
