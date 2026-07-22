@@ -1,20 +1,23 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { cn } from '@iedora/ui/lib/utils'
+import { Card } from '@iedora/ui/components/ui/card'
+import { buttonVariants } from '@iedora/ui/components/ui/button-variants'
 
 /**
  * Shared CRM primitives for the dashboard home surfaces — the owner dashboard
  * and the staff admin overview render the same record-style cards so the two
- * read as one product. Token-based (dark/light safe) and built to stay legible
- * and tappable down to a 320px (iPhone 4) viewport.
+ * read as one product. Built on the shared shadcn `@iedora/ui` primitives
+ * (`Card`, `buttonVariants`) so the chrome is tokened (dark/light safe) and
+ * stays legible and tappable down to a 320px (iPhone 4) viewport.
  */
 
 /**
  * A content panel — the CRM card chrome shared by every settings / form
- * section (theme editor, account settings). Same `rounded-[18px]` card token
- * as {@link StatCard}/{@link RecordCard}, with padding that tightens on a
- * phone so a 320px viewport never overflows. Pass `bare` to drop the inner
- * padding when the panel hosts full-bleed divided rows.
+ * section (theme editor, account settings). Composes the shadcn {@link Card}
+ * (same tokened chrome as {@link StatCard}/{@link RecordCard}), with padding
+ * that tightens on a phone so a 320px viewport never overflows. Pass `bare`
+ * to drop the inner padding when the panel hosts full-bleed divided rows.
  */
 export function Panel({
   children,
@@ -28,16 +31,14 @@ export function Panel({
   'data-test-id'?: string
 }) {
   return (
-    <section
+    <Card
       data-test-id={testId}
-      className={cn(
-        'rounded-[18px] border border-border bg-card',
-        bare ? '' : 'p-4 sm:p-5',
-        className,
-      )}
+      // gap-0: the panel stacks its children with their own rhythm (forms use
+      // space-y-*), so we neutralise Card's default flex gap.
+      className={cn('gap-0', bare ? 'p-0' : 'p-4 sm:p-5', className)}
     >
       {children}
-    </section>
+    </Card>
   )
 }
 
@@ -64,13 +65,13 @@ export function StatCard({
   'data-test-id'?: string
 }) {
   return (
-    <div className="rounded-[18px] border border-border bg-card p-5" data-test-id={testId}>
+    <Card className="gap-0 p-5" data-test-id={testId}>
       <p className="truncate text-[12.5px] text-muted-foreground">{label}</p>
       <p className="mt-1 font-heading text-[26px] font-extrabold tabular-nums tracking-[-0.5px] text-foreground sm:text-[28px]">
         {value}
       </p>
       {caption ? <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{caption}</p> : null}
-    </div>
+    </Card>
   )
 }
 
@@ -93,7 +94,7 @@ export function RecordAvatar({ name, className }: { name: string; className?: st
  * A record card: avatar + linked title + subtitle, an optional trailing slot
  * (e.g. a metric or index), an optional `meta` line, and an optional `footer`
  * for quick actions. The whole header links to the record; footer actions are
- * their own links beneath a divider.
+ * their own links beneath a divider. Composes the shadcn {@link Card}.
  */
 export function RecordCard({
   titleHref,
@@ -113,7 +114,7 @@ export function RecordCard({
   'data-test-id'?: string
 }) {
   return (
-    <div className="flex h-full flex-col rounded-[18px] border border-border bg-card p-4" data-test-id={testId}>
+    <Card className="h-full gap-0 p-4" data-test-id={testId}>
       <div className="flex items-center gap-3">
         <RecordAvatar name={title} />
         <div className="min-w-0 flex-1">
@@ -131,15 +132,17 @@ export function RecordCard({
       {footer ? (
         <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-4">{footer}</div>
       ) : null}
-    </div>
+    </Card>
   )
 }
 
 /**
  * Primary CTA rendered as a link — the header action on the owner dashboard
  * (new restaurant / upgrade) and the "manage" action in settings all share
- * this one pill so they never drift. `solid` is the filled brand button,
- * `outline` the quieter bordered variant.
+ * this one pill so they never drift. Styled with the shadcn `buttonVariants`
+ * on a `next/link` (RSC-safe — no client boundary), keeping the warm
+ * rounded-full pill shape. `solid` maps to the filled brand button
+ * (`default`), `outline` to the quieter bordered variant.
  */
 export function ActionButton({
   href,
@@ -157,10 +160,8 @@ export function ActionButton({
       href={href}
       data-test-id={testId}
       className={cn(
-        'inline-flex shrink-0 items-center gap-2 rounded-full px-5 py-2 text-[13.5px] font-semibold no-underline transition-colors',
-        variant === 'solid'
-          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-          : 'border border-border text-foreground hover:border-primary hover:text-primary',
+        buttonVariants({ variant: variant === 'solid' ? 'default' : 'outline' }),
+        'h-9 gap-2 rounded-full px-5 text-[13.5px] font-semibold no-underline',
       )}
     >
       {children}
@@ -182,7 +183,10 @@ export function RecordAction({
     <Link
       href={href}
       data-test-id={testId}
-      className="rounded-full border border-border px-2 py-2 text-center text-[13px] font-medium text-foreground no-underline transition-colors hover:border-primary hover:text-primary"
+      className={cn(
+        buttonVariants({ variant: 'outline' }),
+        'h-9 w-full rounded-full px-2 text-[13px] font-medium no-underline',
+      )}
     >
       {children}
     </Link>
