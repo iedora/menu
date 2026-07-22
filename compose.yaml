@@ -62,6 +62,10 @@ services:
     environment:
       <<: *otel-env
       DEPLOYMENT_ENV: development
+      # Dev migrates on boot (single superuser owns everything) — one-command
+      # loop. Prod leaves this off: migrations run as the owner role in a
+      # separate deploy step (see services/docker-entrypoint.sh).
+      MIGRATE_ON_BOOT: "1"
       AUTH_PORT: "8080"
       AUTH_DATABASE_URL: postgres://iedora:iedora@postgres:5432/auth?sslmode=disable
       # Audit is delivered over HTTP (hard rule: no cross-service DB access). Auth
@@ -101,6 +105,8 @@ services:
     environment:
       <<: *otel-env
       DEPLOYMENT_ENV: development
+      # See auth: dev migrates on boot; prod migrates as owner in a deploy step.
+      MIGRATE_ON_BOOT: "1"
       MENU_PORT: "8084"
       MENU_DATABASE_URL: postgres://iedora:iedora@postgres:5432/menu?sslmode=disable
       # Verifies dashboard USER tokens (public half of auth's signing key — the
