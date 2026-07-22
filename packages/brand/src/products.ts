@@ -56,6 +56,7 @@ export const PRODUCTS = {
   menu: 'menu',
   tutor: 'tutor',
   house: 'house',
+  vantage: 'vantage',
 } as const
 
 export type ProductId = (typeof PRODUCTS)[keyof typeof PRODUCTS]
@@ -69,5 +70,8 @@ export function productUrl(id: ProductId): string {
     case PRODUCTS.house:
       // House is the marketing surface at the apex domain — no subdomain.
       return process.env.HOUSE_SURFACE_URL ?? `https://${BRAND_DOMAIN}`
+    case PRODUCTS.vantage:
+      // Vantage is the platform super-admin console at its own subdomain.
+      return process.env.VANTAGE_SURFACE_URL ?? `https://vantage.${BRAND_DOMAIN}`
   }
 }

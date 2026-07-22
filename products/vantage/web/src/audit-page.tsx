@@ -1,9 +1,8 @@
 import type { Metadata } from "next"
 
-import { logView } from "@iedora/product-tutor/vantage/audit"
-import { audit } from "@iedora/product-tutor/vantage/clients"
-
-import { EmptyState, Mono, PageHeader, Panel, Pill, ServiceError, Table, Td, Th, TimeCell } from "../_components"
+import { logView } from "./audit"
+import { audit } from "./clients"
+import { EmptyState, Mono, PageHeader, Panel, Pill, ServiceError, Table, Td, Th, TimeCell } from "./components"
 
 export const metadata: Metadata = { title: "Audit log" }
 export const dynamic = "force-dynamic"

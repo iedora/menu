@@ -1,9 +1,8 @@
 import Link from "next/link"
 
-import { logView } from "@iedora/product-tutor/vantage/audit"
-import { audit, email, manage } from "@iedora/product-tutor/vantage/clients"
-
-import { Mono, PageHeader, Panel, Pill, StatCard, TimeCell } from "./_components"
+import { logView } from "./audit"
+import { audit, email, manage } from "./clients"
+import { Mono, PageHeader, Panel, Pill, StatCard, TimeCell } from "./components"
 
 export const dynamic = "force-dynamic"
 

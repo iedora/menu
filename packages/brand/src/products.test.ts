@@ -25,6 +25,7 @@ const ENV_KEYS = {
   menu: 'MENU_SURFACE_URL',
   tutor: 'TUTOR_SURFACE_URL',
   house: 'HOUSE_SURFACE_URL',
+  vantage: 'VANTAGE_SURFACE_URL',
 } as const satisfies Record<ProductId, string>
 
 afterEach(() => {
@@ -44,7 +45,7 @@ describe('PRODUCTS registry', () => {
     // The type is structural, but the runtime keys should match the
     // declared ProductId members. Touch each id so a future addition
     // requires updating this list.
-    const ids: ProductId[] = ['menu', 'tutor', 'house']
+    const ids: ProductId[] = ['menu', 'tutor', 'house', 'vantage']
     expect(new Set(ids)).toEqual(new Set(Object.values(PRODUCTS)))
   })
 })

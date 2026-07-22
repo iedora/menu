@@ -1,9 +1,8 @@
 import { Telescope } from "lucide-react"
 import type { Metadata } from "next"
 
-import { requireSuperAdmin } from "@iedora/product-tutor/vantage/gate"
-
-import { VantageNav } from "./_nav"
+import { requireSuperAdmin } from "./gate"
+import { VantageNav } from "./nav"
 
 export const metadata: Metadata = {
   title: { default: "Vantage", template: "%s · Vantage" },

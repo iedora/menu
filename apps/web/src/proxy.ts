@@ -119,7 +119,7 @@ export default async function proxy(req: NextRequest) {
   // Vantage (the platform super-admin console) needs the platform:admin role, not
   // just a session. Cheap unverified edge pre-filter — the layout's requireSuperAdmin
   // is the real JWKS-verified gate; here we 404 non-admins before the RSC renders.
-  if (internalPath.startsWith('/tutor/vantage') && !hasPlatformAdmin(auth.access)) {
+  if (internalPath.startsWith('/vantage') && !hasPlatformAdmin(auth.access)) {
     return applyCookieWrites(new NextResponse('Not Found', { status: 404 }), auth.cookieWrites)
   }
 

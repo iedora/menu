@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
     '@iedora/product-house',
     '@iedora/product-menu',
     '@iedora/product-tutor',
+    '@iedora/product-vantage',
     '@iedora/ui',
   ],
   // Version skew protection — forces hard navigation when the client

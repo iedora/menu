@@ -27,6 +27,7 @@
     "@iedora/product-house": "workspace:*",
     "@iedora/product-menu": "workspace:*",
     "@iedora/product-tutor": "workspace:*",
+    "@iedora/product-vantage": "workspace:*",
     "lucide-react": "^1.24.0",
     "@iedora/ui": "workspace:*",
     "@lezer/highlight": "^1.2.3",
