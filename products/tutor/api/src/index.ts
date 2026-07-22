@@ -5,13 +5,11 @@ import {
   parseEd25519PublicKey,
   serve,
 } from "@iedora/service-kit"
-import { connect } from "inngest/connect"
-
 import { buildApp } from "./app.ts"
 import { loadConfig } from "./config.ts"
-import { makeFunctions } from "./jobs/functions.ts"
+import type { TutorDeps } from "./deps.ts"
+import { createTutorJobs } from "./jobs/scheduler.ts"
 import { makeBilling } from "./lib/billing.ts"
-import { inngest } from "./lib/inngest.ts"
 import { makeLessonspace } from "./lib/lessonspace.ts"
 import type { TutorDB } from "./schema.ts"
 
@@ -30,27 +28,27 @@ const userVerifier = newUserVerifier(
   cfg.apiJwtAudience,
 )
 
-const deps = {
+// The job runner's handlers close over `deps` (to open rooms, charge, release)
+// and `deps` holds the runner — mutually referential. The `() => deps` thunk is
+// only invoked at poll time, after `deps` is initialized, so it is safe.
+const deps: TutorDeps = {
   db,
   userVerifier,
   cfg,
   billing: makeBilling(cfg),
   launchSpace: makeLessonspace(cfg.lessonspaceApiKey),
+  jobs: createTutorJobs(cfg.tutorDatabaseUrl, () => deps),
 }
 
 const app = buildApp(deps)
 
-// Durable timers (recurring charge, auto-release, lesson-room) run over an
-// outbound Inngest connect() worker — the service is internal, so Inngest reaches
-// it via this persistent WebSocket rather than an inbound HTTP endpoint. Signing/
-// event keys come from INNGEST_* env.
-const inngestConnection = await connect({ apps: [{ client: inngest, functions: makeFunctions(deps) }] })
-
+// Durable timers (recurring charge, auto-release, lesson-room) run over a
+// Postgres-backed scheduler that polls this service's OWN database — no external
+// worker, no inbound endpoint. serve() starts it after listen, stops it on
+// shutdown. Replaces the former Inngest connect() worker.
 serve(app, {
   name: "iedora-tutor-api",
   port: cfg.port,
-  onShutdown: async () => {
-    await inngestConnection.close()
-    await db.close()
-  },
+  workers: [deps.jobs],
+  onShutdown: () => db.close(),
 })
