@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   BASE32_UNAMBIGUOUS,
+  browserTimezone,
   clamp,
   clampLimit,
   DAY,
@@ -121,5 +122,11 @@ describe("isValidTimezone", () => {
   it("accepts real zones and rejects junk", () => {
     expect(isValidTimezone("Europe/London")).toBe(true)
     expect(isValidTimezone("Not/AZone")).toBe(false)
+  })
+})
+
+describe("browserTimezone", () => {
+  it("returns a valid IANA zone (or the fallback)", () => {
+    expect(isValidTimezone(browserTimezone("UTC"))).toBe(true)
   })
 })

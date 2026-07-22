@@ -8,3 +8,9 @@ export function isValidTimezone(tz: string): boolean {
     return false
   }
 }
+
+/** The viewer's IANA zone as the browser reports it, or `fallback` when it can't
+ *  be resolved (non-browser runtime, locked-down environment). */
+export function browserTimezone(fallback = "UTC"): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || fallback
+}

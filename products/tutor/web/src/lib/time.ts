@@ -1,5 +1,6 @@
 // Subpath, not the barrel: this module is imported by client components, and the
 // barrel re-exports the pg client, which drags pg + node:dns into the browser.
+import { browserTimezone as resolveBrowserTimezone } from "@iedora/common"
 import { DEFAULT_TIMEZONE } from "@iedora/product-tutor/domain/time"
 import { DateTime } from "luxon"
 
@@ -62,9 +63,10 @@ export function describeZone(tz: string): string {
   return `${city} (${dt.toFormat("ZZZZ")})`
 }
 
-/** The viewer's zone as the browser sees it, for defaulting a new account. */
+/** The viewer's zone as the browser sees it, for defaulting a new account.
+ *  Falls back to the tutor default rather than UTC. */
 export function browserTimezone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE
+  return resolveBrowserTimezone(DEFAULT_TIMEZONE)
 }
 
 /**
