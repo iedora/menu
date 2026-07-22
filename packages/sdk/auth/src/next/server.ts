@@ -45,8 +45,10 @@ export function createAuthNext(config: AuthNextConfig, hooks: { onAuthenticated?
   }
   async function clearSession(): Promise<void> {
     const jar = await cookies()
-    jar.delete(names.access)
-    jar.delete(names.refresh)
+    // Delete must carry the SAME domain/path the cookie was set with — a bare-name
+    // delete only clears a host-only cookie, leaving a `.iedora.com` SSO cookie live.
+    jar.delete({ name: names.access, path: opts.path, domain: config.cookieDomain })
+    jar.delete({ name: names.refresh, path: opts.path, domain: config.cookieDomain })
   }
   async function readAccess(): Promise<string | undefined> {
     return (await cookies()).get(names.access)?.value
