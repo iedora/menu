@@ -5,7 +5,6 @@ import { manage } from "./clients"
 import { EmptyState, Mono, PageHeader, Panel, Pill, ServiceError, Table, Td, Th, TimeCell } from "./components"
 
 export const metadata: Metadata = { title: "Users" }
-export const dynamic = "force-dynamic"
 
 export default async function UsersPage() {
   await logView("vantage.users.viewed")

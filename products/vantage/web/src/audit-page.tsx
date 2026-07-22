@@ -5,7 +5,6 @@ import { audit } from "./clients"
 import { EmptyState, Mono, PageHeader, Panel, Pill, ServiceError, Table, Td, Th, TimeCell } from "./components"
 
 export const metadata: Metadata = { title: "Audit log" }
-export const dynamic = "force-dynamic"
 
 function outcomeTone(o: string): "ok" | "bad" | "muted" {
   if (o === "success") return "ok"
