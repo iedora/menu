@@ -140,6 +140,21 @@ jobs:
       # serialize so they don't contend. TEST_DATABASE_URL reaches them via
       # turbo.json passThroughEnv (turbo strips undeclared env by default).
       - run: pnpm exec turbo run test --concurrency=1
+      # Full production build of the web app. Catches what typecheck/test miss —
+      # clean-install module resolution, Tailwind v4 @source scanning, the
+      # next-intl request/i18n config, and RSC/turbopack bundling. The vantage
+      # clients require these env vars at module load, so page-data collection
+      # throws without them; the values are throwaway (no network happens at
+      # build time).
+      - name: next build (apps/web)
+        run: pnpm --dir apps/web run build
+        env:
+          AUTH_BASE_URL: http://build.local
+          SERVICE_CLIENT_ID: build
+          SERVICE_CLIENT_SECRET: build
+          AUDIT_BASE_URL: http://build.local
+          EMAIL_BASE_URL: http://build.local
+          MENU_URL: http://build.local
 
   security:
     runs-on: ubuntu-latest
