@@ -34,7 +34,6 @@
     "./components/back-link": "./src/components/back-link.tsx",
     "./components/scroll-restore": "./src/components/scroll-restore.tsx",
     "./components/sign-out-button": "./src/components/sign-out-button.tsx",
-    "./components/theme-toggle": "./src/components/theme-toggle.tsx",
     "./contracts/account": "./src/contracts/account.ts",
     "./contracts/admin": "./src/contracts/admin.ts",
     "./contracts/booking": "./src/contracts/booking.ts",

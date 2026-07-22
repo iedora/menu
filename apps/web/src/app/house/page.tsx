@@ -8,7 +8,7 @@ import {
   StackIcon,
 } from '@phosphor-icons/react/ssr'
 import { Card, CardContent } from '@iedora/ui/components/ui/card'
-import { ThemeToggle } from '../../components/theme-toggle'
+import { ThemeToggle } from '@iedora/ui/components/theme-toggle'
 import {
   Accent,
   CheckList,

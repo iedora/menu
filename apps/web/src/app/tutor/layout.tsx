@@ -1,4 +1,4 @@
-import { Toaster } from "@iedora/product-tutor/components/toaster"
+import { Toaster } from "@iedora/ui/components/toaster"
 import type { Metadata } from "next"
 
 // The tutor surface's PWA manifest is served by a route handler (Next's root-only

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@iedora/ui/components/ui/card'
 import { signInUrl, signUpUrl } from '@iedora/product-menu/shared/auth-urls'
 import { LangSwitch } from './lang-switch'
 import { MenuPreviewCard } from './menu-preview-card'
-import { ThemeToggle } from '../../../../components/theme-toggle'
+import { ThemeToggle } from '@iedora/ui/components/theme-toggle'
 import {
   Accent,
   CheckList,

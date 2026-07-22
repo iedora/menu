@@ -12,7 +12,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import "@iedora/ui/styles.css";
 import "./globals.css";
-import { ThemeProvider } from "../components/theme-provider";
+import { ThemeProvider } from "@iedora/ui/components/theme-provider";
 
 // Printed-menu vocabulary — four faces of the same voice:
 //   --display   Playfair Display 600   wordmark + h1
