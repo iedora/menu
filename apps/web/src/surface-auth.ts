@@ -26,8 +26,14 @@ export const SURFACE_AUTH: Record<string, SurfaceAuth> = {
       "/tutor/settings",
       "/tutor/account",
       "/tutor/admin",
-      "/tutor/vantage",
     ],
+  },
+  [PRODUCTS.vantage]: {
+    productId: PRODUCTS.vantage,
+    // The whole vantage surface is the platform super-admin console: a session is
+    // required, then the proxy's platform:admin pre-filter (and the layout's
+    // JWKS-verified requireSuperAdmin) 404s non-admins.
+    protectedPrefixes: ["/vantage"],
   },
 }
 

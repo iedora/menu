@@ -82,10 +82,7 @@
     "./lib/oauth-client": "./src/lib/oauth-client.ts",
     "./lib/safe-action": "./src/lib/safe-action.ts",
     "./lib/time": "./src/lib/time.ts",
-    "./types": "./src/types.ts",
-    "./vantage/audit": "./src/vantage/audit.ts",
-    "./vantage/clients": "./src/vantage/clients.ts",
-    "./vantage/gate": "./src/vantage/gate.ts"
+    "./types": "./src/types.ts"
   },
   "scripts": {
     "typecheck": "tsgo --build",

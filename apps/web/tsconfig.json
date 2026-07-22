@@ -26,7 +26,8 @@
   "references": [
     { "path": "../../products/house/web" },
     { "path": "../../products/menu/web" },
-    { "path": "../../products/tutor/web" }
+    { "path": "../../products/tutor/web" },
+    { "path": "../../products/vantage/web" }
   ],
   "include": [
     "next-env.d.ts",

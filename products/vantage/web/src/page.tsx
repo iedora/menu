@@ -1,11 +1,9 @@
 import Link from "next/link"
 
-import { logView } from "@iedora/product-tutor/vantage/audit"
-import { audit, email, manage } from "@iedora/product-tutor/vantage/clients"
+import { logView } from "./audit"
+import { audit, email, manage } from "./clients"
+import { Mono, PageHeader, Panel, Pill, StatCard, TimeCell } from "./components"
 
-import { Mono, PageHeader, Panel, Pill, StatCard, TimeCell } from "./_components"
-
-export const dynamic = "force-dynamic"
 
 // Fulfilled value or null — one service being down doesn't sink the page.
 async function ok<T>(p: Promise<T>): Promise<T | null> {

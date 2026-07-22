@@ -113,3 +113,4 @@ menu-taberna-do-jose.extracted.json
 
 # Turborepo local cache
 .turbo/
+.pnpm-store/

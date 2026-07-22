@@ -13,6 +13,7 @@ import { BRAND_DOMAIN, PRODUCTS, surfaceHost } from '@iedora/brand'
 const brandHost = surfaceHost(process.env.BRAND_URL, BRAND_DOMAIN)
 const menuHost = surfaceHost(process.env.MENU_SURFACE_URL, `menu.${BRAND_DOMAIN}`)
 const tutorHost = surfaceHost(process.env.TUTOR_SURFACE_URL, `tutor.${BRAND_DOMAIN}`)
+const vantageHost = surfaceHost(process.env.VANTAGE_SURFACE_URL, `vantage.${BRAND_DOMAIN}`)
 
 export type Surface = {
   readonly name: string
@@ -71,9 +72,20 @@ export const surfaces: ReadonlyArray<Surface> = [
       "/sign-in",
       "/oauth-callback",
       "/t",
-      "/vantage",
       "/for-tutors",
       "/vs",
+    ],
+  },
+  {
+    name: "vantage",
+    hosts: [vantageHost, "vantage.localhost"],
+    rewritePath: "/vantage",
+    // Top-level segments the vantage pages emit (route groups add no path), so
+    // they resolve on plain localhost too. Kept aligned with app/vantage/.
+    aliasPaths: [
+      "/users",
+      "/audit",
+      "/emails",
     ],
   },
 ]

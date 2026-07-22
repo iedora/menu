@@ -1,0 +1,58 @@
+{
+  "name": "@iedora/product-vantage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vantage product — the platform super-admin console surface (vantage.iedora.com). A single gated surface over the platform SDKs: auth (users/sessions), audit (what happened), email (what was sent). The Next.js routes live in apps/web/src/app/vantage/; this package exposes the layout + pages + the data/gate/audit logic via explicit subpath exports so the apps/web routes import them by name. Access is gated on the platform:admin JWT role (verified offline).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./layout": "./src/layout.tsx",
+    "./page": "./src/page.tsx",
+    "./users": "./src/users-page.tsx",
+    "./audit": "./src/audit-page.tsx",
+    "./emails": "./src/emails-page.tsx",
+    "./clients": "./src/clients.ts",
+    "./gate": "./src/gate.ts",
+    "./audit-log": "./src/audit.ts"
+  },
+  "scripts": {
+    "typecheck": "tsgo --build",
+    "lint": "eslint --cache --cache-location node_modules/.cache/.eslintcache",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@iedora/auth-sdk": "workspace:*",
+    "@iedora/sdk": "workspace:*",
+    "@iedora/ui": "workspace:*",
+    "lucide-react": "^1.24.0"
+  },
+  "peerDependencies": {
+    "next": "^16.2.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@iedora/eslint-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-oxlint": "catalog:",
+    "jsdom": "catalog:",
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}
