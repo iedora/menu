@@ -1,5 +1,7 @@
 import type { Kysely } from "kysely"
 
+import { SECOND } from "@iedora/common"
+
 import { emitAudit } from "./audit.ts"
 import { db } from "./db.ts"
 import type { DB, Identity, Session, Tenant, User } from "./schema.ts"
@@ -291,8 +293,8 @@ export async function issueTokens(
       tenantId: tenant.id,
       userId: user.id,
       refreshTokenHash: refresh.hash,
-      expiresAt: new Date(now + config.refreshTtl * 1000),
-      absoluteExpiresAt: new Date(now + config.refreshAbsoluteTtl * 1000),
+      expiresAt: new Date(now + config.refreshTtl * SECOND),
+      absoluteExpiresAt: new Date(now + config.refreshAbsoluteTtl * SECOND),
       activeOrganizationId: org,
       ip: ctx.ip ?? null,
       userAgent: ctx.userAgent ?? null,
@@ -378,7 +380,7 @@ export async function rotateRefresh(
         userId: user.id,
         refreshTokenHash: refresh.hash,
         familyId: session.familyId,
-        expiresAt: new Date(now + config.refreshTtl * 1000),
+        expiresAt: new Date(now + config.refreshTtl * SECOND),
         absoluteExpiresAt: session.absoluteExpiresAt,
         activeOrganizationId: session.activeOrganizationId,
         ip: ctx.ip ?? session.ip,

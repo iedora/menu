@@ -1,3 +1,4 @@
+import { errorMessage } from "@iedora/common"
 import { createInbox } from "@iedora/messaging"
 import { type ServiceEnv, serviceAuth } from "@iedora/service-kit"
 import { Hono } from "hono"
@@ -66,7 +67,7 @@ export function sendRoutes(deps: EmailDeps) {
             to: m.payload.to,
             subject: m.payload.subject,
             status: "failed",
-            error: err instanceof Error ? err.message : String(err),
+            error: errorMessage(err),
           })
           throw err
         }

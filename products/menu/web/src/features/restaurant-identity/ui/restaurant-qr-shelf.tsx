@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { useTranslations } from 'next-intl'
+import { errorMessage } from '@iedora/common'
 import { Badge } from '@iedora/ui/components/ui/badge'
 import { Button } from '@iedora/ui/components/ui/button'
 import {
@@ -156,7 +157,7 @@ function StickerCard({
         if (!cancelled) setSvgMarkup(markup)
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setError(errorMessage(err))
       })
     return () => {
       cancelled = true
@@ -175,7 +176,7 @@ function StickerCard({
       const blob = await res.blob()
       triggerDownload(blob, fileBaseName(restaurantName, code) + '.png')
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorMessage(err))
     }
   }
 

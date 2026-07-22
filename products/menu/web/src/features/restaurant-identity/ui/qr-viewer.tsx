@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { useTranslations } from 'next-intl'
+import { errorMessage } from '@iedora/common'
 import { Button } from '@iedora/ui/components/ui/button'
 
 // PNG export resolution — high enough that downloaded prints stay sharp. The
@@ -35,7 +36,7 @@ export function QrViewer({
         if (!cancelled) setSvgMarkup(markup)
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setError(errorMessage(err))
       })
     return () => {
       cancelled = true
@@ -62,7 +63,7 @@ export function QrViewer({
       const blob = await res.blob()
       triggerDownload(blob, fileBaseName(restaurantName) + '.png')
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorMessage(err))
     }
   }
 

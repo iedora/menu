@@ -1,15 +1,9 @@
+import { clampLimit } from "@iedora/common"
 import { iso } from "@iedora/service-kit"
 import { type Kysely, sql } from "kysely"
 
 import type { EmailFilter, EmailQueryResponse, EmailRecord } from "../../contracts.ts"
 import type { EmailDB } from "../../schema.ts"
-
-const DEFAULT_LIMIT = 50
-const MAX_LIMIT = 200
-
-function clampLimit(n: number | undefined): number {
-  return n && n > 0 && n <= MAX_LIMIT ? n : DEFAULT_LIMIT
-}
 
 /** A single successful/failed send to record. `source` is the producer service
  *  (the service-token client id); `messageId` is set for relayed sends. */

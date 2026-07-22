@@ -1,22 +1,12 @@
+import { slugify as baseSlugify } from '@iedora/common'
+
 /**
- * Pure: name → URL-safe slug. Lower-cases, strips diacritics, collapses
- * non-alphanumerics to a single dash, trims edges, caps at 40 chars.
- *
- * Returns `"restaurant"` as a fallback when the input has no usable
- * characters (just emojis, just punctuation, only whitespace) so the
- * caller always gets a valid seed to feed to `nextAvailableSlug`.
- *
- * Framework-free — directly testable, no `server-only`.
+ * Pure: name → URL-safe slug, capped at 40 chars. Falls back to `"restaurant"`
+ * when the input has no usable characters (just emojis/punctuation/whitespace)
+ * so the caller always gets a valid seed to feed to `nextAvailableSlug`.
  */
 export function slugify(value: string): string {
-  const cleaned = value
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-  return cleaned || 'restaurant'
+  return baseSlugify(value, { maxLen: 40, fallback: 'restaurant' })
 }
 
 /**

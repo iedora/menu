@@ -8,6 +8,8 @@
  * folded into a nested object for rendering convenience.
  */
 
+import { DAY } from '@iedora/common'
+
 export type QrCodeListRow = {
   code: string
   restaurantId: string | null
@@ -43,7 +45,7 @@ export type QrStats = {
   topRestaurants: Array<{ name: string; count: number }>
 }
 
-const FRESH_WINDOW_MS = 24 * 60 * 60 * 1000
+const FRESH_WINDOW_MS = DAY
 
 export function computeQrStats(
   rows: ReadonlyArray<QrCodeListRow>,

@@ -14,6 +14,7 @@
     "lint": "eslint src --cache --cache-location node_modules/.cache/.eslintcache"
   },
   "dependencies": {
+    "@iedora/common": "workspace:*",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",

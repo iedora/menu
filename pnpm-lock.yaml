@@ -653,6 +653,9 @@ importers:
 
   packages/observability:
     dependencies:
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../common
       '@opentelemetry/api':
         specifier: 'catalog:'
         version: 1.9.1
@@ -970,6 +973,9 @@ importers:
       '@iedora/auth-sdk':
         specifier: workspace:*
         version: link:../../../packages/sdk/auth
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../../../packages/common
       '@iedora/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
@@ -1049,6 +1055,9 @@ importers:
       '@iedora/brand':
         specifier: workspace:*
         version: link:../../../packages/brand
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../../../packages/common
       '@iedora/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
@@ -1320,6 +1329,9 @@ importers:
       '@hono/zod-validator':
         specifier: 'catalog:'
         version: 0.9.0(hono@4.12.31)(zod@4.4.3)
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@iedora/db':
         specifier: workspace:*
         version: link:../../packages/framework/db
@@ -1378,6 +1390,9 @@ importers:
       '@hono/zod-validator':
         specifier: 'catalog:'
         version: 0.9.0(hono@4.12.31)(zod@4.4.3)
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@iedora/db':
         specifier: workspace:*
         version: link:../../packages/framework/db
@@ -1439,6 +1454,9 @@ importers:
       '@iedora/auth-sdk':
         specifier: workspace:*
         version: link:../../packages/sdk/auth
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@iedora/db':
         specifier: workspace:*
         version: link:../../packages/framework/db
@@ -1537,6 +1555,9 @@ importers:
       '@hono/zod-validator':
         specifier: 'catalog:'
         version: 0.9.0(hono@4.12.31)(zod@4.4.3)
+      '@iedora/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@iedora/db':
         specifier: workspace:*
         version: link:../../packages/framework/db

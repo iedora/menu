@@ -1,15 +1,9 @@
+import { clampLimit } from "@iedora/common"
 import { iso } from "@iedora/service-kit"
 import { type Kysely, sql } from "kysely"
 
 import type { AuditFilter, AuditQueryResponse, AuditRecord } from "../../contracts.ts"
 import type { AuditDB } from "../../schema.ts"
-
-const DEFAULT_LIMIT = 50
-const MAX_LIMIT = 200
-
-function clampLimit(n: number | undefined): number {
-  return n && n > 0 && n <= MAX_LIMIT ? n : DEFAULT_LIMIT
-}
 
 // queryAudit returns audit records newest-first using keyset pagination on
 // (occurred_at, id). The store is @iedora/audit; the action-log API shape is

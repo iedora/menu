@@ -1,3 +1,4 @@
+import { randomHex } from "@iedora/common";
 import type { Database } from "@iedora/service-runtime";
 
 import type { BlobClient } from "./blob.ts";
@@ -141,7 +142,5 @@ export class Uploads {
 
 // randomSlug defeats CDN/browser caching of replaced assets.
 function randomSlug(): string {
-  const b = new Uint8Array(6);
-  crypto.getRandomValues(b);
-  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return randomHex(6);
 }

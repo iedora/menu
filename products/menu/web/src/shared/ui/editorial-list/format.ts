@@ -1,3 +1,5 @@
+import { DAY, MINUTE } from '@iedora/common'
+
 /**
  * Format a row's "edited X" timestamp the way the carta-style design wants:
  *   - within the last 60 minutes → "X minutes ago"
@@ -18,8 +20,8 @@ export function formatEditedAt(
   now: Date = new Date(),
 ): string {
   const diffMs = now.getTime() - at.getTime()
-  const diffMin = Math.round(diffMs / 60_000)
-  const diffDay = Math.round(diffMs / (24 * 60 * 60_000))
+  const diffMin = Math.round(diffMs / MINUTE)
+  const diffDay = Math.round(diffMs / DAY)
 
   const time = new Intl.DateTimeFormat(locale, {
     hour: '2-digit',

@@ -1,2 +1,6 @@
 export { SECOND, MINUTE, HOUR, DAY, WEEK } from "./duration.ts"
 export { parseJson } from "./json.ts"
+export { errorMessage } from "./errors.ts"
+export { slugify, type SlugifyOptions } from "./slug.ts"
+export { BASE32_UNAMBIGUOUS, randomString, randomHex } from "./random.ts"
+export { clampLimit, type ClampLimitOptions } from "./pagination.ts"

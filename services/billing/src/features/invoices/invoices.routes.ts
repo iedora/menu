@@ -1,4 +1,5 @@
 import { type ServiceEnv, serviceAuth } from "@iedora/service-kit";
+import { DAY } from "@iedora/common";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import * as subscriptions from "../../data/subscriptions.ts";
 import type { BillingDeps } from "../../deps.ts";
 
 // A recorded payment activates the plan for a full year (the chosen paid period).
-const PAID_PERIOD_MS = 365 * 24 * 60 * 60 * 1000;
+const PAID_PERIOD_MS = 365 * DAY;
 
 // Vertical slice: the invoice ledger. With `tenant` → that tenant's invoices;
 // without → the recent cross-tenant feed (admin), `limit` clamped server-side.

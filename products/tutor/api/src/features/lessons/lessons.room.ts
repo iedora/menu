@@ -1,4 +1,5 @@
 import { isTerminal } from "#db/domain/status"
+import { MINUTE } from "@iedora/common"
 import type { Kysely } from "kysely"
 
 import { bumpConversation, findConversationId } from "../../data/conversations.ts"
@@ -7,7 +8,7 @@ import type { TutorDB } from "../../schema.ts"
 
 type DB = Kysely<TutorDB>
 
-const MS = 60_000
+const MS = MINUTE
 /** How long before the lesson the classroom opens. */
 export const ROOM_OPENS_MIN_BEFORE = 10
 /** Grace period after the scheduled end during which the link keeps working. */

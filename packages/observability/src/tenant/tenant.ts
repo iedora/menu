@@ -1,3 +1,4 @@
+import { errorMessage } from "@iedora/common";
 import { SpanStatusCode } from "@opentelemetry/api";
 import { tracer } from "../signals/tracer.ts";
 
@@ -73,7 +74,7 @@ export async function withTenantSpan<T>(
       span.recordException(err as Error);
       span.setStatus({
         code: SpanStatusCode.ERROR,
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       });
       throw err;
     } finally {

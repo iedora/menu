@@ -1,9 +1,9 @@
 // Physical QR sticker code helpers. Codes are a
 // cross-tenant registry; the store side (resolve/admin) lives in data/qr.ts.
+import { randomString } from "@iedora/common";
 
-// Crockford-flavoured base32 minus lookalikes (0/O, 1/I/L, U): codes survive
+// Codes use the unambiguous base32 alphabet (no 0/O, 1/I/L, U) so they survive
 // being read aloud or retyped from a sticker.
-const QR_ALPHABET = "abcdefghjkmnpqrstvwxyz23456789";
 const GENERATED_QR_LEN = 8;
 const qrPattern = /^[a-z0-9_-]{1,64}$/;
 
@@ -20,9 +20,5 @@ export function validQRCode(code: string): boolean {
 // Mints a random sticker code (~39 bits; the PK uniqueness check is the final
 // guard against the astronomically rare collision).
 export function generateQRCode(): string {
-  const buf = new Uint8Array(GENERATED_QR_LEN);
-  crypto.getRandomValues(buf);
-  let out = "";
-  for (const b of buf) out += QR_ALPHABET[b % QR_ALPHABET.length];
-  return out;
+  return randomString(GENERATED_QR_LEN);
 }

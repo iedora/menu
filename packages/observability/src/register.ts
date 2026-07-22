@@ -7,6 +7,7 @@
 // provider — silently dropping every span. Deferring the require to the frontend's
 // actual registerIedoraOtel() call keeps @vercel/otel (and Next's api) out of the
 // backend entirely.
+import { MINUTE } from "@iedora/common";
 import { trace, metrics } from "@opentelemetry/api";
 import { logs } from "@opentelemetry/api-logs";
 // Proto here too, for consistency with the trace exporter below — one
@@ -58,7 +59,7 @@ import { TenantContextSpanProcessor } from "./signals/processor.ts";
  * the picture, and anything much slower lags dashboards behind reality.
  * Override per-call via RegisterOptions.metricExportIntervalMs.
  */
-const DEFAULT_METRIC_EXPORT_INTERVAL_MS = 60_000;
+const DEFAULT_METRIC_EXPORT_INTERVAL_MS = MINUTE;
 
 // Sampling (no head sampling) + the infra noise filter live in their own
 // dependency-free module so register-node.ts can share them without pulling in

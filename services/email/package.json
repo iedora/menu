@@ -13,10 +13,11 @@
     "lint": "eslint . --cache --cache-location node_modules/.cache/.eslintcache"
   },
   "dependencies": {
+    "@hono/zod-validator": "catalog:",
+    "@iedora/common": "workspace:*",
     "@iedora/db": "workspace:*",
     "@iedora/messaging": "workspace:*",
     "@iedora/service-kit": "workspace:*",
-    "@hono/zod-validator": "catalog:",
     "hono": "catalog:",
     "kysely": "catalog:",
     "nodemailer": "^9.0.3",
@@ -24,13 +25,12 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
+    "@iedora/eslint-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.11.10",
-    "typescript": "catalog:",
-    "@iedora/eslint-config": "workspace:*",
     "eslint": "catalog:",
+    "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:"
   }

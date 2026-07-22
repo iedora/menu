@@ -1,3 +1,5 @@
+import { SECOND } from "@iedora/common"
+
 import { findUserByEmail, revokeAllUserSessions, writePassword } from "../../platform/accounts.ts"
 import { config } from "../../platform/config.ts"
 import { db } from "../../platform/db.ts"
@@ -22,7 +24,7 @@ export async function requestPasswordReset(tenant: Tenant, email: string): Promi
   if (!user) return
 
   const { token, hash } = newOpaqueToken()
-  const expiresAt = new Date(Date.now() + config.resetTtl * 1000)
+  const expiresAt = new Date(Date.now() + config.resetTtl * SECOND)
   const url = `${appOrigin(tenant)}${config.resetPath}?token=${encodeURIComponent(token)}`
   const mail = passwordResetEmail(tenant.name, url, Math.round(config.resetTtl / 60))
 

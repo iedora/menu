@@ -1,4 +1,5 @@
 import type { Database } from "@iedora/service-runtime";
+import { SECOND } from "@iedora/common";
 import { sql } from "kysely";
 
 import { RateLimitError } from "./errors.ts";
@@ -30,7 +31,7 @@ export const Policies: Record<string, Policy> = {
   beacon_rest: { name: "beacon_rest", limit: 5000, windowSeconds: HOUR, failClosed: false },
 };
 
-const SWEEP_INTERVAL_MS = 60_000;
+const SWEEP_INTERVAL_MS = 60 * SECOND;
 
 export class Limiter<DB> {
   // In-process sliding windows for the cosmetic (failClosed:false) policies —
@@ -95,7 +96,7 @@ export class Limiter<DB> {
       return;
     }
     if (count >= p.limit) {
-      const retryMs = oldest.getTime() + p.windowSeconds * 1000 - Date.now();
+      const retryMs = oldest.getTime() + p.windowSeconds * SECOND - Date.now();
       throw new RateLimitError(Math.max(1, Math.ceil(retryMs / 1000)));
     }
   }
@@ -105,7 +106,7 @@ export class Limiter<DB> {
   // mirroring the Postgres path's semantics and Retry-After.
   private allowInProcess(p: Policy, key: string): void {
     const now = Date.now();
-    const windowMs = p.windowSeconds * 1000;
+    const windowMs = p.windowSeconds * SECOND;
     const cutoff = now - windowMs;
 
     let times = this.windows.get(key);
@@ -132,7 +133,7 @@ export class Limiter<DB> {
     if (now - this.lastSweep < SWEEP_INTERVAL_MS) return;
     this.lastSweep = now;
     for (const [key, times] of this.windows) {
-      const windowMs = (Policies[key.slice(0, key.indexOf(":"))]?.windowSeconds ?? HOUR) * 1000;
+      const windowMs = (Policies[key.slice(0, key.indexOf(":"))]?.windowSeconds ?? HOUR) * SECOND;
       if (times.length === 0 || times[times.length - 1]! <= now - windowMs) this.windows.delete(key);
     }
   }

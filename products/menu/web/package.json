@@ -60,6 +60,7 @@
     "@iedora/api-client": "workspace:*",
     "@iedora/auth-sdk": "workspace:*",
     "@iedora/brand": "workspace:*",
+    "@iedora/common": "workspace:*",
     "@iedora/contracts": "workspace:*",
     "@iedora/service-menu": "workspace:*",
     "@iedora/ui": "workspace:*",
@@ -84,15 +85,15 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "6.0.2",
     "eslint": "catalog:",
+    "eslint-plugin-oxlint": "catalog:",
+    "jsdom": "catalog:",
     "next": "catalog:",
     "next-intl": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
-    "vitest": "catalog:",
-    "jsdom": "catalog:",
-    "eslint-plugin-oxlint": "catalog:"
+    "vitest": "catalog:"
   },
   "ignoreScripts": [
     "sharp",

@@ -1,3 +1,5 @@
+import { slugify } from "@iedora/common"
+
 import { db } from "../../platform/db.ts"
 import { HttpError } from "../../platform/http.ts"
 import type { Organization, Tenant, User } from "../../platform/schema.ts"
@@ -8,16 +10,6 @@ import { signAccessToken } from "../../platform/tokens.ts"
 export const ROLES = ["owner", "admin", "member"] as const
 export type Role = (typeof ROLES)[number]
 const RANK: Record<string, number> = { owner: 3, admin: 2, member: 1 }
-
-function slugify(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "org"
-  )
-}
 
 /** The caller's role in an org, or null when they're not a member. */
 export async function membershipRole(
@@ -53,7 +45,8 @@ export async function createOrganization(
   ownerUserId: string,
   input: { name: string; slug?: string },
 ): Promise<Organization> {
-  const base = input.slug ? slugify(input.slug) : slugify(input.name)
+  const opts = { maxLen: 60, fallback: "org" }
+  const base = input.slug ? slugify(input.slug, opts) : slugify(input.name, opts)
   return db.transaction().execute(async (trx) => {
     // Resolve a slug collision within the tenant by suffixing -2, -3, …
     let slug = base

@@ -1,4 +1,5 @@
 import { type Kysely, sql } from "kysely";
+import { WEEK } from "@iedora/common";
 
 import type { MenuDB } from "../schema.ts";
 import type { DailyPoint } from "./analytics.ts";
@@ -168,7 +169,7 @@ export async function staffRestaurantById(db: DB, id: string, now: Date): Promis
 
 export async function staffAlerts(db: DB, now: Date): Promise<StaffAlerts> {
   const since = window30(now);
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now.getTime() - WEEK);
 
   const stale = await sql<StaffRow>`
     SELECT ${ROW_COLS()} FROM restaurants r ${ROW_JOINS(since)}

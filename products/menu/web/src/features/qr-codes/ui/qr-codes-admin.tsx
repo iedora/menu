@@ -1,5 +1,6 @@
 'use client'
 
+import { DAY } from '@iedora/common'
 import * as React from 'react'
 import { useDeferredValue, useState, useTransition } from 'react'
 import Link from 'next/link'
@@ -595,7 +596,7 @@ function formatRelative(
 ): string {
   const d = new Date(input)
   const ms = Date.now() - d.getTime()
-  const day = 24 * 60 * 60 * 1000
+  const day = DAY
   if (ms < day) return t('qrCodes.relativeToday')
   if (ms < 2 * day) return t('qrCodes.relativeYesterday')
   const days = Math.floor(ms / day)

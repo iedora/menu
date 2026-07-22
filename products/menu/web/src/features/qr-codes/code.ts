@@ -13,19 +13,14 @@
  * `/q/ABC` and `/q/abc` resolve to the same row.
  */
 
-const ALPHABET = '23456789abcdefghjkmnpqrstvwxyz'
+import { randomString } from '@iedora/common'
+
 const GEN_LEN = 8
 const MAX_LEN = 64
 const SHAPE = /^[a-z0-9_-]+$/
 
 export function generateQrCode(): string {
-  const bytes = new Uint8Array(GEN_LEN)
-  crypto.getRandomValues(bytes)
-  let out = ''
-  for (let i = 0; i < GEN_LEN; i++) {
-    out += ALPHABET[bytes[i]! % ALPHABET.length]
-  }
-  return out
+  return randomString(GEN_LEN)
 }
 
 /**

@@ -1,4 +1,5 @@
 import { AuditClient } from "@iedora/sdk/audit";
+import { HOUR } from "@iedora/common";
 import { ServiceTokenSource } from "@iedora/auth-sdk/tokens";
 import {
   Database,
@@ -15,7 +16,7 @@ import { ManualKind, type PaymentKinds } from "./kinds.ts";
 import type { BillingDB } from "./schema.ts";
 import { createStripeKind } from "./stripe-gateway.ts";
 
-const EXPIRY_SWEEP_MS = 60 * 60 * 1000; // hourly
+const EXPIRY_SWEEP_MS = HOUR; // hourly
 
 expandFileSecrets();
 const cfg = loadConfig();

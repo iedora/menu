@@ -18,17 +18,18 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@hono/zod-validator": "catalog:",
     "@iedora/auth-sdk": "workspace:*",
-    "@iedora/sdk": "workspace:*",
+    "@iedora/common": "workspace:*",
     "@iedora/contracts": "workspace:*",
     "@iedora/menu-observability": "workspace:*",
+    "@iedora/sdk": "workspace:*",
     "@iedora/service-runtime": "workspace:*",
-    "@hono/zod-validator": "catalog:",
+    "aws4fetch": "catalog:",
     "hono": "catalog:",
     "kysely": "catalog:",
-    "zod": "catalog:",
-    "aws4fetch": "catalog:",
-    "@hono/node-server": "catalog:"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@iedora/eslint-config": "workspace:*",

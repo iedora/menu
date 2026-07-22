@@ -1,3 +1,5 @@
+import { slugify as baseSlugify } from "@iedora/common";
+
 // Slug rules — 2–40 chars, lowercase
 // alphanumerics and single dashes, starting and ending alphanumeric. Globally
 // unique across restaurants.
@@ -12,25 +14,11 @@ export function validSlug(s: string): boolean {
   );
 }
 
-// slugify derives a slug candidate from a display name: deaccented, lowered,
-// non-alphanumerics collapsed to single dashes, trimmed to the length limits.
-// Returns "" when nothing usable remains (caller falls back to a generated id).
+// slugify derives a slug candidate from a display name, within the length rules.
+// Returns "" when nothing usable (or too short) remains (caller falls back to a
+// generated id).
 export function slugify(name: string): string {
-  const flat = name.normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  let out = "";
-  let dash = true; // suppress leading dash
-  for (const r of flat.toLowerCase()) {
-    if ((r >= "a" && r <= "z") || (r >= "0" && r <= "9")) {
-      out += r;
-      dash = false;
-    } else if (!dash) {
-      out += "-";
-      dash = true;
-    }
-  }
-  let s = trimDashes(out);
-  if (s.length > MAX_SLUG_LEN) s = trimDashes(s.slice(0, MAX_SLUG_LEN));
-  return s.length < MIN_SLUG_LEN ? "" : s;
+  return baseSlugify(name, { maxLen: MAX_SLUG_LEN, minLen: MIN_SLUG_LEN, fallback: "" });
 }
 
 // numbered returns the n-th collision candidate ("tasca", "tasca-2", …), within
