@@ -23,3 +23,18 @@ export const signUpSchema = z.object({
     .min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`),
 })
 export type SignUpInput = z.infer<typeof signUpSchema>
+
+export const forgotPasswordSchema = z.object({
+  email: z.string({ error: "Enter your email" }).min(1, "Enter your email").email("Enter a valid email"),
+})
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string({ error: "Choose a password" })
+      .min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`),
+    confirm: z.string({ error: "Re-enter your password" }),
+  })
+  .refine((d) => d.password === d.confirm, { message: "Passwords don't match", path: ["confirm"] })
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>

@@ -7,7 +7,10 @@
   "exports": {
     "./layout": "./src/layout.tsx",
     "./sign-in": "./src/sign-in.tsx",
-    "./sign-up": "./src/sign-up.tsx"
+    "./sign-up": "./src/sign-up.tsx",
+    "./forgot-password": "./src/forgot-password.tsx",
+    "./reset-password": "./src/reset-password.tsx",
+    "./oauth-callback": "./src/oauth-callback.tsx"
   },
   "scripts": {
     "typecheck": "tsgo --build",

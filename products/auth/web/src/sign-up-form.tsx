@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useActionState, useEffect, useState } from "react"
 
 import { signUpAction } from "./actions.ts"
+import { OAuthButtons } from "./oauth-buttons.tsx"
 import { PASSWORD_MIN, signUpSchema } from "./schemas.ts"
 
 export function SignUpForm({ next, signInHref }: { next: string; signInHref: string }) {

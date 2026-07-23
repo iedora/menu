@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useActionState, useEffect, useState } from "react"
 
 import { signInAction } from "./actions.ts"
+import { OAuthButtons } from "./oauth-buttons.tsx"
 import { signInSchema } from "./schemas.ts"
 
 export function SignInForm({ next, signUpHref }: { next: string; signUpHref: string }) {
@@ -51,7 +52,8 @@ export function SignInForm({ next, signUpHref }: { next: string; signUpHref: str
         <CardTitle className="text-xl">Welcome back</CardTitle>
         <CardDescription>Sign in to your iedora account.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-5">
+        <OAuthButtons next={next} />
         <form {...getFormProps(form)} action={action} className="flex flex-col gap-5">
           <input type="hidden" name="next" value={next} />
           <TextField
@@ -65,17 +67,25 @@ export function SignInForm({ next, signUpHref }: { next: string; signUpHref: str
             placeholder="you@example.com"
             error={fields.email.errors?.[0]}
           />
-          <PasswordField
-            key={pwKey}
-            {...pwProps}
-            label="Password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={fields.password.errors?.[0]}
-            showLabel="Show password"
-            hideLabel="Hide password"
-          />
+          <div className="flex flex-col gap-1.5">
+            <PasswordField
+              key={pwKey}
+              {...pwProps}
+              label="Password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={fields.password.errors?.[0]}
+              showLabel="Show password"
+              hideLabel="Hide password"
+            />
+            <Link
+              href="/forgot-password"
+              className="self-end text-[13px] font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           {form.errors && (
             <p className="text-[13px] text-destructive" role="alert">
               {form.errors[0]}
