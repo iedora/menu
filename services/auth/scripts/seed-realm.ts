@@ -26,19 +26,24 @@ const ORIGINS = [
   "http://localhost:3000",
 ]
 
-async function admin(path: string, body: unknown): Promise<void> {
+async function admin(path: string, body: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(`${AUTH}${path}`, {
     method: "POST",
     headers: { authorization: `Bearer ${ADMIN}`, "content-type": "application/json" },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`POST ${path} → ${res.status} ${await res.text()}`)
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>
 }
 
 interface ServiceClient {
   clientId: string
   secret: string
   name: string
+  /** Scope the client to the iedora tenant. Required for clients that call the
+   *  tenant-scoped `/manage` API (e.g. Vantage) — those 400 `tenant_scope_required`
+   *  when platform-scoped. Cross-service M2M clients stay platform-scoped (omit). */
+  tenantScoped?: boolean
 }
 
 function serviceClients(): ServiceClient[] {
@@ -55,12 +60,13 @@ function serviceClients(): ServiceClient[] {
 
 console.log(`Seeding the "${REALM}" realm at ${AUTH}`)
 
-await admin("/admin/tenants", {
+const tenant = await admin("/admin/tenants", {
   slug: REALM,
   name: "iedora",
   tokenAudience: REALM,
   allowedOrigins: ORIGINS,
 })
+const tenantId = tenant.id as string
 console.log("  ✓ tenant")
 
 await admin(`/admin/tenants/${REALM}/providers`, { providerId: "password", kind: "password" })
@@ -71,8 +77,9 @@ for (const client of serviceClients()) {
     clientId: client.clientId,
     secret: client.secret,
     name: client.name,
+    ...(client.tenantScoped ? { tenantId } : {}),
   })
-  console.log(`  ✓ service client "${client.clientId}"`)
+  console.log(`  ✓ service client "${client.clientId}"${client.tenantScoped ? " (tenant-scoped)" : ""}`)
 }
 
 console.log(`Done. All products now share the "${REALM}" directory.`)
