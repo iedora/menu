@@ -1,5 +1,14 @@
 "use client"
 
+import { Button } from "@iedora/ui/components/ui/button"
+import { Input } from "@iedora/ui/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@iedora/ui/components/ui/select"
 import { cn } from "@iedora/ui/lib/utils"
 import { Check, Plus, Trash2 } from "lucide-react"
 import { useAction } from "next-safe-action/hooks"
@@ -107,7 +116,7 @@ function QualRow({ qual }: { qual: TutorQualification }) {
             >
               £
             </span>
-            <input
+            <Input
               type="number"
               inputMode="decimal"
               min={MIN_POUNDS}
@@ -121,20 +130,22 @@ function QualRow({ qual }: { qual: TutorQualification }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur()
               }}
-              className="h-11 w-24 rounded-xl border border-border bg-background pr-3 pl-7 text-sm tabular-nums outline-none focus:border-primary disabled:opacity-60"
+              className="h-11 w-24 rounded-xl pr-3 pl-7 text-sm tabular-nums"
             />
           </div>
 
           {qual.removable ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => remove.execute({ qualificationId: qual.qualificationId })}
               disabled={remove.isPending}
               aria-label={`Remove ${qual.subject}`}
-              className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+              className="size-9 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
               <Trash2 className="size-4" />
-            </button>
+            </Button>
           ) : (
             <span className="grid size-9 place-items-center">
               <Check
@@ -169,29 +180,32 @@ function AddSubject({ available }: { available: SubjectOption[] }) {
 
   return (
     <div className="flex items-center gap-2">
-      <select
+      <Select
         value={subjectId}
         disabled={isPending}
-        onChange={(e) => setSubjectId(e.target.value)}
-        aria-label="Add a subject"
-        className="h-11 min-w-0 flex-1 appearance-none rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary disabled:opacity-60"
+        onValueChange={(v) => setSubjectId(v ?? "")}
+        items={available.map((s) => ({ value: s.subjectId, label: s.subject }))}
       >
-        <option value="">Add a subject you teach…</option>
-        {available.map((s) => (
-          <option key={s.subjectId} value={s.subjectId}>
-            {s.subject}
-          </option>
-        ))}
-      </select>
-      <button
+        <SelectTrigger aria-label="Add a subject" className="h-11 min-w-0 flex-1 rounded-xl">
+          <SelectValue placeholder="Add a subject you teach…" />
+        </SelectTrigger>
+        <SelectContent>
+          {available.map((s) => (
+            <SelectItem key={s.subjectId} value={s.subjectId}>
+              {s.subject}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
         type="button"
         onClick={() => subjectId && execute({ subjectId })}
         disabled={!subjectId || isPending}
-        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+        className="h-11 shrink-0 rounded-xl px-4"
       >
         <Plus className="size-4" />
         Add
-      </button>
+      </Button>
     </div>
   )
 }

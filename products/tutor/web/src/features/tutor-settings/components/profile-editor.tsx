@@ -1,6 +1,8 @@
 "use client"
 
-import { cn } from "@iedora/ui/lib/utils"
+import { Button } from "@iedora/ui/components/ui/button"
+import { Label } from "@iedora/ui/components/ui/label"
+import { Textarea } from "@iedora/ui/components/ui/textarea"
 import { Check } from "lucide-react"
 import { useAction } from "next-safe-action/hooks"
 import { useState } from "react"
@@ -69,17 +71,17 @@ export function ProfileEditor({ profile }: { profile: TutorProfile }) {
       />
 
       <div className="flex items-center gap-3">
-        <button
+        <Button
           type="button"
           onClick={() => {
             setPending(false)
             execute({ tagline, bio, teachingStyle })
           }}
           disabled={!dirty || isPending}
-          className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+          className="h-10 rounded-xl px-4"
         >
           {isPending ? "Sending…" : "Send for review"}
-        </button>
+        </Button>
         {!dirty && !isPending && (
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Check className="size-4 text-primary" />
@@ -112,20 +114,18 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
+      <Label htmlFor={id} className="text-sm font-medium">
         {label}
-      </label>
+      </Label>
       <p className="text-xs text-muted-foreground">{hint}</p>
-      <textarea
+      <Textarea
         id={id}
         rows={rows}
         value={value}
         maxLength={maxLength}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          "w-full resize-y rounded-xl border border-border bg-background p-3 text-sm leading-relaxed outline-none focus:border-primary disabled:opacity-60",
-        )}
+        className="resize-y rounded-xl p-3 leading-relaxed"
       />
       <span className="self-end text-[11px] tabular-nums text-muted-foreground">
         {value.length}/{maxLength}

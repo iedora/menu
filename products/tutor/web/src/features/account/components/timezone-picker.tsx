@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@iedora/ui/lib/utils"
+import { Button } from "@iedora/ui/components/ui/button"
 import { Check, Globe } from "lucide-react"
 import { useAction } from "next-safe-action/hooks"
 import { useEffect, useState } from "react"
@@ -98,17 +98,15 @@ export function TimezonePicker({ timezone }: { timezone: string }) {
 
       {/* The common case is someone who moved, or who never set this at all. */}
       {offerDetected && (
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => save(detected)}
           disabled={isPending}
-          className={cn(
-            "mt-3 w-full rounded-lg border border-dashed border-border px-3 py-2 text-xs font-medium text-primary",
-            "active:scale-[0.99] disabled:opacity-60",
-          )}
+          className="mt-3 h-auto w-full rounded-lg border-dashed px-3 py-2 text-xs text-primary active:scale-[0.99]"
         >
           Your device says {describeZone(detected)} — use that
-        </button>
+        </Button>
       )}
     </div>
   )

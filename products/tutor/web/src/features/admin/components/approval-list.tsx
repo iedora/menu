@@ -1,5 +1,7 @@
 "use client"
 
+import { Badge } from "@iedora/ui/components/ui/badge"
+import { Button } from "@iedora/ui/components/ui/button"
 import { cn } from "@iedora/ui/lib/utils"
 import { Check, ExternalLink, X } from "lucide-react"
 import { useAction } from "next-safe-action/hooks"
@@ -54,9 +56,7 @@ function ChangeItem({ change }: { change: AdminChange }) {
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-          {KIND_LABEL[change.kind]}
-        </span>
+        <Badge className="bg-primary/10 px-2.5 py-0.5 text-primary">{KIND_LABEL[change.kind]}</Badge>
         {change.tutorSlug ? (
           <Link
             href={`/t/${change.tutorSlug}`}
@@ -76,24 +76,25 @@ function ChangeItem({ change }: { change: AdminChange }) {
       {change.kind === "profile" && <ProfileDiff payload={change.payload} />}
 
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
           onClick={() => approve.execute({ changeId: change.id })}
           disabled={busy}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+          className="h-9 rounded-lg px-3"
         >
           <Check className="size-4" />
           Approve
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => reject.execute({ changeId: change.id })}
           disabled={busy}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
+          className="h-9 rounded-lg px-3 text-muted-foreground hover:border-destructive/40 hover:text-destructive"
         >
           <X className="size-4" />
           Reject
-        </button>
+        </Button>
       </div>
     </li>
   )

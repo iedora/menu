@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@iedora/ui/components/ui/badge"
 import { Button } from "@iedora/ui/components/ui/button"
 import { cn } from "@iedora/ui/lib/utils"
 import { Check, Star } from "lucide-react"
@@ -144,8 +145,8 @@ function StatusPill({ status }: { status: string }) {
         ? "border-destructive/40 bg-destructive/10 text-destructive"
         : "border-border bg-muted text-muted-foreground"
   return (
-    <span className={cn("rounded-md border px-2 py-0.5 font-mono text-[0.7rem]", tone)}>
+    <Badge className={cn("rounded-md border px-2 py-0.5 font-mono text-[0.7rem]", tone)}>
       {status.replace(/_/g, " ")}
-    </span>
+    </Badge>
   )
 }

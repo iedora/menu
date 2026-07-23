@@ -6,6 +6,7 @@
 import { XP } from "@iedora/product-tutor/domain/status"
 import { REVIEW_TAG_LABEL, REVIEW_TAGS, type ReviewTag } from "@iedora/product-tutor/enums"
 import { Button } from "@iedora/ui/components/ui/button"
+import { Textarea } from "@iedora/ui/components/ui/textarea"
 import { cn } from "@iedora/ui/lib/utils"
 import { Star, X } from "lucide-react"
 import { useAction } from "next-safe-action/hooks"
@@ -165,13 +166,13 @@ export function ReviewSheet({
           <span className="mb-2 block text-sm font-medium">
             Anything else? <span className="text-muted-foreground">Optional</span>
           </span>
-          <textarea
+          <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={4}
             maxLength={2000}
             placeholder={`What would you tell another parent about ${tutor.split(" ")[0]}?`}
-            className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+            className="resize-none rounded-xl p-3"
           />
         </label>
 
