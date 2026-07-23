@@ -1,3 +1,4 @@
+import { productUrl } from '@iedora/brand'
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveRefresh, applyCookieWrites, authConfig } from '@iedora/auth-sdk/next/middleware'
 
@@ -115,10 +116,12 @@ export default async function proxy(req: NextRequest) {
       return applyCookieWrites(new NextResponse("Not Found", { status: 404 }), auth.cookieWrites)
     }
     // Otherwise → the central sign-in, with `next` = the absolute URL the visitor
-    // actually asked for (their real host + public path), so after auth they land
-    // back on the exact route. Built from the request origin, not a per-product
-    // helper, so tutor/vantage/menu each round-trip to their own host correctly.
-    const returnTo = `${req.nextUrl.origin}${path}${req.nextUrl.search}`
+    // actually asked for, so after auth they land back on the exact route. Anchor
+    // it on the surface's CONFIGURED public origin (not req.nextUrl.origin, which
+    // is the internal 0.0.0.0:3000 bind behind the proxy) + the public path, so
+    // tutor/menu/vantage each round-trip to their own host correctly.
+    const origin = new URL(productUrl(sa.productId)).origin
+    const returnTo = `${origin}${path}${req.nextUrl.search}`
     const res = NextResponse.redirect(surfaceSignInUrl(sa, returnTo))
     return applyCookieWrites(res, auth.cookieWrites) // also clears dead cookies
   }
